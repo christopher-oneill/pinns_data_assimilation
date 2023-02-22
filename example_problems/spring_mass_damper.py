@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plot
 
+import tensorflow as tf
+
 m = 1
 c = 0.1
 k = (np.power(np.pi,2))
@@ -21,6 +23,7 @@ for i in range(1,x.size):
 
 plot.plot(t,x)
 plot.show()
+
 
 
 
