@@ -82,7 +82,7 @@ tf.config.threading.set_inter_op_parallelism_threads(2)
 
 
 # read the data
-filename = 'C:\projects\pinns_galerkin_viv\jakob_jfm/PIV_für_Jakob/Q10_S62_baseline_mean.mat'
+filename = 'C:\projects\pinns_galerkin_viv\data/jakob_jfm/PIV_für_Jakob/Q10_S62_baseline_mean.mat'
 solutFile = scipy.io.loadmat(filename)
 
 
@@ -101,7 +101,7 @@ ut_raw = np.array(solutFile['Wmean'])
 
 #temperature_raw=np.array(solutFile['0']['PointData']['T'])
 # read the reynolds stressen data
-filename = 'C:\projects\pinns_galerkin_viv\jakob_jfm/PIV_für_Jakob/Q10_S62_baseline_Reynolds.mat'
+filename = 'C:\projects\pinns_galerkin_viv\data/jakob_jfm/PIV_für_Jakob/Q10_S62_baseline_Reynolds.mat'
 solutFile = scipy.io.loadmat(filename)
 uxur_raw = np.array(solutFile['UV'])
 urut_raw = np.array(solutFile['UW'])
@@ -208,7 +208,8 @@ f_colloc_train_2 = lb_2 + (ub_2-lb_2)*lhs(2,N_f_colloc_2)
 f_colloc_train_3 = np.vstack((x/MAX_x,r/MAX_r)).T
  
 f_colloc_train = np.vstack((f_colloc_train_1,f_colloc_train_2,f_colloc_train_3))
-
+print('f_colloc_train.size:',f_colloc_train.size)
+exit()
 # plt.subplot(3,1,3)
 # plt.subplot(3,1,3)
 # plt.scatter(f_colloc_train[:,0],f_colloc_train[:,1])
