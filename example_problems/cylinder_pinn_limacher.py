@@ -212,19 +212,14 @@ def net_f_cartesian(colloc_tensor):
     return f_x, f_y, f_mass
 
 # create NN
-model_structure_string = 'dense30x10'
+dense_nodes = 60
+dense_layers = 10
+model_structure_string = 'dense30x10_'
 with tf.device('/GPU:0'):
     model = tfkeras.Sequential()
-    model.add(tfkeras.layers.Dense(30, activation='tanh', input_shape=(2,)))
-    model.add(tfkeras.layers.Dense(30, activation='tanh'))
-    model.add(tfkeras.layers.Dense(30, activation='tanh'))
-    model.add(tfkeras.layers.Dense(30, activation='tanh'))
-    model.add(tfkeras.layers.Dense(30, activation='tanh'))
-    model.add(tfkeras.layers.Dense(30, activation='tanh'))
-    model.add(tfkeras.layers.Dense(30, activation='tanh'))
-    model.add(tfkeras.layers.Dense(30, activation='tanh'))
-    model.add(tfkeras.layers.Dense(30, activation='tanh'))
-    model.add(tfkeras.layers.Dense(30, activation='tanh'))
+    model.add(tfkeras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
+    for i in range(dense_layers-1):
+        model.add(tfkeras.layers.Dense(dense_nodes, activation='tanh'))
     model.add(tfkeras.layers.Dense(4,activation='linear'))
     model.summary()
 
@@ -293,12 +288,11 @@ def plot_pred(x,y,ux,uy,X_train,pred):
 
 
 # train network with different learning rates
-hist = model.fit(X_train, O_train, batch_size=32, epochs=10, callbacks=[early_stop_callback,model_checkpoint_callback])
-model.save_weights('./tmp/'+model_structure_string+'b32_1')
-#model.load_weights(checkpoint_filepath)
+hist = model.fit(X_train, O_train, batch_size=32, epochs=5, callbacks=[early_stop_callback,model_checkpoint_callback])
+model.save_weights('./data/limacher/tmp/'+model_structure_string+'b32_ep5_st1')
 pred = model.predict(X_train,batch_size=512)
-plot_pred(pred)
-
+plot_pred(x,y,ux,uy,X_train,pred)
+exit()
 
 
 
