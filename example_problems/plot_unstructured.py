@@ -11,7 +11,7 @@ configFile = h5py.File(configfilename,'r')
 meanPressureFilename = 'C:/projects/pinns_galerkin_viv/data/mazi_fixed/meanPressure.mat'
 meanPressureFile = h5py.File(meanPressureFilename,'r')
 
-predfilename = 'C:/projects/pinns_galerkin_viv/data/mazi_fixed/tmp/dense30x10_b128_ep50_st4_pred.mat'
+predfilename = 'C:/projects/pinns_galerkin_viv/data/mazi_fixed/20230303014906_tmp/dense30x10_b32_ep900_st3_pred.mat'
 predFile =  h5py.File(predfilename,'r')
 
 
