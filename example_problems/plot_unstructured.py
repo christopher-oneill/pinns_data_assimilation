@@ -3,35 +3,47 @@ import h5py
 import matplotlib.pyplot as plot
 import scipy as sp
 
+base_dir = 'C:/projects/pinns_galerkin_viv/data/mazi_fixed/'
+meanFieldFile = h5py.File(base_dir+'meanField.mat','r')
+configFile = h5py.File(base_dir+'configuration.mat','r')
+meanPressureFile = h5py.File(base_dir+'meanPressure.mat','r')
+reynoldsStressFile = h5py.File(base_dir+'reynoldsStresses.mat','r')
+meanGradientsFile = h5py.File(base_dir+'meanGradients.mat','r')
 
-meanfilename = 'C:/projects/pinns_galerkin_viv/data/mazi_fixed/meanField.mat'
-meanFieldFile = h5py.File(meanfilename,'r')
-configfilename = 'C:/projects/pinns_galerkin_viv/data/mazi_fixed/configuration.mat'
-configFile = h5py.File(configfilename,'r')
-meanPressureFilename = 'C:/projects/pinns_galerkin_viv/data/mazi_fixed/meanPressure.mat'
-meanPressureFile = h5py.File(meanPressureFilename,'r')
-
-predfilename = 'C:/projects/pinns_galerkin_viv/data/mazi_fixed/20230303014906_tmp/dense30x10_b32_ep900_st3_pred.mat'
+print_name = '20230313_unconstr_nu_dense30x10_b32_ep100_st2'
+predfilename = base_dir+'20230313_unconstr_nu/dense30x10_b32_ep200_st2_pred.mat'
 predFile =  h5py.File(predfilename,'r')
 
 
 ux = np.array(meanFieldFile['meanField'][0,:]).transpose()
 uy = np.array(meanFieldFile['meanField'][1,:]).transpose()
 p = np.array(meanPressureFile['meanPressure']).transpose()
-
+upvp =  np.array(reynoldsStressFile['reynoldsStresses'][1,:]).transpose()
+dudy = (np.array(meanGradientsFile['meanGradients'][1,:]).transpose())
+dvdx = np.array(meanGradientsFile['meanGradients'][2,:]).transpose()
 x = np.array(configFile['X'][0,:])
 y = np.array(configFile['X'][1,:])
 d = np.array(configFile['cylinderDiameter'])[0]
 
-
+MAX_nut= 0.3 # estimated maximum of nut # THIS VALUE is internally multiplied with 0.001 (mm and m)
+MAX_p= 1 # estimated maximum pressure
+nu_mol = 0.0066667
 ux_pred = np.array(predFile['pred'][:,0])*np.max(ux)
 uy_pred = np.array(predFile['pred'][:,1])*np.max(uy)
-p_pred = np.array(predFile['pred'][:,2])
-nu_pred =  np.array(predFile['pred'][:,3])
+p_pred = np.array(predFile['pred'][:,2])*MAX_p
+#nu_pred =  np.power(np.array(predFile['pred'][:,3]),2)*MAX_nut
+nu_pred =  np.array(predFile['pred'][:,3])*MAX_nut
+# compute the estimated reynolds stress
+
+upvp_pred = -np.multiply(np.reshape(nu_pred+nu_mol,[nu_pred.shape[0],1]),dudy+dvdx)
 
 print('ux.shape: ',ux.shape)
 print('uy.shape: ',uy.shape)
 print('p.shape: ',p.shape)
+print('upvp.shape: ',upvp.shape)
+print('dudy.shape: ',dudy.shape)
+print('dvdx.shape: ',dvdx.shape)
+
 print('x.shape: ',x.shape)
 print('y.shape: ',y.shape)
 print('d: ',d.shape)
@@ -39,6 +51,8 @@ print('d: ',d.shape)
 print('ux_pred.shape: ',ux_pred.shape)
 print('uy_pred.shape: ',uy_pred.shape)
 print('p_pred.shape: ',p_pred.shape)
+print('nu_pred.shape: ',nu_pred.shape)
+print('upvp_pred.shape: ',upvp_pred.shape)
 
 x_vec = np.arange(-2,10,0.01)
 y_vec = np.arange(-2,2,0.01)
@@ -46,13 +60,16 @@ y_vec = np.arange(-2,2,0.01)
 ux_grid = sp.interpolate.griddata((x,y),ux,(x_grid,y_grid),method='cubic')[:,:,0]
 uy_grid = sp.interpolate.griddata((x,y),uy,(x_grid,y_grid),method='cubic')[:,:,0]
 p_grid = sp.interpolate.griddata((x,y),p,(x_grid,y_grid),method='cubic')[:,:,0]
+upvp_grid = sp.interpolate.griddata((x,y),upvp,(x_grid,y_grid),method='cubic')
 ux_pred_grid = sp.interpolate.griddata((x,y),ux_pred,(x_grid,y_grid),method='cubic')
 uy_pred_grid = sp.interpolate.griddata((x,y),uy_pred,(x_grid,y_grid),method='cubic')
 p_pred_grid = sp.interpolate.griddata((x,y),p_pred,(x_grid,y_grid),method='cubic')
-nu_pred_grid =  sp.interpolate.griddata((x,y),nu_pred,(x_grid,y_grid),method='cubic')
+nu_pred_grid = sp.interpolate.griddata((x,y),nu_pred,(x_grid,y_grid),method='cubic')
+upvp_pred_grid =  sp.interpolate.griddata((x,y),upvp_pred,(x_grid,y_grid),method='cubic')[:,:,0]
 ux_diff_grid = sp.interpolate.griddata((x,y),ux[:,0]-ux_pred,(x_grid,y_grid),method='cubic')
 uy_diff_grid = sp.interpolate.griddata((x,y),uy[:,0]-uy_pred,(x_grid,y_grid),method='cubic')
 p_diff_grid = sp.interpolate.griddata((x,y),p[:,0]-p_pred,(x_grid,y_grid),method='cubic')
+upvp_diff_grid = sp.interpolate.griddata((x,y),upvp-upvp_pred[:,0],(x_grid,y_grid),method='cubic')
 
 ux_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
 uy_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
@@ -60,9 +77,12 @@ p_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
 ux_pred_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
 uy_pred_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
 p_pred_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
+nu_pred_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
+upvp_pred_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
 ux_diff_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
 uy_diff_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
 p_diff_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
+upvp_diff_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
 
 fig = plot.figure(1)
 ax = fig.add_subplot(3,1,1)
@@ -70,16 +90,30 @@ plot.axis('equal')
 plot.contourf(x_grid,y_grid,ux_grid,20)
 plot.set_cmap('bwr')
 plot.colorbar()
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
+plot.ylabel('y/D')
 fig.add_subplot(3,1,2)
 plot.contourf(x_grid,y_grid,ux_pred_grid,20)
 plot.set_cmap('bwr')
 plot.colorbar()
+plot.ylabel('y/D')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
 plot.axis('equal')
-ax = fig.add_subplot(3,1,3)
+fig.add_subplot(3,1,3)
 plot.contourf(x_grid,y_grid,ux_diff_grid,20)
 plot.set_cmap('bwr')
 plot.colorbar()
+plot.ylabel('y/D')
+plot.xlabel('x/D')
 plot.axis('equal')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
+#plot.savefig(base_dir+'figures/'+print_name+'_mean_ux.png',dpi=300)
 
 
 fig2 = plot.figure(2)
@@ -88,16 +122,33 @@ plot.axis('equal')
 plot.contourf(x_grid,y_grid,uy_grid,20)
 plot.set_cmap('bwr')
 plot.colorbar()
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
+plot.ylabel('y/D')
 fig2.add_subplot(3,1,2)
 plot.contourf(x_grid,y_grid,uy_pred_grid,20)
 plot.set_cmap('bwr')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
 plot.colorbar()
 plot.axis('equal')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
+plot.ylabel('y/D')
 fig2.add_subplot(3,1,3)
 plot.contourf(x_grid,y_grid,uy_diff_grid,20)
 plot.set_cmap('bwr')
 plot.colorbar()
+plot.ylabel('y/D')
+plot.xlabel('x/D')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
 plot.axis('equal')
+#plot.savefig(base_dir+'figures/'+print_name+'_mean_uy.png',dpi=300)
 
 fig3 = plot.figure(3)
 fig3.add_subplot(3,1,1)
@@ -105,22 +156,73 @@ plot.axis('equal')
 plot.contourf(x_grid,y_grid,p_grid,20)
 plot.set_cmap('bwr')
 plot.colorbar()
+plot.ylabel('y/D')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
 fig3.add_subplot(3,1,2)
 plot.contourf(x_grid,y_grid,p_pred_grid,20)
 plot.set_cmap('bwr')
 plot.colorbar()
 plot.axis('equal')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
+plot.ylabel('y/D')
 fig3.add_subplot(3,1,3)
 plot.contourf(x_grid,y_grid,p_diff_grid,20)
 plot.set_cmap('bwr')
 plot.colorbar()
 plot.axis('equal')
+plot.ylabel('y/D')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
+plot.xlabel('x/D')
+#plot.savefig(base_dir+'figures/'+print_name+'_mean_p.png',dpi=300)
 
 fig4 = plot.figure(4)
-fig4.add_subplot(1,1,1)
+fig4.add_subplot(3,1,1)
+plot.axis('equal')
+plot.contourf(x_grid,y_grid,upvp_grid,20)
+plot.set_cmap('bwr')
+plot.colorbar()
+plot.ylabel('y/D')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
+fig4.add_subplot(3,1,2)
+plot.contourf(x_grid,y_grid,upvp_pred_grid,20)
+plot.set_cmap('bwr')
+plot.colorbar()
+plot.axis('equal')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
+plot.ylabel('y/D')
+fig4.add_subplot(3,1,3)
+plot.contourf(x_grid,y_grid,upvp_diff_grid,20)
+plot.set_cmap('bwr')
+plot.colorbar()
+plot.axis('equal')
+plot.ylabel('y/D')
+plot.xlabel('x/D')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
+#plot.savefig(base_dir+'figures/'+print_name+'_mean_upvp.png',dpi=300)
+
+
+fig5 = plot.figure(5)
+fig5.add_subplot(3,1,1)
 plot.axis('equal')
 plot.contourf(x_grid,y_grid,nu_pred_grid,20)
 plot.set_cmap('bwr')
 plot.colorbar()
-
+plot.ylabel('y/D')
+plot.xlabel('x/D')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
+#plot.savefig(base_dir+'figures/'+print_name+'_mean_nu.png',dpi=300)
 plot.show()
