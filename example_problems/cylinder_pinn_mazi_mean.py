@@ -63,6 +63,7 @@ import h5py
 from datetime import datetime
 
 tfkeras.backend.set_floatx('float64')
+dtype_train = tf.float64
 plt.rcParams['figure.figsize'] = [14, 7]
 mpl.rcParams['mathtext.fontset'] = 'stix'
 mpl.rcParams['font.family'] = 'STIXGeneral'
@@ -87,14 +88,14 @@ useGPU=True
 
 if useGPU:
     physical_devices = tf.config.list_physical_devices('GPU')
-    try:
-        tf.config.set_logical_device_configuration(
-            physical_devices[0],
-            [tf.config.LogicalDeviceConfiguration(memory_limit=6144)])
+   # try:
+   #     tf.config.set_logical_device_configuration(
+    #        physical_devices[0],
+    #        [tf.config.LogicalDeviceConfiguration(memory_limit=6144)])
 
-    except:
+    #except:
     # Invalid device or cannot modify logical devices once initialized.
-        pass
+       # pass
 else:
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
@@ -137,16 +138,14 @@ MAX_p= 1 # estimated maximum pressure
 
 
 # reduce the collocation points to 25k
-colloc_rand = np.random.choice(x.size,2500);
-
 colloc_limits1 = np.array([[-2.0,4.0],[0.0,2.0]])
 colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-colloc_lhs1 = colloc_sample_lhs1(1000)
+colloc_lhs1 = colloc_sample_lhs1(5000)
 print('colloc_lhs1.shape',colloc_lhs1.shape)
 
 colloc_limits2 = np.array([[4.0,10.0],[0.0,2.0]])
 colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
-colloc_lhs2 = colloc_sample_lhs2(1000)
+colloc_lhs2 = colloc_sample_lhs2(5000)
 print('colloc_lhs2.shape',colloc_lhs2.shape)
 
 colloc_merged = np.vstack((colloc_lhs1,colloc_lhs2))
@@ -257,6 +256,52 @@ def model_gradients(x_tensor):
 
     return ux, uy, p, nut, ux_x, ux_y, uy_x, uy_y, p_x, p_y, nut_x, nut_y, ux_xx, ux_yy, uy_xx, uy_yy
 
+
+
+def old_net_f_cartesian(colloc_tensor):
+    
+    up = model(colloc_tensor)
+    
+    ux    = up[:,0]*MAX_ux
+    uy    = up[:,1]*MAX_uy
+    p     = up[:,2]*MAX_p
+    nut   = up[:,3]*MAX_nut
+    #nut   = pow(up[:,3],2)*MAX_nut
+    
+    # ux gradient
+    dux = tf.gradients(ux, colloc_tensor)[0]
+    ux_x = dux[:,0]/MAX_x
+    ux_y = dux[:,1]/MAX_y
+    
+    # and second derivative
+    ux_xx = tf.gradients(ux_x, colloc_tensor)[0][:,0]/MAX_x
+    ux_yy = tf.gradients(ux_y, colloc_tensor)[0][:,1]/MAX_y
+    
+    # uy gradient
+    duy = tf.gradients(uy, colloc_tensor)[0]
+    uy_x = duy[:,0]/MAX_x
+    uy_y = duy[:,1]/MAX_y
+    
+    # and second derivative
+    uy_xx = tf.gradients(uy_x, colloc_tensor)[0][:,0]/MAX_x
+    uy_yy = tf.gradients(uy_y, colloc_tensor)[0][:,1]/MAX_y
+       
+    dp = tf.gradients(p, colloc_tensor)[0]
+    p_x = dp[:,0]/MAX_x
+    p_y = dp[:,1]/MAX_y
+
+    # gradient nut
+    dnut = tf.gradients(nut, colloc_tensor)[0]
+    nut_x = dnut[:,0]/MAX_x
+    nut_y = dnut[:,1]/MAX_y
+    
+    f_x = (ux*ux_x + uy*ux_y) + p_x - (nu_mol + nut)*(ux_xx+ux_yy) - 2*nut_x*ux_x - nut_y*(ux_y+uy_x) #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
+    f_y = (ux*uy_x + uy*uy_y) + p_y - (nu_mol + nut)*(uy_xx+uy_yy) - 2*nut_y*uy_y - nut_x*(ux_y+uy_x) #+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
+
+    f_mass = ux_x + uy_y
+
+    return f_x, f_y, f_mass
+
 @tf.function
 def net_f_cartesian(colloc_tensor):
     
@@ -289,19 +334,21 @@ def net_f_cartesian(colloc_tensor):
     dp = tf.gradients(p, colloc_tensor)[0]
     p_x = dp[:,0]/MAX_x
     p_y = dp[:,1]/MAX_y
-    
+    p_xx = tf.gradients(p_x,colloc_tensor)[0][:,0]/MAX_x
+    p_yy = tf.gradients(p_y,colloc_tensor)[0][:,1]/MAX_y
 
     # gradient nut
     dnut = tf.gradients(nut, colloc_tensor)[0]
     nut_x = dnut[:,0]/MAX_x
     nut_y = dnut[:,1]/MAX_y
     
-    f_x = (ux*ux_x + uy*ux_y) + p_x - (nu_mol + nut)*(ux_xx+ux_yy) - 2*nut_x*ux_x - nut_y*(ux_y+uy_x) #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
-    f_y = (ux*uy_x + uy*uy_y) + p_y - (nu_mol + nut)*(uy_xx+uy_yy) - 2*nut_y*uy_y - nut_x*(ux_y+uy_x) #+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
+    f_x = (ux*ux_x + uy*ux_y) + p_x - (nu_mol + nut)*(ux_xx+ux_yy) - tf.constant(2.0,dtype=dtype_train)*nut_x*ux_x - nut_y*(ux_y+uy_x) #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
+    f_y = (ux*uy_x + uy*uy_y) + p_y - (nu_mol + nut)*(uy_xx+uy_yy) - tf.constant(2.0,dtype=dtype_train)*nut_y*uy_y - nut_x*(ux_y+uy_x) #+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
 
     f_mass = ux_x + uy_y
+    f_p = p_xx + p_yy + tf.math.pow(ux_x,tf.constant(2.0,dtype=dtype_train)) + 2*ux_y*uy_x + tf.math.pow(uy_y,tf.constant(2.0,dtype=dtype_train))
 
-    return f_x, f_y, f_mass
+    return f_x, f_y, f_mass, f_p
 
 # create NN
 dense_nodes = 30
@@ -332,21 +379,22 @@ def custom_loss_wrapper(colloc_tensor_f,BCs_p): # def custom_loss_wrapper(colloc
         data_loss2 = tfkeras.losses.mean_squared_error(y_true[:,1], y_pred[:,1]) # v 
         #data_loss3 = tfkeras.losses.mean_squared_error(y_true[:,2], y_pred[:,2]) # p        
         
-        mx,my,mass = net_f_cartesian(colloc_tensor_f)
+        mx,my,mass,mp = net_f_cartesian(colloc_tensor_f)
         physical_loss1 = tf.reduce_mean(tf.square(mx))
         physical_loss2 = tf.reduce_mean(tf.square(my))
         physical_loss3 = tf.reduce_mean(tf.square(mass))
+        physical_loss4 = tf.reduce_mean(tf.square(mp))
         
         #boundary loss
         #f_boundary_t1   = BC_fun(BCs,ut_bc1,2)
-        f_boundary_p = BC_fun(BCs_p,p_bc,2)
+        #f_boundary_p = BC_fun(BCs_p,p_bc,2)
         #f_boundary_t2 = BC_fun(BCs_t,ut_bc2,2)
         
-        return data_loss1 + data_loss2  + 1*physical_loss1 + 1*physical_loss2 + 1*physical_loss3 + 0*f_boundary_p # + f_boundary_t1+ f_boundary_t2 
+        return data_loss1 + data_loss2  + 1*physical_loss1 + 1*physical_loss2 + 1*physical_loss3 + 1*physical_loss4 # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
 
     return custom_loss
 
-model.compile(optimizer=tfkeras.optimizers.SGD(learning_rate=0.01), loss = custom_loss_wrapper(f_colloc_train,BC_points2)) #(...,BC_points1,...,BC_points3)
+model.compile(optimizer=tfkeras.optimizers.SGD(learning_rate=0.01), loss = custom_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(BC_points2,dtype_train))) #(...,BC_points1,...,BC_points3)
 
 model_checkpoint_callback = tfkeras.callbacks.ModelCheckpoint(
     filepath=checkpoint_filepath,
@@ -387,24 +435,54 @@ rng = np.random.default_rng()
 save_loc = './data/mazi_fixed/20230313_unconstr_nu/'
 
 if True:
-    model.load_weights('./data/mazi_fixed/20230313_unconstr_nu/dense30x10_b32_ep200_st2')
+    model.load_weights('./data/mazi_fixed/20230313_unconstr_nu/dense30x10_b32_ep530_st3')
     #pred = model.predict(X_all,batch_size=512)
     #h5f = h5py.File('./data/mazi_fixed/20230302_4eq_noConstr/dense30x10_b32_ep500_st3_pred.mat','w')
     #h5f.create_dataset('pred',data=pred)
     #h5f.close()
 
 
+
+d_epochs = 50
+epochs = 530
+stage = 3
+X_train = tf.cast(X_train,dtype_train)
+O_train = tf.cast(O_train,dtype_train)
+
 tfkeras.backend.set_value(model.optimizer.learning_rate, 0.005)
-d_epochs = 100
-epochs = 200
+shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
+temp_X_train = X_train[shuffle_inds,:]
+temp_Y_train = O_train[shuffle_inds,:]
+hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=20, callbacks=[early_stop_callback,model_checkpoint_callback])
+epochs = epochs+20
+model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage))
+pred = model.predict(X_all,batch_size=512)
+h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage)+'_pred.mat','w')
+h5f.create_dataset('pred',data=pred)
+h5f.close()
+
+
+tfkeras.backend.set_value(model.optimizer.learning_rate, 0.005)
 shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
 temp_X_train = X_train[shuffle_inds,:]
 temp_Y_train = O_train[shuffle_inds,:]
 hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
 epochs = epochs+d_epochs
-model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st2')
+model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage))
 pred = model.predict(X_all,batch_size=512)
-h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st2_pred.mat','w')
+h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage)+'_pred.mat','w')
+h5f.create_dataset('pred',data=pred)
+h5f.close()
+
+
+shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
+temp_X_train = X_train[shuffle_inds,:]
+temp_Y_train = O_train[shuffle_inds,:]
+hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
+epochs = epochs+d_epochs
+model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage))
+pred = model.predict(X_all,batch_size=512)
+h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage)+'_pred.mat','w')
 h5f.create_dataset('pred',data=pred)
 h5f.close()
 
@@ -413,9 +491,9 @@ temp_X_train = X_train[shuffle_inds,:]
 temp_Y_train = O_train[shuffle_inds,:]
 hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
 epochs = epochs+d_epochs
-model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st2')
+model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage))
 pred = model.predict(X_all,batch_size=512)
-h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st2_pred.mat','w')
+h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage)+'_pred.mat','w')
 h5f.create_dataset('pred',data=pred)
 h5f.close()
 
@@ -424,9 +502,9 @@ temp_X_train = X_train[shuffle_inds,:]
 temp_Y_train = O_train[shuffle_inds,:]
 hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
 epochs = epochs+d_epochs
-model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st2')
+model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage))
 pred = model.predict(X_all,batch_size=512)
-h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st2_pred.mat','w')
+h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage)+'_pred.mat','w')
 h5f.create_dataset('pred',data=pred)
 h5f.close()
 
@@ -435,9 +513,9 @@ temp_X_train = X_train[shuffle_inds,:]
 temp_Y_train = O_train[shuffle_inds,:]
 hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
 epochs = epochs+d_epochs
-model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st2')
+model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage))
 pred = model.predict(X_all,batch_size=512)
-h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st2_pred.mat','w')
+h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage)+'_pred.mat','w')
 h5f.create_dataset('pred',data=pred)
 h5f.close()
 
@@ -446,20 +524,9 @@ temp_X_train = X_train[shuffle_inds,:]
 temp_Y_train = O_train[shuffle_inds,:]
 hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
 epochs = epochs+d_epochs
-model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st2')
+model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage))
 pred = model.predict(X_all,batch_size=512)
-h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st2_pred.mat','w')
-h5f.create_dataset('pred',data=pred)
-h5f.close()
-
-shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
-temp_X_train = X_train[shuffle_inds,:]
-temp_Y_train = O_train[shuffle_inds,:]
-hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
-epochs = epochs+d_epochs
-model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st2')
-pred = model.predict(X_all,batch_size=512)
-h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st2_pred.mat','w')
+h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage)+'_pred.mat','w')
 h5f.create_dataset('pred',data=pred)
 h5f.close()
 
