@@ -10,10 +10,10 @@ meanPressureFile = h5py.File(base_dir+'meanPressure.mat','r')
 reynoldsStressFile = h5py.File(base_dir+'reynoldsStresses.mat','r')
 meanGradientsFile = h5py.File(base_dir+'meanGradients.mat','r')
 
-print_name = '20230313_reynolds_stress_dense30x10_b32_ep60_st2'
-predfilename = base_dir+'20230320_reynolds_stress/dense30x10_b32_ep60_st2_pred.mat'
+print_name ='tmp'
+predfilename = base_dir+'20230320_reynolds_stress/dense30x10_b32_ep310_st2_pred.mat'
 predFile =  h5py.File(predfilename,'r')
-
+SaveFig = False
 
 ux = np.array(meanFieldFile['meanField'][0,:]).transpose()
 ux = ux[:,0]
@@ -63,8 +63,15 @@ print('upvp_pred.shape: ',upvp_pred.shape)
 # note that the absolute value of the pressure doesnt matter, only grad p and grad2 p, so subtract the mean 
 #p_pred = p_pred-(1/3)*(upup+vpvp)#p_pred - (1/3)*(upup+vpvp)
 
+
+
+print(np.max(upup))
+print(np.min(upup))
 print(np.max(upvp))
 print(np.min(upvp))
+print(np.max(vpvp))
+print(np.min(vpvp))
+exit()
 
 x_vec = np.arange(-2,10,0.01)
 y_vec = np.arange(-2,2,0.01)
@@ -130,7 +137,8 @@ plot.axis('equal')
 ax=plot.gca()
 ax.set_xlim(left=-2.0,right=10.0)
 ax.set_ylim(bottom=-2.0,top=2.0)
-plot.savefig(base_dir+'figures/'+print_name+'_mean_ux.png',dpi=300)
+if SaveFig:
+    plot.savefig(base_dir+'figures/'+print_name+'_mean_ux.png',dpi=300)
 
 
 
@@ -170,7 +178,8 @@ ax=plot.gca()
 ax.set_xlim(left=-2.0,right=10.0)
 ax.set_ylim(bottom=-2.0,top=2.0)
 plot.axis('equal')
-plot.savefig(base_dir+'figures/'+print_name+'_mean_uy.png',dpi=300)
+if SaveFig:
+    plot.savefig(base_dir+'figures/'+print_name+'_mean_uy.png',dpi=300)
 
 f3_max = np.nanmax(np.array([np.nanmax(p_grid)]))
 f3_min = np.nanmin(np.array([np.nanmin(p_grid)]))
@@ -205,7 +214,8 @@ ax=plot.gca()
 ax.set_xlim(left=-2.0,right=10.0)
 ax.set_ylim(bottom=-2.0,top=2.0)
 plot.xlabel('x/D')
-plot.savefig(base_dir+'figures/'+print_name+'_mean_p.png',dpi=300)
+if SaveFig:
+    plot.savefig(base_dir+'figures/'+print_name+'_mean_p.png',dpi=300)
 
 f4_max = np.nanmax(np.array([np.nanmax(upvp_grid)]))
 f4_min = np.nanmin(np.array([np.nanmin(upvp_grid)]))
@@ -240,7 +250,8 @@ plot.xlabel('x/D')
 ax=plot.gca()
 ax.set_xlim(left=-2.0,right=10.0)
 ax.set_ylim(bottom=-2.0,top=2.0)
-plot.savefig(base_dir+'figures/'+print_name+'_mean_upvp.png',dpi=300)
+if SaveFig:
+    plot.savefig(base_dir+'figures/'+print_name+'_mean_upvp.png',dpi=300)
 
 if False:
     f5_max = np.nanmax(np.array([np.nanmax(nu_pred_grid)]))
