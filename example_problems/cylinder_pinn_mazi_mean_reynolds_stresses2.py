@@ -109,9 +109,9 @@ reynoldsStressFile = h5py.File(base_dir+'reynoldsStresses.mat','r')
 
 ux = np.array(meanFieldFile['meanField'][0,:]).transpose()
 uy = np.array(meanFieldFile['meanField'][1,:]).transpose()
-upup = np.array(reynoldsStressFile['reynoldsStresses'][0,:]).transpose()
-upvp = np.array(reynoldsStressFile['reynoldsStresses'][1,:]).transpose()
-vpvp = np.array(reynoldsStressFile['reynoldsStresses'][2,:]).transpose()
+uxpuxp = np.array(reynoldsStressFile['reynoldsStresses'][0,:]).transpose()
+uxpuyp = np.array(reynoldsStressFile['reynoldsStresses'][1,:]).transpose()
+uypuyp = np.array(reynoldsStressFile['reynoldsStresses'][2,:]).transpose()
 
 x = np.array(configFile['X'][0,:])
 y = np.array(configFile['X'][1,:])
@@ -131,13 +131,13 @@ MIN_x = min(x.flatten())
 MIN_y = min(y.flatten())
 MIN_ux = min(ux.flatten())
 MIN_uy = min(uy.flatten())
+MAX_uxpuxp = max(uxpuxp.flatten())
+MAX_uxpuyp = max(uxpuyp.flatten())
+MAX_uypuyp = max(uypuyp.flatten())
 
 print('max_x: ',MAX_x)
 print('max_y: ',MAX_y)
 
-MAX_uxpuxp = 1
-MAX_uxpuyp = 1 # estimated maximum of nut # THIS VALUE is internally multiplied with 0.001 (mm and m)
-MAX_uypuyp = 1
 MAX_p= 1 # estimated maximum pressure
 
 
@@ -191,7 +191,10 @@ if False:
 x_train = x/MAX_x
 y_train = y/MAX_y
 ux_train = ux/MAX_ux
-uy_train = uy/MAX_uy   
+uy_train = uy/MAX_uy
+uxpuxp_train = uxpuxp/MAX_uxpuxp
+uxpuyp_train = uxpuyp/MAX_uxpuyp
+uypuyp_train = uypuyp/MAX_uypuyp
 
 # copy the points before reducing the size 
 x_all = x_train
@@ -207,7 +210,7 @@ if False:
     uy_train=uy_train[train_points]
 
 
-O_train = np.hstack(((ux_train).reshape(-1,1),(uy_train).reshape(-1,1))) # training data
+O_train = np.hstack(((ux_train).reshape(-1,1),(uy_train).reshape(-1,1),(uxpuxp_train).reshape(-1,1),(uxpuyp_train).reshape(-1,1),(uypuyp_train).reshape(-1,1),)) # training data
 X_train = np.hstack((x_train.reshape(-1,1),y_train.reshape(-1,1) ))
 
 
@@ -228,9 +231,9 @@ def net_f_cartesian(colloc_tensor):
     ux    = up[:,0]*MAX_ux
     uy    = up[:,1]*MAX_uy
     p     = up[:,2]*MAX_p
-    uxpuxp = tf.math.pow(up[:,3],tf.constant(2.0,dtype=dtype_train))*MAX_uxpuxp
-    uxpuyp  = up[:,4]*MAX_uxpuyp
-    uypuyp = tf.math.pow(up[:,5],tf.constant(2.0,dtype=dtype_train))*MAX_uypuyp
+    uxpuxp = up[:,3]*MAX_uxpuxp
+    uxpuyp = up[:,4]*MAX_uxpuyp
+    uypuyp = up[:,5]*MAX_uypuyp
     #nut   = pow(up[:,3],2)*MAX_nut
     
     # ux gradient
@@ -276,9 +279,9 @@ def net_f_cartesian(colloc_tensor):
     return f_x, f_y, f_mass, f_p
 
 # create NN
-dense_nodes = 30
+dense_nodes = 50
 dense_layers = 10
-model_structure_string = 'dense30x10_'
+model_structure_string = 'dense50x10_'
 with tf.device('/CPU:0'):
     model = tfkeras.Sequential()
     model.add(tfkeras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
@@ -302,8 +305,10 @@ def custom_loss_wrapper(colloc_tensor_f,BCs_p): # def custom_loss_wrapper(colloc
         
         data_loss1 = tfkeras.losses.mean_squared_error(y_true[:,0], y_pred[:,0]) # u 
         data_loss2 = tfkeras.losses.mean_squared_error(y_true[:,1], y_pred[:,1]) # v 
-        #data_loss3 = tfkeras.losses.mean_squared_error(y_true[:,2], y_pred[:,2]) # p        
-        
+        data_loss4 = tfkeras.losses.mean_squared_error(y_true[:,2], y_pred[:,2]) # u'u'   
+        data_loss5 = tfkeras.losses.mean_squared_error(y_true[:,3], y_pred[:,3]) # u'v'
+        data_loss6 = tfkeras.losses.mean_squared_error(y_true[:,4], y_pred[:,4]) # v'v'
+
         mx,my,mass,mp = net_f_cartesian(colloc_tensor_f)
         physical_loss1 = tf.reduce_mean(tf.square(mx))
         physical_loss2 = tf.reduce_mean(tf.square(my))
@@ -315,7 +320,7 @@ def custom_loss_wrapper(colloc_tensor_f,BCs_p): # def custom_loss_wrapper(colloc
         #f_boundary_p = BC_fun(BCs_p,p_bc,2)
         #f_boundary_t2 = BC_fun(BCs_t,ut_bc2,2)
         
-        return data_loss1 + data_loss2  + 1*physical_loss1 + 1*physical_loss2 + 1*physical_loss3 + 1*physical_loss4 # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
+        return data_loss1 + data_loss2 + data_loss4 + data_loss5 + data_loss6  + 1*physical_loss1 + 1*physical_loss2 + 1*physical_loss3 + 1*physical_loss4 # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
 
     return custom_loss
 
@@ -357,7 +362,7 @@ def plot_pred(x,y,ux,uy,X_train,pred):
 rng = np.random.default_rng()
 
 
-save_loc = './data/mazi_fixed/20230324_reynolds_stress/'
+save_loc = './data/mazi_fixed/20230327_reynolds_stress/'
 
 if False:
     model.load_weights('./data/mazi_fixed/20230313_unconstr_nu/dense30x10_b32_ep530_st3')
@@ -374,18 +379,19 @@ stage = 1
 X_train = tf.cast(X_train,dtype_train)
 O_train = tf.cast(O_train,dtype_train)
 
-shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
-temp_X_train = X_train[shuffle_inds,:]
-temp_Y_train = O_train[shuffle_inds,:]
-hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
-epochs = epochs+d_epochs
-model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage))
-pred = model.predict(X_all,batch_size=512)
-h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage)+'_pred.mat','w')
-h5f.create_dataset('pred',data=pred)
-h5f.close()
+for pqr in range(5):
+    shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
+    temp_X_train = X_train[shuffle_inds,:]
+    temp_Y_train = O_train[shuffle_inds,:]
+    hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
+    epochs = epochs+d_epochs
+    model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage))
+    pred = model.predict(X_all,batch_size=512)
+    h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage)+'_pred.mat','w')
+    h5f.create_dataset('pred',data=pred)
+    h5f.close()
 
-d_epochs = 40
+d_epochs = 50
 stage = 2
 
 tfkeras.backend.set_value(model.optimizer.learning_rate, 0.005)

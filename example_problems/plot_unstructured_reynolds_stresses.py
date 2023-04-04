@@ -3,17 +3,18 @@ import h5py
 import matplotlib.pyplot as plot
 import scipy as sp
 
-base_dir = 'C:/projects/pinns_galerkin_viv/data/mazi_fixed/'
+base_dir = '/mnt/c/projects/pinns_galerkin_viv/data/mazi_fixed/'
 meanFieldFile = h5py.File(base_dir+'meanField.mat','r')
 configFile = h5py.File(base_dir+'configuration.mat','r')
 meanPressureFile = h5py.File(base_dir+'meanPressure.mat','r')
 reynoldsStressFile = h5py.File(base_dir+'reynoldsStresses.mat','r')
 meanGradientsFile = h5py.File(base_dir+'meanGradients.mat','r')
 
-print_name ='tmp'
-predfilename = base_dir+'20230320_reynolds_stress/dense30x10_b32_ep310_st2_pred.mat'
+print_name ='20230328_reynolds_stress_st250'
+predfilename = base_dir+'20230328_reynolds_stress/dense50x10_b32_ep250_st2_pred.mat'
 predFile =  h5py.File(predfilename,'r')
-SaveFig = False
+SaveFig = True
+PlotFig = False
 
 ux = np.array(meanFieldFile['meanField'][0,:]).transpose()
 ux = ux[:,0]
@@ -30,15 +31,19 @@ x = np.array(configFile['X'][0,:])
 y = np.array(configFile['X'][1,:])
 d = np.array(configFile['cylinderDiameter'])[0]
 
-MAX_upvp= 0.2 # estimated maximum of nut # THIS VALUE is internally multiplied with 0.001 (mm and m)
-MAX_p= 2 # estimated maximum pressure
+MAX_upup = np.max(upup)
+MAX_upvp = np.max(upvp) # estimated maximum of nut # THIS VALUE is internally multiplied with 0.001 (mm and m)
+MAX_vpvp = np.max(vpvp)
+MAX_p= 1 # estimated maximum pressure
 
 nu_mol = 0.0066667
 ux_pred = np.array(predFile['pred'][:,0])*np.max(ux)
 uy_pred = np.array(predFile['pred'][:,1])*np.max(uy)
-p_pred = np.array(predFile['pred'][:,2])*MAX_p
+p_pred = np.array(predFile['pred'][:,5])*MAX_p
 #nu_pred =  np.power(np.array(predFile['pred'][:,3]),2)*MAX_nut
-upvp_pred =  np.array(predFile['pred'][:,3])*MAX_upvp
+upup_pred = np.array(predFile['pred'][:,2])*MAX_upup
+upvp_pred = np.array(predFile['pred'][:,3])*MAX_upvp
+vpvp_pred = np.array(predFile['pred'][:,4])*MAX_vpvp
 # compute the estimated reynolds stress
 
 #upvp_pred = -np.multiply(np.reshape(nu_pred+nu_mol,[nu_pred.shape[0],1]),dudy+dvdx)
@@ -65,30 +70,28 @@ print('upvp_pred.shape: ',upvp_pred.shape)
 
 
 
-print(np.max(upup))
-print(np.min(upup))
-print(np.max(upvp))
-print(np.min(upvp))
-print(np.max(vpvp))
-print(np.min(vpvp))
-exit()
-
 x_vec = np.arange(-2,10,0.01)
 y_vec = np.arange(-2,2,0.01)
 [x_grid,y_grid] = np.meshgrid(x_vec,y_vec)
 ux_grid = sp.interpolate.griddata((x,y),ux,(x_grid,y_grid),method='cubic')
 uy_grid = sp.interpolate.griddata((x,y),uy,(x_grid,y_grid),method='cubic')
 p_grid = sp.interpolate.griddata((x,y),p,(x_grid,y_grid),method='cubic')
+upup_grid = sp.interpolate.griddata((x,y),upup,(x_grid,y_grid),method='cubic')
 upvp_grid = sp.interpolate.griddata((x,y),upvp,(x_grid,y_grid),method='cubic')
+vpvp_grid = sp.interpolate.griddata((x,y),vpvp,(x_grid,y_grid),method='cubic')
 ux_pred_grid = sp.interpolate.griddata((x,y),ux_pred,(x_grid,y_grid),method='cubic')
 uy_pred_grid = sp.interpolate.griddata((x,y),uy_pred,(x_grid,y_grid),method='cubic')
 p_pred_grid = sp.interpolate.griddata((x,y),p_pred,(x_grid,y_grid),method='cubic')
 #nu_pred_grid = sp.interpolate.griddata((x,y),nu_pred,(x_grid,y_grid),method='cubic')
+upup_pred_grid =  sp.interpolate.griddata((x,y),upup_pred,(x_grid,y_grid),method='cubic')
 upvp_pred_grid =  sp.interpolate.griddata((x,y),upvp_pred,(x_grid,y_grid),method='cubic')
+vpvp_pred_grid =  sp.interpolate.griddata((x,y),vpvp_pred,(x_grid,y_grid),method='cubic')
 ux_diff_grid = sp.interpolate.griddata((x,y),ux-ux_pred,(x_grid,y_grid),method='cubic')
 uy_diff_grid = sp.interpolate.griddata((x,y),uy-uy_pred,(x_grid,y_grid),method='cubic')
 p_diff_grid = sp.interpolate.griddata((x,y),p-p_pred,(x_grid,y_grid),method='cubic')
+upup_diff_grid = sp.interpolate.griddata((x,y),upup-upup_pred,(x_grid,y_grid),method='cubic')
 upvp_diff_grid = sp.interpolate.griddata((x,y),upvp-upvp_pred,(x_grid,y_grid),method='cubic')
+vpvp_diff_grid = sp.interpolate.griddata((x,y),vpvp-vpvp_pred,(x_grid,y_grid),method='cubic')
 
 
 ux_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
@@ -98,11 +101,15 @@ ux_pred_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
 uy_pred_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
 p_pred_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
 #nu_pred_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
+upup_pred_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
 upvp_pred_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
+vpvp_pred_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
 ux_diff_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
 uy_diff_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
 p_diff_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
+upup_diff_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
 upvp_diff_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
+vpvp_diff_grid[np.power(np.power(x_grid,2)+np.power(y_grid,2),0.5)<=0.5*d]=np.NaN
 
 f1_max = np.nanmax(np.array([np.nanmax(ux_grid)]))
 f1_min = np.nanmin(np.array([np.nanmin(ux_grid)]))
@@ -188,7 +195,7 @@ f3_levels = np.linspace(-f3_lims,f3_lims,21)
 fig3 = plot.figure(3)
 fig3.add_subplot(3,1,1)
 plot.axis('equal')
-plot.contourf(x_grid,y_grid,p_grid,levels=f3_levels)
+plot.contourf(x_grid,y_grid,p_grid,21)
 plot.set_cmap('bwr')
 plot.colorbar()
 plot.ylabel('y/D')
@@ -217,14 +224,14 @@ plot.xlabel('x/D')
 if SaveFig:
     plot.savefig(base_dir+'figures/'+print_name+'_mean_p.png',dpi=300)
 
-f4_max = np.nanmax(np.array([np.nanmax(upvp_grid)]))
-f4_min = np.nanmin(np.array([np.nanmin(upvp_grid)]))
+f4_max = np.nanmax(np.array([np.nanmax(upup_grid)]))
+f4_min = np.nanmin(np.array([np.nanmin(upup_grid)]))
 f4_lims = np.nanmax(np.abs(np.array([f4_max,f4_min])))
 f4_levels = np.linspace(-f4_lims,f4_lims,21)
 fig4 = plot.figure(4)
 fig4.add_subplot(3,1,1)
 plot.axis('equal')
-plot.contourf(x_grid,y_grid,upvp_grid,levels=f4_levels)
+plot.contourf(x_grid,y_grid,upup_grid,21)
 plot.set_cmap('bwr')
 plot.colorbar()
 plot.ylabel('y/D')
@@ -232,7 +239,7 @@ ax=plot.gca()
 ax.set_xlim(left=-2.0,right=10.0)
 ax.set_ylim(bottom=-2.0,top=2.0)
 fig4.add_subplot(3,1,2)
-plot.contourf(x_grid,y_grid,upvp_pred_grid,levels=f4_levels)
+plot.contourf(x_grid,y_grid,upup_pred_grid,21)
 plot.set_cmap('bwr')
 plot.colorbar()
 plot.axis('equal')
@@ -241,7 +248,43 @@ ax.set_xlim(left=-2.0,right=10.0)
 ax.set_ylim(bottom=-2.0,top=2.0)
 plot.ylabel('y/D')
 fig4.add_subplot(3,1,3)
-plot.contourf(x_grid,y_grid,upvp_diff_grid,levels=f4_levels)
+plot.contourf(x_grid,y_grid,upup_diff_grid,21)
+plot.set_cmap('bwr')
+plot.colorbar()
+plot.axis('equal')
+plot.ylabel('y/D')
+plot.xlabel('x/D')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
+if SaveFig:
+    plot.savefig(base_dir+'figures/'+print_name+'_mean_upup.png',dpi=300)
+
+f5_max = np.nanmax(np.array([np.nanmax(upvp_grid)]))
+f5_min = np.nanmin(np.array([np.nanmin(upvp_grid)]))
+f5_lims = np.nanmax(np.abs(np.array([f5_max,f5_min])))
+f5_levels = np.linspace(-f5_lims,f5_lims,21)
+fig5 = plot.figure(5)
+fig5.add_subplot(3,1,1)
+plot.axis('equal')
+plot.contourf(x_grid,y_grid,upvp_grid,21)
+plot.set_cmap('bwr')
+plot.colorbar()
+plot.ylabel('y/D')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
+fig5.add_subplot(3,1,2)
+plot.contourf(x_grid,y_grid,upvp_pred_grid,21)
+plot.set_cmap('bwr')
+plot.colorbar()
+plot.axis('equal')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
+plot.ylabel('y/D')
+fig5.add_subplot(3,1,3)
+plot.contourf(x_grid,y_grid,upvp_diff_grid,21)
 plot.set_cmap('bwr')
 plot.colorbar()
 plot.axis('equal')
@@ -252,6 +295,42 @@ ax.set_xlim(left=-2.0,right=10.0)
 ax.set_ylim(bottom=-2.0,top=2.0)
 if SaveFig:
     plot.savefig(base_dir+'figures/'+print_name+'_mean_upvp.png',dpi=300)
+
+f6_max = np.nanmax(np.array([np.nanmax(vpvp_grid)]))
+f6_min = np.nanmin(np.array([np.nanmin(vpvp_grid)]))
+f6_lims = np.nanmax(np.abs(np.array([f6_max,f6_min])))
+f6_levels = np.linspace(-f6_lims,f6_lims,21)
+fig6 = plot.figure(6)
+fig6.add_subplot(3,1,1)
+plot.axis('equal')
+plot.contourf(x_grid,y_grid,vpvp_grid,21)
+plot.set_cmap('bwr')
+plot.colorbar()
+plot.ylabel('y/D')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
+fig6.add_subplot(3,1,2)
+plot.contourf(x_grid,y_grid,vpvp_pred_grid,21)
+plot.set_cmap('bwr')
+plot.colorbar()
+plot.axis('equal')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
+plot.ylabel('y/D')
+fig6.add_subplot(3,1,3)
+plot.contourf(x_grid,y_grid,vpvp_diff_grid,21)
+plot.set_cmap('bwr')
+plot.colorbar()
+plot.axis('equal')
+plot.ylabel('y/D')
+plot.xlabel('x/D')
+ax=plot.gca()
+ax.set_xlim(left=-2.0,right=10.0)
+ax.set_ylim(bottom=-2.0,top=2.0)
+if SaveFig:
+    plot.savefig(base_dir+'figures/'+print_name+'_mean_vpvp.png',dpi=300)
 
 if False:
     f5_max = np.nanmax(np.array([np.nanmax(nu_pred_grid)]))
@@ -270,4 +349,5 @@ if False:
     ax.set_xlim(left=-2.0,right=10.0)
     ax.set_ylim(bottom=-2.0,top=2.0)
     plot.savefig(base_dir+'figures/'+print_name+'_mean_nu.png',dpi=300)
-plot.show()
+if PlotFig:
+    plot.show()
