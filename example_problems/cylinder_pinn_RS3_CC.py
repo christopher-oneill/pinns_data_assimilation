@@ -48,27 +48,15 @@ from scipy import interpolate
 from scipy.interpolate import griddata
 import tensorflow as tf
 import tensorflow.keras as tfkeras
-from mpl_toolkits.mplot3d import Axes3D
 import h5py
-import time
-import pickle
 import os
 import smt
 from smt.sampling_methods import LHS
 from pyDOE import lhs
-import matplotlib as mpl
-import matplotlib.cm as cm
-import matplotlib.pyplot as plt
-import h5py
 from datetime import datetime
 
 tfkeras.backend.set_floatx('float64')
 dtype_train = tf.float64
-plt.rcParams['figure.figsize'] = [14, 7]
-mpl.rcParams['mathtext.fontset'] = 'stix'
-mpl.rcParams['font.family'] = 'STIXGeneral'
-#mpl.use('Qt5Agg')
-mpl.use('TkAgg')
 
 case = 'JFM'
 start_timestamp = datetime.strftime(datetime.now(),'%Y%m%d%H%M%S')
