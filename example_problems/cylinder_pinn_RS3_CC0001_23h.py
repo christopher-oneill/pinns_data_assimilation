@@ -340,7 +340,7 @@ for pqr in range(1):
         h5f.create_dataset('pred',data=pred)
         h5f.close()
     else:
-        dir
+        pass
 
 
 exit()
