@@ -62,8 +62,7 @@ dtype_train = tf.float64
 case = 'JFM'
 start_time = datetime.now()
 start_timestamp = datetime.strftime(start_time,'%Y%m%d%H%M%S')
-save_loc = './output/'
-checkpoint_filepath = './output/checkpoint'
+
 PLOT = False
 useGPU=True
 
@@ -71,6 +70,10 @@ useGPU=True
 job_name = 'RS3_CC0001_23h'
 job_duration = timedelta(hours=22,minutes=30)
 end_time = start_time+job_duration
+
+# set the paths
+save_loc = './output/'+job_name+'_output/'
+checkpoint_filepath = save_loc+'checkpoint'
 
 # set number of cores to compute on 
 tf.config.threading.set_intra_op_parallelism_threads(6)
