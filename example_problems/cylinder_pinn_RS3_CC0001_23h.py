@@ -313,7 +313,10 @@ early_stop_callback = tfkeras.callbacks.EarlyStopping(monitor='loss', patience=5
 rng = np.random.default_rng()
 
 # we need to check if there are already checkpoints for this job
-#checkpoint_files = os.listdir('./output/'+job_name+'_ep*.index')
+checkpoint_files = os.listdir('./output/'+job_name+'_ep*.index')
+print(checkpoint_files)
+
+exit()
 
 if False:
     model.load_weights(base_dir+'20230328_reynolds_stress/dense50x10_b32_ep250_st2')
