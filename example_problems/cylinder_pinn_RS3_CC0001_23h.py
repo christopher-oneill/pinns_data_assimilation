@@ -69,11 +69,8 @@ useGPU=False
 
 # parameters for running on compute canada
 job_name = 'RS3_CC0001_23h'
-job_duration = timedelta(hours=23)
-
-
-# set constant seed to compare simulations with different hyper parameters
-
+job_duration = timedelta(hours=22,minutes=30)
+end_time = start_time+job_duration
 
 # set number of cores to compute on 
 tf.config.threading.set_intra_op_parallelism_threads(6)
@@ -96,7 +93,7 @@ else:
 
 
 # read the data
-base_dir = './mazi_fixed/'
+base_dir = './data/mazi_fixed/'
 meanFieldFile = h5py.File(base_dir+'meanField.mat','r')
 configFile = h5py.File(base_dir+'configuration.mat','r')
 reynoldsStressFile = h5py.File(base_dir+'reynoldsStresses.mat','r')
@@ -155,33 +152,7 @@ colloc_merged = np.delete(colloc_merged,cylinder_inds,axis=0)
 colloc_merged = np.vstack((colloc_merged,colloc_merged*np.array([1,-1])))
 print('colloc_merged.shape',colloc_merged.shape)
 
-if False:
-    plt.figure(1)
-    plt.scatter(colloc_merged[:,0],colloc_merged[:,1])
-    plt.show()
-
 f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
-
-
-
-
-if False:
-    fig = plt.figure(1)
-    ax1 = plt.subplot(2,1,1)
-    plt.contourf(x,y,ux,20, cmap=cm.jet,zorder=1)
-    plt.colorbar()
-    plt.scatter(x_colloc,y_colloc,0.001,'k',zorder=2)
-    
-    #plt.clim(-2,6)
-    plt.subplot(2,1,2)
-    plt.contourf(x,y,uy,20, cmap=cm.jet,zorder=1)
-    plt.colorbar()
-    plt.scatter(x_colloc,y_colloc,0.001,'k',zorder=2)
-    
-    #plt.clim(-0.2,0.2)
-    plt.show()
-
-
 
 # normalize the training data:
 x_train = x/MAX_x
@@ -328,36 +299,12 @@ model_checkpoint_callback = tfkeras.callbacks.ModelCheckpoint(
     save_best_only=True)
 early_stop_callback = tfkeras.callbacks.EarlyStopping(monitor='loss', patience=500)
 
-def plot_pred(x,y,ux,uy,X_train,pred):
-    fig = plt.figure(1)
-    ax1 = plt.subplot(4,1,1)
-    plt.contourf(x,y,ux,20, cmap=cm.jet,zorder=1)
-    plt.colorbar()
-    #plt.scatter(x_colloc,y_colloc,0.001,'k',zorder=2)
-    
-    #plt.clim(-2,6)
-    plt.subplot(4,1,2)
-    plt.contourf(x,y,uy,20, cmap=cm.jet,zorder=1)
-    plt.colorbar()
-   # plt.scatter(x_colloc,y_colloc,0.001,'k',zorder=2)
-    plt.subplot(4,1,3)
-    plt.contourf(np.reshape(X_train[:,0],x.shape),np.reshape(X_train[:,1],x.shape),np.reshape(pred[:,0],x.shape),20, cmap=cm.jet,zorder=1)
-    plt.colorbar()   
-    plt.subplot(4,1,4)
-    plt.contourf(np.reshape(X_train[:,0],x.shape),np.reshape(X_train[:,1],x.shape),np.reshape(pred[:,1],x.shape),20, cmap=cm.jet,zorder=1)
-    plt.colorbar()
-    #plt.clim(-0.2,0.2)
-    plt.show()
-    return
-
-
 
 # this time we randomly shuffle the order of X and O
 rng = np.random.default_rng()
 
-
 # we need to check if there are already checkpoints for this job
-
+#checkpoint_files = os.listdir('./output/'+job_name+'_ep*.index')
 
 if False:
     model.load_weights(base_dir+'20230328_reynolds_stress/dense50x10_b32_ep250_st2')
@@ -370,7 +317,6 @@ if False:
 
 d_epochs = 1
 epochs = 0
-stage = 1
 X_train = tf.cast(X_train,dtype_train)
 O_train = tf.cast(O_train,dtype_train)
 
@@ -380,37 +326,16 @@ for pqr in range(1):
     temp_Y_train = O_train[shuffle_inds,:]
     hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
     epochs = epochs+d_epochs
-    model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage))
-    pred = model.predict(X_all,batch_size=512)
-    h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage)+'_pred.mat','w')
-    h5f.create_dataset('pred',data=pred)
-    h5f.close()
+    model.save_weights(save_loc+job_name+'_ep'+str(epochs))
+
+    if np.mod(epochs,10)==0:
+        pred = model.predict(X_all,batch_size=512)
+        h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_pred.mat','w')
+        h5f.create_dataset('pred',data=pred)
+        h5f.close()
+    else:
+        dir
+
 
 exit()
-d_epochs = 50
-stage = 2
 
-tfkeras.backend.set_value(model.optimizer.learning_rate, 0.005)
-shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
-temp_X_train = X_train[shuffle_inds,:]
-temp_Y_train = O_train[shuffle_inds,:]
-hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
-epochs = epochs+d_epochs
-model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage))
-pred = model.predict(X_all,batch_size=512)
-h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage)+'_pred.mat','w')
-h5f.create_dataset('pred',data=pred)
-h5f.close()
-
-d_epochs = 50
-for pqr in range(10):
-    shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
-    temp_X_train = X_train[shuffle_inds,:]
-    temp_Y_train = O_train[shuffle_inds,:]
-    hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
-    epochs = epochs+d_epochs
-    model.save_weights(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage))
-    pred = model.predict(X_all,batch_size=512)
-    h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_st'+str(stage)+'_pred.mat','w')
-    h5f.create_dataset('pred',data=pred)
-    h5f.close()
