@@ -338,7 +338,7 @@ O_train = tf.cast(O_train,dtype_train)
 last_epoch_time = datetime.now()
 average_epoch_time=timedelta(minutes=10)
 
-for pqr in range(2):
+for pqr in range(100):
     shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
     temp_X_train = X_train[shuffle_inds,:]
     temp_Y_train = O_train[shuffle_inds,:]
