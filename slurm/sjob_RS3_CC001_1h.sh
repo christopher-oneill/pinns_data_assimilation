@@ -3,7 +3,9 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-task=6
 #SBATCH --mem=16000M
-#SBATCH --time=1:00:00
+#SBATCH --time=0-00:25
+#SBATCH --mail-user=christopher.oneill@ucalgary.ca
+#SBATCH --mail-type=ALL
 
 CASENAME="RS3_CC0001_23h"
 
@@ -22,11 +24,10 @@ source /home/coneill/sync/venv/tf1/bin/activate
 
 mkdir $SLURM_TMPDIR/output/
 cp /home/coneill/sync/output/"$CASENAME"_output.tar $SLURM_TMPDIR/output/
-tar -xf $SLURM_TMPDIR/"$CASENAME"_output.tar 
-rm $SLURM_TMPDIR/"$CASENAME"_output.tar 
+tar -xf $SLURM_TMPDIR/output/"$CASENAME"_output.tar -C $SLURM_TMPDIR/output/
 
 
-python ./code/pinns_galerkin_viv/example_problems/cylinder_pinn_"$CASENAME".py
+python $SLURM_TMPDIR/code/pinns_galerkin_viv/example_problems/cylinder_pinn_"$CASENAME".py
 
 
 cd $SLURM_TMPDIR/output/

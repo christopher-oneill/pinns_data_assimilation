@@ -70,7 +70,7 @@ useGPU=True
 
 # parameters for running on compute canada
 job_name = 'RS3_CC0001_23h'
-job_duration = timedelta(hours=0,minutes=15)
+job_duration = timedelta(hours=0,minutes=20)
 end_time = start_time+job_duration
 
 # set the paths
@@ -338,28 +338,28 @@ O_train = tf.cast(O_train,dtype_train)
 last_epoch_time = datetime.now()
 average_epoch_time=timedelta(minutes=10)
 
-for pqr in range(100):
+while True:
     shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
     temp_X_train = X_train[shuffle_inds,:]
     temp_Y_train = O_train[shuffle_inds,:]
     hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
     epochs = epochs+d_epochs
-    model.save_weights(save_loc+job_name+'_ep'+str(epochs))
+    
+    if np.mod(epochs,10)==0:
+        # save every 10th epoch
+        model.save_weights(save_loc+job_name+'_ep'+str(epochs))
+        # also save the predicted field, so that we can visualize
+        pred = model.predict(X_all,batch_size=512)
+        h5f = h5py.File('./output/'+job_name+'_output/',job_name+'_ep'+str(epochs)+'_pred.mat','w')
+        h5f.create_dataset('pred',data=pred)
+        h5f.close()
 
     # check if we should exit
     average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
     if (datetime.now()+average_epoch_time)>end_time:
         # if there is not enough time to complete the next epoch, exit
         print("Remaining time is insufficient for another epoch, exiting...")
+        # save the last epoch before exiting
+        model.save_weights(save_loc+job_name+'_ep'+str(epochs))
         exit()
-
-    if np.mod(epochs,10)==0:
-        pred = model.predict(X_all,batch_size=512)
-        h5f = h5py.File('./output/'+job_name+'_output/',job_name+'_ep'+str(epochs)+'_pred.mat','w')
-        h5f.create_dataset('pred',data=pred)
-        h5f.close()
-
-
-
-exit()
 

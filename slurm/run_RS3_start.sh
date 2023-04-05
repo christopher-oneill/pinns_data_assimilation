@@ -1,5 +1,5 @@
 
-# salloc --account=def-martinuz --gres=gpu:1 --cpus-per-task=3 --mem=32000M --time=1:00:00
+# salloc --account=def-martinuz --gres=gpu:1 --cpus-per-task=6 --mem=16000M --time=1:00:00
 
 # some useful commands
 
