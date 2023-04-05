@@ -18,11 +18,11 @@ tar -xf $SLURM_TMPDIR/code/pinns_galerkin_viv.tar -C $SLURM_TMPDIR/code/
 module load python/3.10
 source /home/coneill/sync/venv/tf1/bin/activate
 
-mkdir ./output
 
 # checkpoints/output
-cp /home/coneill/sync/output/"$CASENAME"_output.tar $SLURM_TMPDIR/output/
-tar -xf $SLURM_TMPDIR/output/"$CASENAME"_output.tar -C $SLURM_TMPDIR/output/
+cp /home/coneill/sync/output/"$CASENAME"_output.tar $SLURM_TMPDIR
+tar -xf $SLURM_TMPDIR/"$CASENAME"_output.tar 
+rm $SLURM_TMPDIR/"$CASENAME"_output.tar 
 
 # run
 python ./code/pinns_galerkin_viv/example_problems/cylinder_pinn_RS3_"$CASENAME".py

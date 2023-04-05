@@ -1,6 +1,11 @@
 
 # salloc --account=def-martinuz --gres=gpu:1 --cpus-per-task=3 --mem=32000M --time=1:00:00
 
+# some useful commands
+
+# git clone 
+# tar -cf pinns_galerkin_viv.tar pinns_galerkin_viv
+
 CASENAME="RS3_CC0001_23h"
 
 cd $SLURM_TMPDIR
