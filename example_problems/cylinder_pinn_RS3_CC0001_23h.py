@@ -65,7 +65,7 @@ start_timestamp = datetime.strftime(start_time,'%Y%m%d%H%M%S')
 save_loc = './output/'
 checkpoint_filepath = './output/checkpoint'
 PLOT = False
-useGPU=False
+useGPU=True
 
 # parameters for running on compute canada
 job_name = 'RS3_CC0001_23h'
@@ -247,7 +247,13 @@ def net_f_cartesian(colloc_tensor):
 dense_nodes = 30
 dense_layers = 10
 model_structure_string = 'dense30x10_'
-with tf.device('/CPU:0'):
+if useGPU:
+    tf_device_string = '/GPU:0'
+else:
+    tf_device_string = '/CPU:0'
+
+
+with tf.device(tf_device_string):
     model = tfkeras.Sequential()
     model.add(tfkeras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
     for i in range(dense_layers-1):
