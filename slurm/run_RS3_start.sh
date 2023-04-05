@@ -3,7 +3,7 @@
 
 # some useful commands
 
-# git clone 
+# git clone https://github.com/christopher-oneill/pinns_galerkin_viv.git
 # tar -cf pinns_galerkin_viv.tar pinns_galerkin_viv
 
 CASENAME="RS3_CC0001_23h"

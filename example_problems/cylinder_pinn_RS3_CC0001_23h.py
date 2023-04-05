@@ -50,6 +50,8 @@ import tensorflow as tf
 import tensorflow.keras as tfkeras
 import h5py
 import os
+import glob
+import re
 import smt
 from smt.sampling_methods import LHS
 from pyDOE import lhs
@@ -68,7 +70,7 @@ useGPU=True
 
 # parameters for running on compute canada
 job_name = 'RS3_CC0001_23h'
-job_duration = timedelta(hours=22,minutes=30)
+job_duration = timedelta(hours=0,minutes=30)
 end_time = start_time+job_duration
 
 # set the paths
@@ -249,7 +251,6 @@ def net_f_cartesian(colloc_tensor):
 # create NN
 dense_nodes = 30
 dense_layers = 10
-model_structure_string = 'dense30x10_'
 if useGPU:
     tf_device_string = '/GPU:0'
 else:
@@ -308,31 +309,36 @@ model_checkpoint_callback = tfkeras.callbacks.ModelCheckpoint(
     save_best_only=True)
 early_stop_callback = tfkeras.callbacks.EarlyStopping(monitor='loss', patience=500)
 
+def get_filepaths_with_glob(root_path: str, file_regex: str):
+    return glob.glob(os.path.join(root_path, file_regex))
 
 # this time we randomly shuffle the order of X and O
 rng = np.random.default_rng()
 
+# job_name = 'RS3_CC0001_23h'
 # we need to check if there are already checkpoints for this job
-checkpoint_files = os.listdir('./output/'+job_name+'_ep*.index')
-print(checkpoint_files)
+checkpoint_files = get_filepaths_with_glob('./output/'+job_name+'_output/',job_name+'_ep*.index')
+if len(checkpoint_files)>0:
+    files_epoch_number = np.zeros([len(checkpoint_files),1],dtype=np.uint)
+    # if there are checkpoints, train based on the most recent checkpoint
+    for f_indx in range(len(checkpoint_files)):
+        re_result = re.search("ep[0-9]*",checkpoint_files[f_indx])
+        files_epoch_number[f_indx]=int(checkpoint_files[f_indx][(re_result.start()+2):re_result.end()])
+    epochs = np.max(files_epoch_number)
+    print('./output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
+    model.load_weights('./output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
+else:
+    # if not, we train from the beginning
+    epochs = 0
 
-exit()
-
-if False:
-    model.load_weights(base_dir+'20230328_reynolds_stress/dense50x10_b32_ep250_st2')
-    #pred = model.predict(X_all,batch_size=512)
-    #h5f = h5py.File('./data/mazi_fixed/20230302_4eq_noConstr/dense30x10_b32_ep500_st3_pred.mat','w')
-    #h5f.create_dataset('pred',data=pred)
-    #h5f.close()
-
-
-
+# train the network
 d_epochs = 1
-epochs = 0
 X_train = tf.cast(X_train,dtype_train)
 O_train = tf.cast(O_train,dtype_train)
+last_epoch_time = datetime.now()
+average_epoch_time=timedelta(minutes=10)
 
-for pqr in range(1):
+for pqr in range(2):
     shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
     temp_X_train = X_train[shuffle_inds,:]
     temp_Y_train = O_train[shuffle_inds,:]
@@ -340,13 +346,19 @@ for pqr in range(1):
     epochs = epochs+d_epochs
     model.save_weights(save_loc+job_name+'_ep'+str(epochs))
 
+    # check if we should exit
+    average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
+    if (datetime.now()+average_epoch_time)>end_time:
+        # if there is not enough time to complete the next epoch, exit
+        print("Remaining time is insufficient for another epoch, exiting...")
+        exit()
+
     if np.mod(epochs,10)==0:
         pred = model.predict(X_all,batch_size=512)
-        h5f = h5py.File(save_loc+model_structure_string+'b32_ep'+str(epochs)+'_pred.mat','w')
+        h5f = h5py.File('./output/'+job_name+'_output/',job_name+'_ep'+str(epochs)+'_pred.mat','w')
         h5f.create_dataset('pred',data=pred)
         h5f.close()
-    else:
-        pass
+
 
 
 exit()
