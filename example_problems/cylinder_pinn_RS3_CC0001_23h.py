@@ -68,13 +68,15 @@ start_timestamp = datetime.strftime(start_time,'%Y%m%d%H%M%S')
 PLOT = False
 useGPU=True
 
+SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
+
 # parameters for running on compute canada
 job_name = 'RS3_CC0001_23h'
 job_duration = timedelta(hours=0,minutes=20)
 end_time = start_time+job_duration
 
 # set the paths
-save_loc = './output/'+job_name+'_output/'
+save_loc = SLURM_TMPDIR+'/output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
 
 # set number of cores to compute on 
@@ -98,7 +100,7 @@ else:
 
 
 # read the data
-base_dir = './data/mazi_fixed/'
+base_dir = SLURM_TMPDIR+'/data/mazi_fixed/'
 meanFieldFile = h5py.File(base_dir+'meanField.mat','r')
 configFile = h5py.File(base_dir+'configuration.mat','r')
 reynoldsStressFile = h5py.File(base_dir+'reynoldsStresses.mat','r')
@@ -317,16 +319,16 @@ rng = np.random.default_rng()
 
 # job_name = 'RS3_CC0001_23h'
 # we need to check if there are already checkpoints for this job
-checkpoint_files = get_filepaths_with_glob('./output/'+job_name+'_output/',job_name+'_ep*.index')
+checkpoint_files = get_filepaths_with_glob(SLURM_TMPDIR+'/output/'+job_name+'_output/',job_name+'_ep*.index')
 if len(checkpoint_files)>0:
     files_epoch_number = np.zeros([len(checkpoint_files),1],dtype=np.uint)
     # if there are checkpoints, train based on the most recent checkpoint
     for f_indx in range(len(checkpoint_files)):
         re_result = re.search("ep[0-9]*",checkpoint_files[f_indx])
         files_epoch_number[f_indx]=int(checkpoint_files[f_indx][(re_result.start()+2):re_result.end()])
-    epochs = np.max(files_epoch_number)
-    print('./output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
-    model.load_weights('./output/'+job_name+'_output/'+job_name+'_ep'+str(epochs))
+    epochs = np.uint(np.max(files_epoch_number))
+    print(SLURM_TMPDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
+    model.load_weights(SLURM_TMPDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs))
 else:
     # if not, we train from the beginning
     epochs = 0
@@ -347,10 +349,10 @@ while True:
     
     if np.mod(epochs,10)==0:
         # save every 10th epoch
-        model.save_weights(save_loc+job_name+'_ep'+str(epochs))
+        model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
         # also save the predicted field, so that we can visualize
         pred = model.predict(X_all,batch_size=512)
-        h5f = h5py.File('./output/'+job_name+'_output/',job_name+'_ep'+str(epochs)+'_pred.mat','w')
+        h5f = h5py.File(SLURM_TMPDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
         h5f.create_dataset('pred',data=pred)
         h5f.close()
 
@@ -360,6 +362,6 @@ while True:
         # if there is not enough time to complete the next epoch, exit
         print("Remaining time is insufficient for another epoch, exiting...")
         # save the last epoch before exiting
-        model.save_weights(save_loc+job_name+'_ep'+str(epochs))
+        model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
         exit()
 

@@ -7,6 +7,8 @@
 #SBATCH --mail-user=christopher.oneill@ucalgary.ca
 #SBATCH --mail-type=ALL
 
+
+
 CASENAME="RS3_CC0001_23h"
 
 cd $SLURM_TMPDIR
