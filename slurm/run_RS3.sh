@@ -3,13 +3,13 @@
 
 cd $SLURM_TMPDIR
 
-cp /home/coneill/sync/data/mazi_fixed.tar $SLURM_TMPDIR
 mkdir ./data/
-tar -xf $SLURM_TMPDIR/mazi_fixed.tar
+cp /home/coneill/sync/data/mazi_fixed.tar $SLURM_TMPDIR/data/
+tar -xf $SLURM_TMPDIR/data/mazi_fixed.tar -C ./data/
 
-cp /home/coneill/sync/code/pinns_galerkin_viv.tar $SLURM_TMPDIR
-mkdir ./code/
-tar -xf $SLURM_TMPDIR/pinns_galerkin_viv.tar
+mkdir $SLURM_TMPDIR/code/
+cp /home/coneill/sync/code/pinns_galerkin_viv.tar $SLURM_TMPDIR/code/
+tar -xf $SLURM_TMPDIR/code/pinns_galerkin_viv.tar -C $SLURM_TMPDIR/code/
 
 source /home/coneill/sync/venv/tf1/bin/activate
 
