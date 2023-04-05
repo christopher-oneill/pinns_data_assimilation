@@ -70,7 +70,7 @@ useGPU=True
 
 # parameters for running on compute canada
 job_name = 'RS3_CC0001_23h'
-job_duration = timedelta(hours=0,minutes=30)
+job_duration = timedelta(hours=0,minutes=14)
 end_time = start_time+job_duration
 
 # set the paths
@@ -326,7 +326,7 @@ if len(checkpoint_files)>0:
         files_epoch_number[f_indx]=int(checkpoint_files[f_indx][(re_result.start()+2):re_result.end()])
     epochs = np.max(files_epoch_number)
     print('./output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
-    model.load_weights('./output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
+    model.load_weights('./output/'+job_name+'_output/'+job_name+'_ep'+str(epochs))
 else:
     # if not, we train from the beginning
     epochs = 0
