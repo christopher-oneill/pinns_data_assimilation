@@ -71,9 +71,15 @@ useGPU=True
 SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
 
 # parameters for running on compute canada
-job_name = 'RS3_CC0001_23h'
-job_duration = timedelta(hours=22,minutes=30)
+job_name = 'CC0002'
+job_duration = timedelta(hours=0,minutes=45)
 end_time = start_time+job_duration
+
+# Job CC0002 Notes
+# Case: Mazi Fixed
+# We are going to train (u,v,p,u'u',u'v',v'v')[p] = f(x,y) for the mean field
+# We think that this worked with the poisson equation, verify in Job CC0001. But is the Poisson Equation needed?
+
 
 # set the paths
 save_loc = SLURM_TMPDIR+'/output/'+job_name+'_output/'
@@ -228,26 +234,20 @@ def net_f_cartesian(colloc_tensor):
     dp = tf.gradients(p, colloc_tensor)[0]
     p_x = dp[:,0]/MAX_x
     p_y = dp[:,1]/MAX_y
-    p_xx = tf.gradients(p_x,colloc_tensor)[0][:,0]/MAX_x
-    p_yy = tf.gradients(p_y,colloc_tensor)[0][:,1]/MAX_y
 
     # gradient reynolds stresses
     uxpuxp_x = tf.gradients(uxpuxp, colloc_tensor)[0][:,0]/MAX_x
-    uxpuxp_xx = tf.gradients(uxpuxp_x, colloc_tensor)[0][:,0]/MAX_x
     duxpuyp = tf.gradients(uxpuyp, colloc_tensor)[0]
     uxpuyp_x = duxpuyp[:,0]/MAX_x
     uxpuyp_y = duxpuyp[:,1]/MAX_y
-    uxpuyp_xy = tf.gradients(uxpuyp_x,colloc_tensor)[0][:,1]/MAX_y
     uypuyp_y = tf.gradients(uypuyp, colloc_tensor)[0][:,1]/MAX_y
-    uypuyp_yy = tf.gradients(uypuyp_y, colloc_tensor)[0][:,1]/MAX_y
 
     f_x = (ux*ux_x + uy*ux_y) + p_x - (nu_mol)*(ux_xx+ux_yy) + uxpuxp_x + uxpuyp_y #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
     f_y = (ux*uy_x + uy*uy_y) + p_y - (nu_mol)*(uy_xx+uy_yy) + uxpuyp_x + uypuyp_y#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
 
     f_mass = ux_x + uy_y
-    f_p = p_xx + p_yy + tf.math.pow(ux_x,tf.constant(2.0,dtype=dtype_train)) + 2*ux_y*uy_x + tf.math.pow(uy_y,tf.constant(2.0,dtype=dtype_train))+uxpuxp_xx+2*uxpuyp_xy+uypuyp_yy
 
-    return f_x, f_y, f_mass, f_p
+    return f_x, f_y, f_mass
 
 
 # create NN
@@ -286,18 +286,17 @@ def custom_loss_wrapper(colloc_tensor_f,BCs_p): # def custom_loss_wrapper(colloc
         data_loss5 = tfkeras.losses.mean_squared_error(y_true[:,3], y_pred[:,3]) # u'v'
         data_loss6 = tfkeras.losses.mean_squared_error(y_true[:,4], y_pred[:,4]) # v'v'
 
-        mx,my,mass,mp = net_f_cartesian(colloc_tensor_f)
+        mx,my,mass = net_f_cartesian(colloc_tensor_f)
         physical_loss1 = tf.reduce_mean(tf.square(mx))
         physical_loss2 = tf.reduce_mean(tf.square(my))
         physical_loss3 = tf.reduce_mean(tf.square(mass))
-        physical_loss4 = tf.reduce_mean(tf.square(mp))
         
         #boundary loss
         #f_boundary_t1   = BC_fun(BCs,ut_bc1,2)
         #f_boundary_p = BC_fun(BCs_p,p_bc,2)
         #f_boundary_t2 = BC_fun(BCs_t,ut_bc2,2)
         
-        return data_loss1 + data_loss2 + data_loss4 + data_loss5 + data_loss6  + 1*physical_loss1 + 1*physical_loss2 + 1*physical_loss3 + 1*physical_loss4 # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
+        return data_loss1 + data_loss2 + data_loss4 + data_loss5 + data_loss6  + 1*physical_loss1 + 1*physical_loss2 + 1*physical_loss3  # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
 
     return custom_loss
 

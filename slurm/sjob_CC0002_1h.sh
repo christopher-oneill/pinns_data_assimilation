@@ -8,7 +8,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --output=/home/coneill/sync/logs/slurm-%A_%a.out
 
-CASENAME="RS3_CC0001_23h"
+CASENAME="CC0002"
 
 cd $SLURM_TMPDIR
 
@@ -25,11 +25,9 @@ module load python/3.10
 source /home/coneill/sync/venv/tf1/bin/activate
 
 mkdir $SLURM_TMPDIR/output/
-cp /home/coneill/sync/output/"$CASENAME"_output.tar $SLURM_TMPDIR/output/
-tar -xf $SLURM_TMPDIR/output/"$CASENAME"_output.tar -C $SLURM_TMPDIR/output/
+mkdir $SLURM_TMPDIR/output/"$CASENAME"_output
 
-
-python $SLURM_TMPDIR/code/pinns_galerkin_viv/training_scripts/mazi_fixed/cylinder_pinn_"$CASENAME".py
+python $SLURM_TMPDIR/code/pinns_galerkin_viv/training_scripts/mazi_fixed/cylinder_pinn_"$CASENAME"_1h.py
 
 
 DATE_STR=$(date '+%Y%m%d_%H%M%S')
