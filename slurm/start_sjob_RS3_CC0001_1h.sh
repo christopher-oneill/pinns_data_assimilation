@@ -25,9 +25,7 @@ module load python/3.10
 source /home/coneill/sync/venv/tf1/bin/activate
 
 mkdir $SLURM_TMPDIR/output/
-cp /home/coneill/sync/output/"$CASENAME"_output.tar $SLURM_TMPDIR/output/
-tar -xf $SLURM_TMPDIR/output/"$CASENAME"_output.tar -C $SLURM_TMPDIR/output/
-
+mkdir $SLURM_TMPDIR/output/"$CASENAME"_output
 
 python $SLURM_TMPDIR/code/pinns_galerkin_viv/example_problems/cylinder_pinn_"$CASENAME".py
 

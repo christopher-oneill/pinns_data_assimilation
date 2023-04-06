@@ -251,7 +251,7 @@ def net_f_cartesian(colloc_tensor):
 
 
 # create NN
-dense_nodes = 30
+dense_nodes = 50
 dense_layers = 10
 if useGPU:
     tf_device_string = '/GPU:0'
@@ -339,14 +339,19 @@ X_train = tf.cast(X_train,dtype_train)
 O_train = tf.cast(O_train,dtype_train)
 last_epoch_time = datetime.now()
 average_epoch_time=timedelta(minutes=10)
+start_epochs = epochs
 
-while True:
+while epochs<(start_epochs+100):
     shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
     temp_X_train = X_train[shuffle_inds,:]
     temp_Y_train = O_train[shuffle_inds,:]
     hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
     epochs = epochs+d_epochs
-    
+    if epochs>=50:
+        tfkeras.backend.set_value(model.optimizer.learning_rate, 0.005)
+    if epochs>=100:
+        tfkeras.backend.set_value(model.optimizer.learning_rate, 0.001)
+        
     if np.mod(epochs,10)==0:
         # save every 10th epoch
         model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
