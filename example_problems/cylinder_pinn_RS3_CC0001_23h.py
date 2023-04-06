@@ -72,7 +72,7 @@ SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
 
 # parameters for running on compute canada
 job_name = 'RS3_CC0001_23h'
-job_duration = timedelta(hours=22,minutes=30)
+job_duration = timedelta(hours=1,minutes=35)
 end_time = start_time+job_duration
 
 # set the paths

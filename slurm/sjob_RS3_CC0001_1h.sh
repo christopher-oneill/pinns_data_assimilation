@@ -3,7 +3,7 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-task=6
 #SBATCH --mem=16000M
-#SBATCH --time=0-00:25
+#SBATCH --time=0-01:45
 #SBATCH --mail-user=christopher.oneill@ucalgary.ca
 #SBATCH --mail-type=ALL
 #SBATCH --output=/home/coneill/sync/logs/slurm-%A_%a.out
