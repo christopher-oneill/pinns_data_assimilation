@@ -6,6 +6,8 @@
 # git clone https://github.com/christopher-oneill/pinns_galerkin_viv.git
 # tar -cf pinns_galerkin_viv.tar pinns_galerkin_viv
 
+# srun --jobid 36102677 --pty watch -n 30 top
+
 CASENAME="RS3_CC0001_23h"
 
 cd $SLURM_TMPDIR
