@@ -32,8 +32,11 @@ tar -xf $SLURM_TMPDIR/output/"$CASENAME"_output.tar -C $SLURM_TMPDIR/output/
 python $SLURM_TMPDIR/code/pinns_galerkin_viv/example_problems/cylinder_pinn_"$CASENAME".py
 
 
+DATE_STR=$(date '+%Y%m%d_%H%M%S')
 cd $SLURM_TMPDIR/output/
 tar -cf ./"$CASENAME"_output.tar ./"$CASENAME"_output/
+tar -cf ./"$DATE_STR"_"$CASENAME"_output.tar ./"$CASENAME"_output/
 cd $SLURM_TMPDIR
 cp $SLURM_TMPDIR/output/"$CASENAME"_output.tar /home/coneill/sync/output/
+cp $SLURM_TMPDIR/output/"$DATE_STR"_"$CASENAME"_output.tar /home/coneill/sync/output/
 
