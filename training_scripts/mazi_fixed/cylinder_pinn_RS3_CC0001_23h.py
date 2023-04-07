@@ -346,7 +346,7 @@ last_epoch_time = datetime.now()
 average_epoch_time=timedelta(minutes=10)
 start_epochs = epochs
 
-while epochs<(start_epochs+100):
+while True:
     shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
     temp_X_train = X_train[shuffle_inds,:]
     temp_Y_train = O_train[shuffle_inds,:]
@@ -370,4 +370,4 @@ while epochs<(start_epochs+100):
         # save the last epoch before exiting
         model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
         exit()
-
+    last_epoch_time = datetime.now()

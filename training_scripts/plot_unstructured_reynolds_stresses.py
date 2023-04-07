@@ -3,14 +3,14 @@ import h5py
 import matplotlib.pyplot as plot
 import scipy as sp
 
-base_dir = '/mnt/c/projects/pinns_galerkin_viv/data/mazi_fixed/'
+base_dir = 'C:/projects/pinns_local/data/mazi_fixed/'
 meanFieldFile = h5py.File(base_dir+'meanField.mat','r')
 configFile = h5py.File(base_dir+'configuration.mat','r')
 meanPressureFile = h5py.File(base_dir+'meanPressure.mat','r')
 reynoldsStressFile = h5py.File(base_dir+'reynoldsStresses.mat','r')
 meanGradientsFile = h5py.File(base_dir+'meanGradients.mat','r')
 
-print_name ='20230328_reynolds_stress_st250'
+print_name ='20230328_reynolds_stress_ep250'
 predfilename = base_dir+'20230328_reynolds_stress/dense50x10_b32_ep250_st2_pred.mat'
 predFile =  h5py.File(predfilename,'r')
 SaveFig = True
