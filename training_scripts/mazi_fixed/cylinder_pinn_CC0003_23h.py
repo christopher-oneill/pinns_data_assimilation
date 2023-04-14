@@ -84,7 +84,7 @@ if node_name==LOCAL_NODE:
 else:
     # parameters for running on compute canada
     
-    job_duration = timedelta(hours=23,minutes=30)
+    job_duration = timedelta(hours=22,minutes=30)
     end_time = start_time+job_duration
 
     useGPU=True
