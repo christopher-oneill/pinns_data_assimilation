@@ -116,7 +116,7 @@ else:
 
 
 # read the data
-base_dir = SLURM_TMPDIR+'/data/mazi_fixed/'
+base_dir = SLURM_TMPDIR+'/data/mazi_fixed_modes/'
 meanFieldFile = h5py.File(base_dir+'meanField.mat','r')
 configFile = h5py.File(base_dir+'configuration.mat','r')
 mode_dataFile = h5py.File(base_dir+'mode_data2.mat','r')
