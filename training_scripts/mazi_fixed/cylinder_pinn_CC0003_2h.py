@@ -96,8 +96,8 @@ save_loc = SLURM_TMPDIR+'/output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
 
 # set number of cores to compute on 
-tf.config.threading.set_intra_op_parallelism_threads(6)
-tf.config.threading.set_inter_op_parallelism_threads(6)
+tf.config.threading.set_intra_op_parallelism_threads(3)
+tf.config.threading.set_inter_op_parallelism_threads(3)
 
 # limit the gpu memory
 

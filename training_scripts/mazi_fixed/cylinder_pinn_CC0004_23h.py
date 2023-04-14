@@ -71,10 +71,11 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'CC0003'
+job_name = 'CC0004'
 
-# Job CC0003 Notes
+# Job CC0004 Notes
 # Case: Mazi Fixed
+# same as CC0003, but with 75 nodes wide instead of 50. 
 # Now trying to train with 2 POD modes. No poisson equation. 
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -305,7 +306,7 @@ def net_f_cartesian(colloc_tensor):
 
 
 # create NN
-dense_nodes = 50
+dense_nodes = 75
 dense_layers = 10
 if useGPU:
     tf_device_string = '/GPU:0'
@@ -374,7 +375,7 @@ def custom_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tenso
         physical_loss3 = tf.reduce_mean(tf.square(mass))
         physical_loss4 = tf.reduce_sum(aloss)
                 
-        return data_loss_A1 + data_loss_A2 + data_loss_ux + data_loss_uy + data_loss_phi_1x + data_loss_phi_1y + data_loss_phi_2x + data_loss_phi_2y + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp + (11/3)*physical_loss1 + (11/3)*physical_loss2 + (11/3)*physical_loss3 +1.0*physical_loss4# 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
+        return data_loss_A1 + data_loss_A2 + data_loss_ux + data_loss_uy + data_loss_phi_1x + data_loss_phi_1y + data_loss_phi_2x + data_loss_phi_2y + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp + (11/3)*physical_loss1 + (11/3)*physical_loss2 + (11/3)*physical_loss3 + 1.0*physical_loss4 # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
 
     return custom_loss
 

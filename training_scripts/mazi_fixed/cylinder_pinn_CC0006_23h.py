@@ -71,11 +71,12 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'CC0003'
+job_name = 'CC0006'
 
-# Job CC0003 Notes
+# Job CC0006 Notes
 # Case: Mazi Fixed
-# Now trying to train with 2 POD modes. No poisson equation. 
+# 100 nodes wide 
+# Now trying to train with 6 POD modes. No poisson equation. 
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
@@ -119,7 +120,7 @@ else:
 base_dir = SLURM_TMPDIR+'/data/mazi_fixed_modes/'
 meanFieldFile = h5py.File(base_dir+'meanField.mat','r')
 configFile = h5py.File(base_dir+'configuration.mat','r')
-mode_dataFile = h5py.File(base_dir+'mode_data2.mat','r')
+mode_dataFile = h5py.File(base_dir+'mode_data6.mat','r')
 
 
 ux = np.array(meanFieldFile['meanField'][0,:]).transpose()
@@ -129,20 +130,33 @@ phi_1x = np.array(mode_dataFile['Phi_i'][0,0,:]).transpose()
 phi_1y = np.array(mode_dataFile['Phi_i'][1,0,:]).transpose()
 phi_2x = np.array(mode_dataFile['Phi_i'][0,1,:]).transpose()
 phi_2y = np.array(mode_dataFile['Phi_i'][1,1,:]).transpose()
+phi_3x = np.array(mode_dataFile['Phi_i'][0,2,:]).transpose()
+phi_3y = np.array(mode_dataFile['Phi_i'][1,2,:]).transpose()
+phi_4x = np.array(mode_dataFile['Phi_i'][0,3,:]).transpose()
+phi_4y = np.array(mode_dataFile['Phi_i'][1,3,:]).transpose()
+phi_5x = np.array(mode_dataFile['Phi_i'][0,4,:]).transpose()
+phi_5y = np.array(mode_dataFile['Phi_i'][1,4,:]).transpose()
+phi_6x = np.array(mode_dataFile['Phi_i'][0,5,:]).transpose()
+phi_6y = np.array(mode_dataFile['Phi_i'][1,5,:]).transpose()
+
 
 A1 = np.ones(ux.shape,dtype=np.float64)*np.float64(mode_dataFile['A_i'][0,0])
 A2 = np.ones(ux.shape,dtype=np.float64)*np.float64(mode_dataFile['A_i'][0,1])
+A3 = np.ones(ux.shape,dtype=np.float64)*np.float64(mode_dataFile['A_i'][0,2])
+A4 = np.ones(ux.shape,dtype=np.float64)*np.float64(mode_dataFile['A_i'][0,3])
+A5 = np.ones(ux.shape,dtype=np.float64)*np.float64(mode_dataFile['A_i'][0,4])
+A6 = np.ones(ux.shape,dtype=np.float64)*np.float64(mode_dataFile['A_i'][0,5])
 
 uxppuxpp = np.array(mode_dataFile['residual_stress'][0,:]).transpose()
 uxppuypp = np.array(mode_dataFile['residual_stress'][1,:]).transpose()
 uyppuypp = np.array(mode_dataFile['residual_stress'][2,:]).transpose()
 
-a = np.ones(ux.shape,dtype=np.float64)
+
 x = np.array(configFile['X'][0,:])
 y = np.array(configFile['X'][1,:])
 d = np.array(configFile['cylinderDiameter'])
 
-print('a.shape: ',a.shape)
+
 print('u.shape: ',ux.shape)
 print('x.shape: ',x.shape)
 print('y.shape: ',y.shape)
@@ -166,6 +180,15 @@ MAX_phi_1x = max(phi_1x.flatten())
 MAX_phi_1y = max(phi_1y.flatten())
 MAX_phi_2x = max(phi_2x.flatten())
 MAX_phi_2y = max(phi_2y.flatten())
+MAX_phi_3x = max(phi_3x.flatten())
+MAX_phi_3y = max(phi_3y.flatten())
+MAX_phi_4x = max(phi_4x.flatten())
+MAX_phi_4y = max(phi_4y.flatten())
+MAX_phi_5x = max(phi_5x.flatten())
+MAX_phi_5y = max(phi_5y.flatten())
+MAX_phi_6x = max(phi_6x.flatten())
+MAX_phi_6y = max(phi_6y.flatten())
+
 
 print('max_x: ',MAX_x)
 print('max_y: ',MAX_y)
@@ -204,10 +227,18 @@ phi_1x_train = phi_1x/MAX_phi_1x
 phi_1y_train = phi_1y/MAX_phi_1y
 phi_2x_train = phi_2x/MAX_phi_2x
 phi_2y_train = phi_2y/MAX_phi_2y
+phi_3x_train = phi_3x/MAX_phi_3x
+phi_3y_train = phi_3y/MAX_phi_3y
+phi_4x_train = phi_4x/MAX_phi_4x
+phi_4y_train = phi_4y/MAX_phi_4y
+phi_5x_train = phi_5x/MAX_phi_5x
+phi_5y_train = phi_5y/MAX_phi_5y
+phi_6x_train = phi_6x/MAX_phi_6x
+phi_6y_train = phi_6y/MAX_phi_6y
 
 
 # the order here must be identical to inside the cost functions
-O_train = np.hstack((A1.reshape(-1,1),A2.reshape(-1,1),(ux_train).reshape(-1,1),(uy_train).reshape(-1,1),phi_1x_train.reshape(-1,1),phi_1y_train.reshape(-1,1),phi_2x_train.reshape(-1,1),phi_2y_train.reshape(-1,1),(uxppuxpp_train).reshape(-1,1),(uxppuypp_train).reshape(-1,1),(uyppuypp_train).reshape(-1,1),)) # training data
+O_train = np.hstack((A1.reshape(-1,1),A2.reshape(-1,1),A3.reshape(-1,1),A4.reshape(-1,1),A5.reshape(-1,1),A6.reshape(-1,1),(ux_train).reshape(-1,1),(uy_train).reshape(-1,1),phi_1x_train.reshape(-1,1),phi_1y_train.reshape(-1,1),phi_2x_train.reshape(-1,1),phi_2y_train.reshape(-1,1),phi_3x_train.reshape(-1,1),phi_3y_train.reshape(-1,1),phi_4x_train.reshape(-1,1),phi_4y_train.reshape(-1,1),phi_5x_train.reshape(-1,1),phi_5y_train.reshape(-1,1),phi_6x_train.reshape(-1,1),phi_6y_train.reshape(-1,1),(uxppuxpp_train).reshape(-1,1),(uxppuypp_train).reshape(-1,1),(uyppuypp_train).reshape(-1,1),)) # training data
 # note that the order here needs to be the same as the split inside the network!
 X_train = np.hstack((x_train.reshape(-1,1),y_train.reshape(-1,1)))
 
@@ -221,17 +252,29 @@ def net_f_cartesian(colloc_tensor):
     # knowns
     A1 = up[:,0] # these are less than 1 based on how the POD is normalized, so there is no need to scale
     A2 = up[:,1]
-    ux    = up[:,2]*MAX_ux
-    uy    = up[:,3]*MAX_uy
-    phi_1x = up[:,4]*MAX_phi_1x
-    phi_1y = up[:,5]*MAX_phi_1y
-    phi_2x = up[:,6]*MAX_phi_2x
-    phi_2y = up[:,7]*MAX_phi_2y
-    uxppuxpp = up[:,8]*MAX_uxppuxpp
-    uxppuypp = up[:,9]*MAX_uxppuypp
-    uyppuypp = up[:,10]*MAX_uyppuypp
+    A3 = up[:,2]
+    A4 = up[:,3]
+    A5 = up[:,4]
+    A6 = up[:,5]
+    ux = up[:,6]*MAX_ux
+    uy = up[:,7]*MAX_uy
+    phi_1x = up[:,8]*MAX_phi_1x
+    phi_1y = up[:,9]*MAX_phi_1y
+    phi_2x = up[:,10]*MAX_phi_2x
+    phi_2y = up[:,11]*MAX_phi_2y
+    phi_3x = up[:,12]*MAX_phi_3x
+    phi_3y = up[:,13]*MAX_phi_3y
+    phi_4x = up[:,14]*MAX_phi_4x
+    phi_4y = up[:,15]*MAX_phi_4y
+    phi_5x = up[:,16]*MAX_phi_5x
+    phi_5y = up[:,17]*MAX_phi_5y
+    phi_6x = up[:,18]*MAX_phi_6x
+    phi_6y = up[:,19]*MAX_phi_6y
+    uxppuxpp = up[:,20]*MAX_uxppuxpp
+    uxppuypp = up[:,21]*MAX_uxppuypp
+    uyppuypp = up[:,22]*MAX_uyppuypp
     # unknowns
-    p = up[:,11]*MAX_p
+    p = up[:,23]*MAX_p
     
     # compute the gradients of the quantities
     # gradients of a
@@ -241,6 +284,18 @@ def net_f_cartesian(colloc_tensor):
     dA2 = tf.gradients(A2, colloc_tensor)[0]
     A2_x = dA2[:,0]/MAX_x
     A2_y = dA2[:,1]/MAX_y
+    dA3 = tf.gradients(A3, colloc_tensor)[0]
+    A3_x = dA3[:,0]/MAX_x
+    A3_y = dA3[:,1]/MAX_y
+    dA4 = tf.gradients(A4, colloc_tensor)[0]
+    A4_x = dA4[:,0]/MAX_x
+    A4_y = dA4[:,1]/MAX_y
+    dA5 = tf.gradients(A5, colloc_tensor)[0]
+    A5_x = dA5[:,0]/MAX_x
+    A5_y = dA5[:,1]/MAX_y
+    dA6 = tf.gradients(A6, colloc_tensor)[0]
+    A6_x = dA6[:,0]/MAX_x
+    A6_y = dA6[:,1]/MAX_y
     
     # ux gradient
     dux = tf.gradients(ux, colloc_tensor)[0]
@@ -275,6 +330,38 @@ def net_f_cartesian(colloc_tensor):
     dphi_2y = tf.gradients(phi_2y, colloc_tensor)[0]
     phi_2y_x = dphi_2y[:,0]/MAX_x
     phi_2y_y = dphi_2y[:,1]/MAX_y
+    # phi_3x gradient
+    dphi_3x = tf.gradients(phi_3x, colloc_tensor)[0]
+    phi_3x_x = dphi_3x[:,0]/MAX_x
+    phi_3x_y = dphi_3x[:,1]/MAX_y
+    # phi_3y gradient
+    dphi_3y = tf.gradients(phi_3y, colloc_tensor)[0]
+    phi_3y_x = dphi_3y[:,0]/MAX_x
+    phi_3y_y = dphi_3y[:,1]/MAX_y
+    # phi_4x gradient
+    dphi_4x = tf.gradients(phi_4x, colloc_tensor)[0]
+    phi_4x_x = dphi_4x[:,0]/MAX_x
+    phi_4x_y = dphi_4x[:,1]/MAX_y
+    # phi_4y gradient
+    dphi_4y = tf.gradients(phi_4y, colloc_tensor)[0]
+    phi_4y_x = dphi_4y[:,0]/MAX_x
+    phi_4y_y = dphi_4y[:,1]/MAX_y
+    # phi_5x gradient
+    dphi_5x = tf.gradients(phi_5x, colloc_tensor)[0]
+    phi_5x_x = dphi_5x[:,0]/MAX_x
+    phi_5x_y = dphi_5x[:,1]/MAX_y
+    # phi_5y gradient
+    dphi_5y = tf.gradients(phi_5y, colloc_tensor)[0]
+    phi_5y_x = dphi_5y[:,0]/MAX_x
+    phi_5y_y = dphi_5y[:,1]/MAX_y
+    # phi_6x gradient
+    dphi_6x = tf.gradients(phi_6x, colloc_tensor)[0]
+    phi_6x_x = dphi_6x[:,0]/MAX_x
+    phi_6x_y = dphi_6x[:,1]/MAX_y
+    # phi_6y gradient
+    dphi_6y = tf.gradients(phi_6y, colloc_tensor)[0]
+    phi_6y_x = dphi_6y[:,0]/MAX_x
+    phi_6y_y = dphi_6y[:,1]/MAX_y
 
     # gradient unmodeled reynolds stresses
     uxppuxpp_x = tf.gradients(uxppuxpp, colloc_tensor)[0][:,0]/MAX_x
@@ -290,22 +377,23 @@ def net_f_cartesian(colloc_tensor):
 
 
     # modeled reynolds stress gradients
-    uxmuxm_x = 2*A1*phi_1x*phi_1x_x + 2*A2*phi_2x*phi_2x_x
-    uxmuym_x = A1*(phi_1x*phi_1y_x + phi_1y*phi_1x_x) + A2*(phi_2x*phi_2y_x + phi_2y*phi_2x_x)
-    uxmuym_y = A1*(phi_1x*phi_1y_y + phi_1y*phi_1x_y) + A2*(phi_2x*phi_2y_y + phi_2y*phi_2x_y)
-    uymuym_y = 2*A1*phi_1y*phi_1y_y + 2*A2*phi_2y*phi_2y_y
+    uxmuxm_x = 2*A1*phi_1x*phi_1x_x + 2*A2*phi_2x*phi_2x_x + 2*A3*phi_3x*phi_3x_x + 2*A4*phi_4x*phi_4x_x + 2*A5*phi_5x*phi_5x_x + 2*A6*phi_6x*phi_6x_x
+    uxmuym_x = A1*(phi_1x*phi_1y_x + phi_1y*phi_1x_x) + A2*(phi_2x*phi_2y_x + phi_2y*phi_2x_x) + A3*(phi_3x*phi_3y_x + phi_3y*phi_3x_x) + A4*(phi_4x*phi_4y_x + phi_4y*phi_4x_x) + A5*(phi_5x*phi_5y_x + phi_5y*phi_5x_x) + A6*(phi_6x*phi_6y_x + phi_6y*phi_6x_x)
+    uxmuym_y = A1*(phi_1x*phi_1y_y + phi_1y*phi_1x_y) + A2*(phi_2x*phi_2y_y + phi_2y*phi_2x_y) + A4*(phi_3x*phi_3y_y + phi_3y*phi_3x_y) + A4*(phi_4x*phi_4y_y + phi_4y*phi_4x_y) + A5*(phi_5x*phi_5y_y + phi_5y*phi_5x_y) + A6*(phi_6x*phi_6y_y + phi_6y*phi_6x_y)
+    uymuym_y = 2*A1*phi_1y*phi_1y_y + 2*A2*phi_2y*phi_2y_y + 2*A3*phi_3y*phi_3y_y + 2*A4*phi_4y*phi_4y_y + 2*A5*phi_5y*phi_5y_y + 2*A6*phi_6y*phi_6y_y
 
     # governing equations
     f_x = (ux*ux_x + uy*ux_y) + (uxmuxm_x + uxmuym_y) + (uxppuxpp_x + uxppuypp_y) + p_x - (nu_mol)*(ux_xx+ux_yy)  #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
     f_y = (ux*uy_x + uy*uy_y) + (uxmuym_x + uymuym_y) + (uxppuypp_x + uyppuypp_y) + p_y - (nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
     f_mass = ux_x + uy_y
-    a_loss = tf.square(A1_x)+tf.square(A1_y)+tf.square(A2_x)+tf.square(A2_y)
+    # we want to impose that Ai is spatially constant, so impose the spatial derivatives as a loss function
+    a_loss = tf.square(A1_x)+tf.square(A1_y)+tf.square(A2_x)+tf.square(A2_y)+tf.square(A3_x)+tf.square(A3_y)+tf.square(A4_x)+tf.square(A4_y)+tf.square(A5_x)+tf.square(A5_y)+tf.square(A6_x)+tf.square(A6_y)
 
     return f_x, f_y, f_mass, a_loss
 
 
 # create NN
-dense_nodes = 50
+dense_nodes = 100
 dense_layers = 10
 if useGPU:
     tf_device_string = '/GPU:0'
@@ -346,7 +434,7 @@ with tf.device(tf_device_string):
     model.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
     for i in range(dense_layers-1):
         model.add(keras.layers.Dense(dense_nodes, activation='tanh'))
-    model.add(keras.layers.Dense(12,activation='linear'))
+    model.add(keras.layers.Dense(24,activation='linear'))
     model.summary()
 
 # function wrapper, combine data and physics loss
@@ -357,24 +445,36 @@ def custom_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tenso
         # additionally, the known quantities must be first, unknown quantites second
         data_loss_A1 = keras.losses.mean_squared_error(y_true[:,0], y_pred[:,0]) # A1
         data_loss_A2 = keras.losses.mean_squared_error(y_true[:,1], y_pred[:,1]) # A2
-        data_loss_ux = keras.losses.mean_squared_error(y_true[:,2], y_pred[:,2]) # u 
-        data_loss_uy = keras.losses.mean_squared_error(y_true[:,3], y_pred[:,3]) # v 
-        data_loss_phi_1x = keras.losses.mean_squared_error(y_true[:,4], y_pred[:,4]) # phi_1,x
-        data_loss_phi_1y = keras.losses.mean_squared_error(y_true[:,5], y_pred[:,5]) # phi_1,y
-        data_loss_phi_2x = keras.losses.mean_squared_error(y_true[:,6], y_pred[:,6]) # phi_2,x
-        data_loss_phi_2y = keras.losses.mean_squared_error(y_true[:,7], y_pred[:,7]) # phi_2,y
-        data_loss_uxppuxpp = keras.losses.mean_squared_error(y_true[:,8], y_pred[:,8]) # u''u''   
-        data_loss_uxppuypp = keras.losses.mean_squared_error(y_true[:,9], y_pred[:,9]) # u''v''
-        data_loss_uyppuypp = keras.losses.mean_squared_error(y_true[:,10], y_pred[:,10]) # v''v''
+        data_loss_A3 = keras.losses.mean_squared_error(y_true[:,2], y_pred[:,2]) # A3
+        data_loss_A4 = keras.losses.mean_squared_error(y_true[:,3], y_pred[:,3]) # A4
+        data_loss_A5 = keras.losses.mean_squared_error(y_true[:,4], y_pred[:,4]) # A5
+        data_loss_A6 = keras.losses.mean_squared_error(y_true[:,5], y_pred[:,5]) # A6
+        data_loss_ux = keras.losses.mean_squared_error(y_true[:,6], y_pred[:,6]) # u 
+        data_loss_uy = keras.losses.mean_squared_error(y_true[:,7], y_pred[:,7]) # v 
+        data_loss_phi_1x = keras.losses.mean_squared_error(y_true[:,8], y_pred[:,8]) # phi_1,x
+        data_loss_phi_1y = keras.losses.mean_squared_error(y_true[:,9], y_pred[:,9]) # phi_1,y
+        data_loss_phi_2x = keras.losses.mean_squared_error(y_true[:,10], y_pred[:,10]) # phi_2,x
+        data_loss_phi_2y = keras.losses.mean_squared_error(y_true[:,11], y_pred[:,11]) # phi_2,y
+        data_loss_phi_3x = keras.losses.mean_squared_error(y_true[:,12], y_pred[:,12]) # phi_3,x
+        data_loss_phi_3y = keras.losses.mean_squared_error(y_true[:,13], y_pred[:,13]) # phi_3,y
+        data_loss_phi_4x = keras.losses.mean_squared_error(y_true[:,14], y_pred[:,14]) # phi_4,x
+        data_loss_phi_4y = keras.losses.mean_squared_error(y_true[:,15], y_pred[:,15]) # phi_4,y
+        data_loss_phi_5x = keras.losses.mean_squared_error(y_true[:,16], y_pred[:,16]) # phi_5,x
+        data_loss_phi_5y = keras.losses.mean_squared_error(y_true[:,17], y_pred[:,17]) # phi_5,y
+        data_loss_phi_6x = keras.losses.mean_squared_error(y_true[:,18], y_pred[:,18]) # phi_6,x
+        data_loss_phi_6y = keras.losses.mean_squared_error(y_true[:,19], y_pred[:,19]) # phi_6,y
+        data_loss_uxppuxpp = keras.losses.mean_squared_error(y_true[:,20], y_pred[:,20]) # u''u''   
+        data_loss_uxppuypp = keras.losses.mean_squared_error(y_true[:,21], y_pred[:,21]) # u''v''
+        data_loss_uyppuypp = keras.losses.mean_squared_error(y_true[:,22], y_pred[:,22]) # v''v''
 
 
         mx,my,mass,aloss = net_f_cartesian(colloc_tensor_f)
         physical_loss1 = tf.reduce_mean(tf.square(mx))
         physical_loss2 = tf.reduce_mean(tf.square(my))
         physical_loss3 = tf.reduce_mean(tf.square(mass))
-        physical_loss4 = tf.reduce_sum(aloss)
+        physical_loss4 = tf.reduce_sum(aloss) # the components are already squared
                 
-        return data_loss_A1 + data_loss_A2 + data_loss_ux + data_loss_uy + data_loss_phi_1x + data_loss_phi_1y + data_loss_phi_2x + data_loss_phi_2y + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp + (11/3)*physical_loss1 + (11/3)*physical_loss2 + (11/3)*physical_loss3 +1.0*physical_loss4# 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
+        return data_loss_A1 + data_loss_A2 + data_loss_A3 + data_loss_A4 + data_loss_A5 + data_loss_A6 + data_loss_ux + data_loss_uy + data_loss_phi_1x + data_loss_phi_1y + data_loss_phi_2x + data_loss_phi_2y + data_loss_phi_3x + data_loss_phi_3y + data_loss_phi_4x + data_loss_phi_4y + data_loss_phi_5x + data_loss_phi_5y + data_loss_phi_6x + data_loss_phi_6y + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp + (23/3)*physical_loss1 + (23/3)*physical_loss2 + (23/3)*physical_loss3 + 1.0*physical_loss4 # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
 
     return custom_loss
 
