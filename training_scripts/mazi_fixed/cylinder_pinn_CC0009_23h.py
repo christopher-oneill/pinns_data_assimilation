@@ -87,7 +87,7 @@ else:
     
     job_duration = timedelta(hours=22,minutes=30)
     end_time = start_time+job_duration
-
+    print("This job is: ",job_name)
     useGPU=True
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     
