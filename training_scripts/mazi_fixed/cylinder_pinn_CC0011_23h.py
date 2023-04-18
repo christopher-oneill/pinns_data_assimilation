@@ -71,11 +71,11 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'CC0010'
+job_name = 'CC0011'
 
-# Job CC0009 Notes
+# Job CC0011 Notes
 # Case: Mazi Fixed
-# 100 nodes wide 
+# 150 nodes wide 
 # Now trying to train with 6 POD modes. now with a even more slowly increasing physics loss weight. now with reduce mean for the gradient of Ai.  No poisson equation. 
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -393,7 +393,7 @@ def net_f_cartesian(colloc_tensor):
 
 
 # create NN
-dense_nodes = 100
+dense_nodes = 150
 dense_layers = 10
 if useGPU:
     tf_device_string = '/GPU:0'
