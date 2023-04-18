@@ -524,7 +524,7 @@ if node_name ==LOCAL_NODE:
         shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
         temp_X_train = X_train[shuffle_inds,:]
         temp_Y_train = O_train[shuffle_inds,:]
-        hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=16, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
+        hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=8, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
         epochs = epochs+d_epochs
         model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
 
@@ -534,7 +534,7 @@ else:
         shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
         temp_X_train = X_train[shuffle_inds,:]
         temp_Y_train = O_train[shuffle_inds,:]
-        hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=16, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
+        hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=8, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
         epochs = epochs+d_epochs
         if epochs >=40:
             physics_loss_coefficient=0.2*(24/3)
