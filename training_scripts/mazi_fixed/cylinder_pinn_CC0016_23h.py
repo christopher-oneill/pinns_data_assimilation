@@ -87,7 +87,7 @@ else:
     
     job_duration = timedelta(hours=22,minutes=30)
     end_time = start_time+job_duration
-
+    print("This job is: ",job_name)
     useGPU=True
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     
@@ -164,10 +164,8 @@ MAX_uxppuxpp = max(uxppuxpp.flatten())
 MAX_uxppuypp = max(uxppuypp.flatten())
 MAX_uyppuypp = max(uyppuypp.flatten())
 
-MAX_phi_1x = max(phi_1x.flatten())
-MAX_phi_1y = max(phi_1y.flatten())
-MAX_phi_2x = max(phi_2x.flatten())
-MAX_phi_2y = max(phi_2y.flatten())
+MAX_A1 = max(A1.flatten())
+MAX_A2 = max(A2.flatten())
 
 print('max_x: ',MAX_x)
 print('max_y: ',MAX_y)
@@ -202,14 +200,12 @@ uy_train = uy/MAX_uy
 uxppuxpp_train = uxppuxpp/MAX_uxppuxpp
 uxppuypp_train = uxppuypp/MAX_uxppuypp
 uyppuypp_train = uyppuypp/MAX_uyppuypp
-phi_1x_train = phi_1x/MAX_phi_1x
-phi_1y_train = phi_1y/MAX_phi_1y
-phi_2x_train = phi_2x/MAX_phi_2x
-phi_2y_train = phi_2y/MAX_phi_2y
+A1_train = A1/MAX_A1
+A2_train = A2/MAX_A2
 
 
 # the order here must be identical to inside the cost functions
-O_train = np.hstack((A1.reshape(-1,1),A2.reshape(-1,1),(ux_train).reshape(-1,1),(uy_train).reshape(-1,1),phi_1x_train.reshape(-1,1),phi_1y_train.reshape(-1,1),phi_2x_train.reshape(-1,1),phi_2y_train.reshape(-1,1),(uxppuxpp_train).reshape(-1,1),(uxppuypp_train).reshape(-1,1),(uyppuypp_train).reshape(-1,1),)) # training data
+O_train = np.hstack((A1_train.reshape(-1,1),A2_train.reshape(-1,1),(ux_train).reshape(-1,1),(uy_train).reshape(-1,1),phi_1x.reshape(-1,1),phi_1y.reshape(-1,1),phi_2x.reshape(-1,1),phi_2y.reshape(-1,1),(uxppuxpp_train).reshape(-1,1),(uxppuypp_train).reshape(-1,1),(uyppuypp_train).reshape(-1,1),)) # training data
 # note that the order here needs to be the same as the split inside the network!
 X_train = np.hstack((x_train.reshape(-1,1),y_train.reshape(-1,1)))
 
@@ -221,14 +217,14 @@ def net_f_cartesian(colloc_tensor):
     
     up = model(colloc_tensor)
     # knowns
-    A1 = up[:,0] # these are less than 1 based on how the POD is normalized, so there is no need to scale
-    A2 = up[:,1]
-    ux    = up[:,2]*MAX_ux
-    uy    = up[:,3]*MAX_uy
-    phi_1x = up[:,4]*MAX_phi_1x
-    phi_1y = up[:,5]*MAX_phi_1y
-    phi_2x = up[:,6]*MAX_phi_2x
-    phi_2y = up[:,7]*MAX_phi_2y
+    A1 = up[:,0]*MAX_A1
+    A2 = up[:,1]*MAX_A2
+    ux = up[:,2]*MAX_ux
+    uy = up[:,3]*MAX_uy
+    phi_1x = up[:,4] # these are near 1 based on how the POD is normalized, so there is no need to scale
+    phi_1y = up[:,5]
+    phi_2x = up[:,6]
+    phi_2y = up[:,7]
     uxppuxpp = up[:,8]*MAX_uxppuxpp
     uxppuypp = up[:,9]*MAX_uxppuypp
     uyppuypp = up[:,10]*MAX_uyppuypp
@@ -374,7 +370,7 @@ def custom_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tenso
         physical_loss1 = tf.reduce_mean(tf.square(mx))
         physical_loss2 = tf.reduce_mean(tf.square(my))
         physical_loss3 = tf.reduce_mean(tf.square(mass))
-        physical_loss4 = tf.reduce_sum(aloss)
+        physical_loss4 = tf.reduce_mean(aloss)
                 
         return data_loss_A1 + data_loss_A2 + data_loss_ux + data_loss_uy + data_loss_phi_1x + data_loss_phi_1y + data_loss_phi_2x + data_loss_phi_2y + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp + physics_loss_coefficient*((11/3)*physical_loss1 + (11/3)*physical_loss2 + (11/3)*physical_loss3 + 1.0*physical_loss4) # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
 

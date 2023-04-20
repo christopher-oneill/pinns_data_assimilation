@@ -71,7 +71,7 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'CC0015'
+job_name = 'CC0017'
 
 # Job CC0015 Notes
 # Case: Mazi Fixed
@@ -80,6 +80,7 @@ job_name = 'CC0015'
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
+    import matplotlib.pyplot as plot
     useGPU=False    
     SLURM_TMPDIR='C:/projects/pinns_local/'
 else:
@@ -95,7 +96,7 @@ else:
 # set the paths
 save_loc = SLURM_TMPDIR+'/output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
-
+physics_loss_coefficient = 0.0
 # set number of cores to compute on 
 tf.config.threading.set_intra_op_parallelism_threads(3)
 tf.config.threading.set_inter_op_parallelism_threads(3)
@@ -117,10 +118,10 @@ else:
 
 
 # read the data
-base_dir = SLURM_TMPDIR+'/data/mazi_fixed_modes/'
+base_dir = SLURM_TMPDIR+'/data/kevin_LD2TD2/'
 meanFieldFile = h5py.File(base_dir+'meanField.mat','r')
 configFile = h5py.File(base_dir+'configuration.mat','r')
-mode_dataFile = h5py.File(base_dir+'mode_data6.mat','r')
+mode_dataFile = h5py.File(base_dir+'ePODmode_data6.mat','r')
 
 
 ux = np.array(meanFieldFile['meanField'][0,:]).transpose()
@@ -152,10 +153,12 @@ uxppuypp = np.array(mode_dataFile['residual_stress'][1,:]).transpose()
 uyppuypp = np.array(mode_dataFile['residual_stress'][2,:]).transpose()
 
 
-x = np.array(configFile['X'][0,:])
-y = np.array(configFile['X'][1,:])
+x = np.array(configFile['xi_grid'][0,:])
+y = np.array(configFile['yi_grid'][0,:])
 d = np.array(configFile['cylinderDiameter'])
 
+c1_loc = np.array(configFile['cylinderLocation'][:,0])
+c2_loc = np.array(configFile['cylinderLocation'][:,1])
 
 print('u.shape: ',ux.shape)
 print('x.shape: ',x.shape)
@@ -185,27 +188,31 @@ MAX_A6 = max(A6.flatten())
 
 
 print('max_x: ',MAX_x)
+print('min_x: ',MIN_x)
 print('max_y: ',MAX_y)
+print('min_y: ',MIN_y)
 
-MAX_p= 1 # estimated maximum pressure
+
+
+MAX_p= 1E-5 # estimated maximum pressure, we should 
 
 # reduce the collocation points to 25k
-colloc_limits1 = np.array([[-2.0,4.0],[0.0,2.0]])
+colloc_limits1 = np.array([[-2.0,22.0],[-4.0,8.0]])
 colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-colloc_lhs1 = colloc_sample_lhs1(5000)
+colloc_lhs1 = colloc_sample_lhs1(20000)
 print('colloc_lhs1.shape',colloc_lhs1.shape)
 
-colloc_limits2 = np.array([[4.0,10.0],[0.0,2.0]])
-colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
-colloc_lhs2 = colloc_sample_lhs2(5000)
-print('colloc_lhs2.shape',colloc_lhs2.shape)
-
-colloc_merged = np.vstack((colloc_lhs1,colloc_lhs2))
 # remove points inside the cylinder
-cylinder_inds = np.less(np.power(np.power(colloc_merged[:,0],2)+np.power(colloc_merged[:,1],2),0.5),0.5)
-colloc_merged = np.delete(colloc_merged,cylinder_inds,axis=0)
-colloc_merged = np.vstack((colloc_merged,colloc_merged*np.array([1,-1])))
+
+cylinder_inds = np.less(np.power(np.power(colloc_lhs1[:,0]-c1_loc[0],2)+np.power(colloc_lhs1[:,1]-c1_loc[1],2),0.5*d),0.5)
+print(cylinder_inds.shape)
+colloc_lhs1 = np.delete(colloc_lhs1,cylinder_inds[0,:],axis=0)
+cylinder_inds2 = np.less(np.power(np.power(colloc_lhs1[:,0]-c2_loc[0],2)+np.power(colloc_lhs1[:,1]-c2_loc[1],2),0.5*d),0.5)
+colloc_merged = np.delete(colloc_lhs1,cylinder_inds2[0,:],axis=0)
 print('colloc_merged.shape',colloc_merged.shape)
+
+plot.scatter(colloc_merged[0,:],colloc_merged[1,:])
+
 
 f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
 
@@ -238,7 +245,7 @@ def net_f_cartesian(colloc_tensor):
     
     up = model(colloc_tensor)
     # knowns
-    A1 = up[:,0]*MAX_A1 # these are less than 1 based on how the POD is normalized, so there is no need to scale
+    A1 = up[:,0]*MAX_A1  # this encodes the magnitude of the modes, so this is NOT near 1
     A2 = up[:,1]*MAX_A2
     A3 = up[:,2]*MAX_A3
     A4 = up[:,3]*MAX_A4
@@ -246,7 +253,7 @@ def net_f_cartesian(colloc_tensor):
     A6 = up[:,5]*MAX_A6
     ux = up[:,6]*MAX_ux
     uy = up[:,7]*MAX_uy
-    phi_1x = up[:,8]
+    phi_1x = up[:,8] # these are close to 1 based on how the POD is normalized, so there is no need to scale
     phi_1y = up[:,9]
     phi_2x = up[:,10]
     phi_2y = up[:,11]
@@ -462,7 +469,7 @@ def custom_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tenso
         physical_loss3 = tf.reduce_mean(tf.square(mass))
         physical_loss4 = tf.reduce_mean(aloss) # the components are already squared
                 
-        return data_loss_A1 + data_loss_A2 + data_loss_A3 + data_loss_A4 + data_loss_A5 + data_loss_A6 + data_loss_ux + data_loss_uy + data_loss_phi_1x + data_loss_phi_1y + data_loss_phi_2x + data_loss_phi_2y + data_loss_phi_3x + data_loss_phi_3y + data_loss_phi_4x + data_loss_phi_4y + data_loss_phi_5x + data_loss_phi_5y + data_loss_phi_6x + data_loss_phi_6y + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp + (23/3)*physical_loss1 + (23/3)*physical_loss2 + (23/3)*physical_loss3 + 1.0*physical_loss4 # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
+        return data_loss_A1 + data_loss_A2 + data_loss_A3 + data_loss_A4 + data_loss_A5 + data_loss_A6 + data_loss_ux + data_loss_uy + data_loss_phi_1x + data_loss_phi_1y + data_loss_phi_2x + data_loss_phi_2y + data_loss_phi_3x + data_loss_phi_3y + data_loss_phi_4x + data_loss_phi_4y + data_loss_phi_5x + data_loss_phi_5y + data_loss_phi_6x + data_loss_phi_6y + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp + physics_loss_coefficient*(physical_loss1 + physical_loss2 + physical_loss3 + physical_loss4) # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
 
     return custom_loss
 
