@@ -213,7 +213,7 @@ cylinder_inds2 = np.less(np.power(np.power(colloc_lhs1[:,0]-c2_loc[0],2)+np.powe
 colloc_merged = np.delete(colloc_lhs1,cylinder_inds2[0,:],axis=0)
 print('colloc_merged.shape',colloc_merged.shape)
 
-plot.scatter(colloc_merged[0,:],colloc_merged[1,:])
+
 
 
 f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
