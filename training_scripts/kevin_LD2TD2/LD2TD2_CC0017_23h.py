@@ -519,14 +519,19 @@ start_epochs = epochs
 
 if node_name ==LOCAL_NODE:
     # local node training loop, save every epoch for testing
-    for e in range(10):
-        shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
-        temp_X_train = X_train[shuffle_inds,:]
-        temp_Y_train = O_train[shuffle_inds,:]
-        hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=16, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
-        epochs = epochs+d_epochs
-        model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
-
+    if True:
+        for e in range(10):
+            shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
+            temp_X_train = X_train[shuffle_inds,:]
+            temp_Y_train = O_train[shuffle_inds,:]
+            hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=16, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
+            epochs = epochs+d_epochs
+            model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
+    else:
+        pred = model.predict(X_all,batch_size=512)
+        h5f = h5py.File(SLURM_TMPDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+        h5f.create_dataset('pred',data=pred)
+        h5f.close() 
     
 else:
     shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))

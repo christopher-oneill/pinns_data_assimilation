@@ -82,6 +82,7 @@ LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
     useGPU=False    
     SLURM_TMPDIR='C:/projects/pinns_local/'
+    HOMEDIR='C:/projects/pinns_local/'
 else:
     # parameters for running on compute canada
     
@@ -89,11 +90,12 @@ else:
     end_time = start_time+job_duration
     print("This job is: ",job_name)
     useGPU=True
+    HOMEDIR = '/home/coneill/sync/'
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     
 
 # set the paths
-save_loc = SLURM_TMPDIR+'/output/'+job_name+'_output/'
+save_loc = HOMEDIR+'/output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
 physics_loss_coefficient = 0;
 
@@ -118,7 +120,7 @@ else:
 
 
 # read the data
-base_dir = SLURM_TMPDIR+'/data/mazi_fixed_modes/'
+base_dir = HOMEDIR+'/data/mazi_fixed_modes/'
 meanFieldFile = h5py.File(base_dir+'meanField.mat','r')
 configFile = h5py.File(base_dir+'configuration.mat','r')
 mode_dataFile = h5py.File(base_dir+'mode_data2.mat','r')
@@ -337,7 +339,7 @@ if False:
         output_layer = keras.layers.concatenate((hidden_layer_a,xy_output),1)
         model = keras.Model(inputs=input_layer,outputs=output_layer,name='functional_sequential')
         model.summary()
-        keras.utils.plot_model(model,SLURM_TMPDIR+'model.png')
+        keras.utils.plot_model(model,HOMEDIR+'model.png')
 
 with tf.device(tf_device_string):
     model = keras.Sequential()
@@ -394,7 +396,7 @@ rng = np.random.default_rng()
 
 # job_name = 'RS3_CC0001_23h'
 # we need to check if there are already checkpoints for this job
-checkpoint_files = get_filepaths_with_glob(SLURM_TMPDIR+'/output/'+job_name+'_output/',job_name+'_ep*.index')
+checkpoint_files = get_filepaths_with_glob(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep*.index')
 if len(checkpoint_files)>0:
     files_epoch_number = np.zeros([len(checkpoint_files),1],dtype=np.uint)
     # if there are checkpoints, train based on the most recent checkpoint
@@ -402,8 +404,8 @@ if len(checkpoint_files)>0:
         re_result = re.search("ep[0-9]*",checkpoint_files[f_indx])
         files_epoch_number[f_indx]=int(checkpoint_files[f_indx][(re_result.start()+2):re_result.end()])
     epochs = np.uint(np.max(files_epoch_number))
-    print(SLURM_TMPDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
-    model.load_weights(SLURM_TMPDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs))
+    print(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
+    model.load_weights(HOMEDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs))
 else:
     # if not, we train from the beginning
     epochs = 0
@@ -418,13 +420,19 @@ start_epochs = epochs
 
 if node_name ==LOCAL_NODE:
     # local node training loop, save every epoch for testing
-    for e in range(10):
-        shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
-        temp_X_train = X_train[shuffle_inds,:]
-        temp_Y_train = O_train[shuffle_inds,:]
-        hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
-        epochs = epochs+d_epochs
-        model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
+    if True:
+        for e in range(10):
+            shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
+            temp_X_train = X_train[shuffle_inds,:]
+            temp_Y_train = O_train[shuffle_inds,:]
+            hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=16, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
+            epochs = epochs+d_epochs
+            model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
+    else:
+        pred = model.predict(X_all,batch_size=512)
+        h5f = h5py.File(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+        h5f.create_dataset('pred',data=pred)
+        h5f.close() 
 
 else:
     shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
