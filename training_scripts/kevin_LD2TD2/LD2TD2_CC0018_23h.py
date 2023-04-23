@@ -331,7 +331,8 @@ if len(checkpoint_files)>0:
 else:
     # if not, we train from the beginning
     epochs = 0
-    os.mkdir(HOMEDIR+'/output/'+job_name+'_output/')
+    if ~os.path.isdir(HOMEDIR+'/output/'+job_name+'_output/'):
+        os.mkdir(HOMEDIR+'/output/'+job_name+'_output/')
 
 
 # train the network
