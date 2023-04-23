@@ -72,7 +72,7 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'CC0017'
+job_name = 'CC0018'
 
 # Job CC0015 Notes
 # Case: Mazi Fixed
