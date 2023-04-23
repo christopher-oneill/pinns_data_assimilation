@@ -546,7 +546,10 @@ else:
         if np.mod(epochs,10)==0:
             # save every 10th epoch
             model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
-
+            pred = model.predict(X_train,batch_size=32)
+            h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+            h5f.create_dataset('pred',data=pred)
+            h5f.close() 
 
         # check if we should exit
         average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
@@ -555,5 +558,9 @@ else:
             print("Remaining time is insufficient for another epoch, exiting...")
             # save the last epoch before exiting
             model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
+            pred = model.predict(X_train,batch_size=32)
+            h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+            h5f.create_dataset('pred',data=pred)
+            h5f.close() 
             exit()
         last_epoch_time = datetime.now()
