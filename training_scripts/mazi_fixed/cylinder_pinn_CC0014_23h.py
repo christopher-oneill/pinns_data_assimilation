@@ -536,7 +536,7 @@ else:
         hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=16, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
         epochs = epochs+d_epochs
 
-        if epochs>=50:
+        if epochs>=0:
             
             keras.backend.set_value(model.optimizer.learning_rate, 0.005)
         if epochs>=100:

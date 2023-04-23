@@ -53,6 +53,7 @@ import os
 import glob
 import re
 import smt
+import h5py
 from smt.sampling_methods import LHS
 from pyDOE import lhs
 from datetime import datetime
@@ -71,22 +72,23 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'CC0016'
+job_name = 'CC0017'
 
-# Job CC0016 Notes
+# Job CC0015 Notes
 # Case: Mazi Fixed
-# 100 nodes wide, 2 POD modes, no physics loss. 
-# Now trying to train with 2 POD modes. No poisson equation. 
+# 100 nodes wide, no physics loss, randomize only every 10th epoch
+# Now trying to train with 6 POD modes. now with a even more slowly increasing physics loss weight. now with reduce mean for the gradient of Ai.  No poisson equation. 
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
+    import matplotlib.pyplot as plot
     useGPU=False    
     SLURM_TMPDIR='C:/projects/pinns_local/'
-    HOMEDIR='C:/projects/pinns_local/'
+    HOMEDIR = 'C:/projects/pinns_local/'
 else:
     # parameters for running on compute canada
     
-    job_duration = timedelta(hours=22,minutes=30)
+    job_duration = timedelta(hours=0,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
     useGPU=True
@@ -97,8 +99,7 @@ else:
 # set the paths
 save_loc = HOMEDIR+'/output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
-physics_loss_coefficient = 0.1;
-
+physics_loss_coefficient = 0.0
 # set number of cores to compute on 
 tf.config.threading.set_intra_op_parallelism_threads(3)
 tf.config.threading.set_inter_op_parallelism_threads(3)
@@ -120,33 +121,27 @@ else:
 
 
 # read the data
-base_dir = HOMEDIR+'/data/mazi_fixed_modes/'
+base_dir = HOMEDIR+'data/kevin_LD2TD2/'
 meanFieldFile = h5py.File(base_dir+'meanField.mat','r')
 configFile = h5py.File(base_dir+'configuration.mat','r')
-mode_dataFile = h5py.File(base_dir+'mode_data2.mat','r')
+reynoldsStress_dataFile = h5py.File(base_dir+'reynoldsStress.mat','r')
 
 
 ux = np.array(meanFieldFile['meanField'][0,:]).transpose()
 uy = np.array(meanFieldFile['meanField'][1,:]).transpose()
 
-phi_1x = np.array(mode_dataFile['Phi_i'][0,0,:]).transpose()
-phi_1y = np.array(mode_dataFile['Phi_i'][1,0,:]).transpose()
-phi_2x = np.array(mode_dataFile['Phi_i'][0,1,:]).transpose()
-phi_2y = np.array(mode_dataFile['Phi_i'][1,1,:]).transpose()
+uxppuxpp = np.array(reynoldsStress_dataFile['reynoldsStress'][0,:]).transpose()
+uxppuypp = np.array(reynoldsStress_dataFile['reynoldsStress'][1,:]).transpose()
+uyppuypp = np.array(reynoldsStress_dataFile['reynoldsStress'][2,:]).transpose()
 
-A1 = np.ones(ux.shape,dtype=np.float64)*np.float64(mode_dataFile['A_i'][0,0])
-A2 = np.ones(ux.shape,dtype=np.float64)*np.float64(mode_dataFile['A_i'][0,1])
 
-uxppuxpp = np.array(mode_dataFile['residual_stress'][0,:]).transpose()
-uxppuypp = np.array(mode_dataFile['residual_stress'][1,:]).transpose()
-uyppuypp = np.array(mode_dataFile['residual_stress'][2,:]).transpose()
-
-a = np.ones(ux.shape,dtype=np.float64)
-x = np.array(configFile['X'][0,:])
-y = np.array(configFile['X'][1,:])
+x = np.array(configFile['xi_grid'][0,:])
+y = np.array(configFile['yi_grid'][0,:])
 d = np.array(configFile['cylinderDiameter'])
 
-print('a.shape: ',a.shape)
+c1_loc = np.array(configFile['cylinderLocation'][:,0])
+c2_loc = np.array(configFile['cylinderLocation'][:,1])
+
 print('u.shape: ',ux.shape)
 print('x.shape: ',x.shape)
 print('y.shape: ',y.shape)
@@ -166,31 +161,33 @@ MAX_uxppuxpp = max(uxppuxpp.flatten())
 MAX_uxppuypp = max(uxppuypp.flatten())
 MAX_uyppuypp = max(uyppuypp.flatten())
 
-MAX_A1 = max(A1.flatten())
-MAX_A2 = max(A2.flatten())
 
 print('max_x: ',MAX_x)
+print('min_x: ',MIN_x)
 print('max_y: ',MAX_y)
+print('min_y: ',MIN_y)
 
-MAX_p= 1 # estimated maximum pressure
+
+
+MAX_p= 1E-5 # estimated maximum pressure, we should 
 
 # reduce the collocation points to 25k
-colloc_limits1 = np.array([[-2.0,4.0],[0.0,2.0]])
+colloc_limits1 = np.array([[-2.0,22.0],[-4.0,8.0]])
 colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-colloc_lhs1 = colloc_sample_lhs1(5000)
+colloc_lhs1 = colloc_sample_lhs1(20000)
 print('colloc_lhs1.shape',colloc_lhs1.shape)
 
-colloc_limits2 = np.array([[4.0,10.0],[0.0,2.0]])
-colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
-colloc_lhs2 = colloc_sample_lhs2(5000)
-print('colloc_lhs2.shape',colloc_lhs2.shape)
-
-colloc_merged = np.vstack((colloc_lhs1,colloc_lhs2))
 # remove points inside the cylinder
-cylinder_inds = np.less(np.power(np.power(colloc_merged[:,0],2)+np.power(colloc_merged[:,1],2),0.5),0.5)
-colloc_merged = np.delete(colloc_merged,cylinder_inds,axis=0)
-colloc_merged = np.vstack((colloc_merged,colloc_merged*np.array([1,-1])))
+
+cylinder_inds = np.less(np.power(np.power(colloc_lhs1[:,0]-c1_loc[0],2)+np.power(colloc_lhs1[:,1]-c1_loc[1],2),0.5*d),0.5)
+print(cylinder_inds.shape)
+colloc_lhs1 = np.delete(colloc_lhs1,cylinder_inds[0,:],axis=0)
+cylinder_inds2 = np.less(np.power(np.power(colloc_lhs1[:,0]-c2_loc[0],2)+np.power(colloc_lhs1[:,1]-c2_loc[1],2),0.5*d),0.5)
+colloc_merged = np.delete(colloc_lhs1,cylinder_inds2[0,:],axis=0)
 print('colloc_merged.shape',colloc_merged.shape)
+
+
+
 
 f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
 
@@ -202,12 +199,10 @@ uy_train = uy/MAX_uy
 uxppuxpp_train = uxppuxpp/MAX_uxppuxpp
 uxppuypp_train = uxppuypp/MAX_uxppuypp
 uyppuypp_train = uyppuypp/MAX_uyppuypp
-A1_train = A1/MAX_A1
-A2_train = A2/MAX_A2
 
 
 # the order here must be identical to inside the cost functions
-O_train = np.hstack((A1_train.reshape(-1,1),A2_train.reshape(-1,1),(ux_train).reshape(-1,1),(uy_train).reshape(-1,1),phi_1x.reshape(-1,1),phi_1y.reshape(-1,1),phi_2x.reshape(-1,1),phi_2y.reshape(-1,1),(uxppuxpp_train).reshape(-1,1),(uxppuypp_train).reshape(-1,1),(uyppuypp_train).reshape(-1,1),)) # training data
+O_train = np.hstack(((ux_train).reshape(-1,1),(uy_train).reshape(-1,1),(uxppuxpp_train).reshape(-1,1),(uxppuypp_train).reshape(-1,1),(uyppuypp_train).reshape(-1,1),)) # training data
 # note that the order here needs to be the same as the split inside the network!
 X_train = np.hstack((x_train.reshape(-1,1),y_train.reshape(-1,1)))
 
@@ -219,28 +214,15 @@ def net_f_cartesian(colloc_tensor):
     
     up = model(colloc_tensor)
     # knowns
-    A1 = up[:,0]*MAX_A1
-    A2 = up[:,1]*MAX_A2
-    ux = up[:,2]*MAX_ux
-    uy = up[:,3]*MAX_uy
-    phi_1x = up[:,4] # these are near 1 based on how the POD is normalized, so there is no need to scale
-    phi_1y = up[:,5]
-    phi_2x = up[:,6]
-    phi_2y = up[:,7]
-    uxppuxpp = up[:,8]*MAX_uxppuxpp
-    uxppuypp = up[:,9]*MAX_uxppuypp
-    uyppuypp = up[:,10]*MAX_uyppuypp
+    ux = up[:,0]*MAX_ux
+    uy = up[:,1]*MAX_uy
+    uxppuxpp = up[:,2]*MAX_uxppuxpp
+    uxppuypp = up[:,3]*MAX_uxppuypp
+    uyppuypp = up[:,4]*MAX_uyppuypp
     # unknowns
-    p = up[:,11]*MAX_p
+    p = up[:,5]*MAX_p
     
     # compute the gradients of the quantities
-    # gradients of a
-    dA1 = tf.gradients(A1, colloc_tensor)[0]
-    A1_x = dA1[:,0]/MAX_x
-    A1_y = dA1[:,1]/MAX_y
-    dA2 = tf.gradients(A2, colloc_tensor)[0]
-    A2_x = dA2[:,0]/MAX_x
-    A2_y = dA2[:,1]/MAX_y
     
     # ux gradient
     dux = tf.gradients(ux, colloc_tensor)[0]
@@ -258,24 +240,6 @@ def net_f_cartesian(colloc_tensor):
     uy_xx = tf.gradients(uy_x, colloc_tensor)[0][:,0]/MAX_x
     uy_yy = tf.gradients(uy_y, colloc_tensor)[0][:,1]/MAX_y
 
-    # mode gradients
-    # phi_1x gradient
-    dphi_1x = tf.gradients(phi_1x, colloc_tensor)[0]
-    phi_1x_x = dphi_1x[:,0]/MAX_x
-    phi_1x_y = dphi_1x[:,1]/MAX_y
-    # phi_1y gradient
-    dphi_1y = tf.gradients(phi_1y, colloc_tensor)[0]
-    phi_1y_x = dphi_1y[:,0]/MAX_x
-    phi_1y_y = dphi_1y[:,1]/MAX_y
-    # phi_2x gradient
-    dphi_2x = tf.gradients(phi_2x, colloc_tensor)[0]
-    phi_2x_x = dphi_2x[:,0]/MAX_x
-    phi_2x_y = dphi_2x[:,1]/MAX_y
-    # phi_2y gradient
-    dphi_2y = tf.gradients(phi_2y, colloc_tensor)[0]
-    phi_2y_x = dphi_2y[:,0]/MAX_x
-    phi_2y_y = dphi_2y[:,1]/MAX_y
-
     # gradient unmodeled reynolds stresses
     uxppuxpp_x = tf.gradients(uxppuxpp, colloc_tensor)[0][:,0]/MAX_x
     duxppuypp = tf.gradients(uxppuypp, colloc_tensor)[0]
@@ -289,19 +253,13 @@ def net_f_cartesian(colloc_tensor):
     p_y = dp[:,1]/MAX_y
 
 
-    # modeled reynolds stress gradients
-    uxmuxm_x = 2*A1*phi_1x*phi_1x_x + 2*A2*phi_2x*phi_2x_x
-    uxmuym_x = A1*(phi_1x*phi_1y_x + phi_1y*phi_1x_x) + A2*(phi_2x*phi_2y_x + phi_2y*phi_2x_x)
-    uxmuym_y = A1*(phi_1x*phi_1y_y + phi_1y*phi_1x_y) + A2*(phi_2x*phi_2y_y + phi_2y*phi_2x_y)
-    uymuym_y = 2*A1*phi_1y*phi_1y_y + 2*A2*phi_2y*phi_2y_y
-
     # governing equations
-    f_x = (ux*ux_x + uy*ux_y) + (uxmuxm_x + uxmuym_y) + (uxppuxpp_x + uxppuypp_y) + p_x - (nu_mol)*(ux_xx+ux_yy)  #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
-    f_y = (ux*uy_x + uy*uy_y) + (uxmuym_x + uymuym_y) + (uxppuypp_x + uyppuypp_y) + p_y - (nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
+    f_x = (ux*ux_x + uy*ux_y) + (uxppuxpp_x + uxppuypp_y) + p_x - (nu_mol)*(ux_xx+ux_yy)  #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
+    f_y = (ux*uy_x + uy*uy_y) + (uxppuypp_x + uyppuypp_y) + p_y - (nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
     f_mass = ux_x + uy_y
-    a_loss = tf.square(A1_x)+tf.square(A1_y)+tf.square(A2_x)+tf.square(A2_y)
+    # we want to impose that Ai is spatially constant, so impose the spatial derivatives as a loss function
 
-    return f_x, f_y, f_mass, a_loss
+    return f_x, f_y, f_mass
 
 
 # create NN
@@ -312,41 +270,12 @@ if useGPU:
 else:
     tf_device_string = '/CPU:0'
 
-if False:
-    # tried to compute a non-linear network, but ran into trouble with gradients
-    with tf.device(tf_device_string):
-        input_layer = keras.Input(shape=(3,))
-        batch_size = tf.shape(input_layer)[0]
-        # the order of the split here is very important because the order of the 
-        # input vectors determines the order of the derivatives in the physics loss
-        xy = tf.slice(input_layer,(batch_size,0),(batch_size,2))
-        a = tf.slice(input_layer,(batch_size,2),(batch_size,1))
-
-        # build the xy layers
-        dense_type = keras.layers.Dense(dense_nodes,activation='tanh')
-        hidden_layer = dense_type(xy)
-        for i in range(dense_layers-1):
-            hidden_type = keras.layers.Dense(dense_nodes,activation='tanh')
-            hidden_layer = hidden_type(hidden_layer)
-        xy_output_type = keras.layers.Dense(12,activation='linear')
-        xy_output =  xy_output_type(hidden_layer)
-        # build the a layers
-        a_dense_type = keras.layers.Dense(2,activation='linear')
-        hidden_layer_a = a_dense_type(a)
-        # concatinate
-        # build the output
-        # again the order here is important so that this matches up with the loss function wrappers
-        output_layer = keras.layers.concatenate((hidden_layer_a,xy_output),1)
-        model = keras.Model(inputs=input_layer,outputs=output_layer,name='functional_sequential')
-        model.summary()
-        keras.utils.plot_model(model,HOMEDIR+'model.png')
-
 with tf.device(tf_device_string):
     model = keras.Sequential()
     model.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
     for i in range(dense_layers-1):
         model.add(keras.layers.Dense(dense_nodes, activation='tanh'))
-    model.add(keras.layers.Dense(12,activation='linear'))
+    model.add(keras.layers.Dense(6,activation='linear'))
     model.summary()
 
 # function wrapper, combine data and physics loss
@@ -355,26 +284,19 @@ def custom_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tenso
     def custom_loss(y_true, y_pred):
         # this needs to match the order that they are concatinated in the array when setting up the network
         # additionally, the known quantities must be first, unknown quantites second
-        data_loss_A1 = keras.losses.mean_squared_error(y_true[:,0], y_pred[:,0]) # A1
-        data_loss_A2 = keras.losses.mean_squared_error(y_true[:,1], y_pred[:,1]) # A2
-        data_loss_ux = keras.losses.mean_squared_error(y_true[:,2], y_pred[:,2]) # u 
-        data_loss_uy = keras.losses.mean_squared_error(y_true[:,3], y_pred[:,3]) # v 
-        data_loss_phi_1x = keras.losses.mean_squared_error(y_true[:,4], y_pred[:,4]) # phi_1,x
-        data_loss_phi_1y = keras.losses.mean_squared_error(y_true[:,5], y_pred[:,5]) # phi_1,y
-        data_loss_phi_2x = keras.losses.mean_squared_error(y_true[:,6], y_pred[:,6]) # phi_2,x
-        data_loss_phi_2y = keras.losses.mean_squared_error(y_true[:,7], y_pred[:,7]) # phi_2,y
-        data_loss_uxppuxpp = keras.losses.mean_squared_error(y_true[:,8], y_pred[:,8]) # u''u''   
-        data_loss_uxppuypp = keras.losses.mean_squared_error(y_true[:,9], y_pred[:,9]) # u''v''
-        data_loss_uyppuypp = keras.losses.mean_squared_error(y_true[:,10], y_pred[:,10]) # v''v''
+        data_loss_ux = keras.losses.mean_squared_error(y_true[:,0], y_pred[:,0]) # u 
+        data_loss_uy = keras.losses.mean_squared_error(y_true[:,1], y_pred[:,1]) # v 
+        data_loss_uxppuxpp = keras.losses.mean_squared_error(y_true[:,2], y_pred[:,2]) # u''u''   
+        data_loss_uxppuypp = keras.losses.mean_squared_error(y_true[:,3], y_pred[:,3]) # u''v''
+        data_loss_uyppuypp = keras.losses.mean_squared_error(y_true[:,4], y_pred[:,4]) # v''v''
 
 
         mx,my,mass,aloss = net_f_cartesian(colloc_tensor_f)
         physical_loss1 = tf.reduce_mean(tf.square(mx))
         physical_loss2 = tf.reduce_mean(tf.square(my))
         physical_loss3 = tf.reduce_mean(tf.square(mass))
-        physical_loss4 = tf.reduce_mean(aloss)
-                
-        return data_loss_A1 + data_loss_A2 + data_loss_ux + data_loss_uy + data_loss_phi_1x + data_loss_phi_1y + data_loss_phi_2x + data_loss_phi_2y + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp + physics_loss_coefficient*(physical_loss1 + physical_loss2 + physical_loss3 + 0.0*physical_loss4) # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
+                      
+        return data_loss_ux + data_loss_uy + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp + physics_loss_coefficient*(physical_loss1 + physical_loss2 + physical_loss3) # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
 
     return custom_loss
 
@@ -411,6 +333,7 @@ else:
     epochs = 0
     os.mkdir(HOMEDIR+'/output/'+job_name+'_output/')
 
+
 # train the network
 d_epochs = 1
 X_train = tf.cast(X_train,dtype_train)
@@ -431,10 +354,10 @@ if node_name ==LOCAL_NODE:
             model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
     else:
         pred = model.predict(X_all,batch_size=512)
-        h5f = h5py.File(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+        h5f = h5py.File(SLURM_TMPDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
         h5f.create_dataset('pred',data=pred)
         h5f.close() 
-
+    
 else:
     shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
     temp_X_train = X_train[shuffle_inds,:]
@@ -445,16 +368,24 @@ else:
             shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
             temp_X_train = X_train[shuffle_inds,:]
             temp_Y_train = O_train[shuffle_inds,:]
-        hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=16, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
+        hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
         epochs = epochs+d_epochs
-        if epochs>=0:
+
+        if epochs>=25:
+            
             keras.backend.set_value(model.optimizer.learning_rate, 0.005)
-        if epochs>=100:
+        if epochs>=50:
+            
             keras.backend.set_value(model.optimizer.learning_rate, 0.001)
             
         if np.mod(epochs,10)==0:
             # save every 10th epoch
             model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
+            pred = model.predict(X_train,batch_size=1)
+            h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+            h5f.create_dataset('pred',data=pred)
+            h5f.close() 
+
 
 
         # check if we should exit
@@ -464,5 +395,8 @@ else:
             print("Remaining time is insufficient for another epoch, exiting...")
             # save the last epoch before exiting
             model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
+            h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+            h5f.create_dataset('pred',data=pred)
+            h5f.close()
             exit()
         last_epoch_time = datetime.now()

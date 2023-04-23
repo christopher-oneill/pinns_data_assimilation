@@ -162,7 +162,10 @@ print('x.shape: ',x.shape)
 print('y.shape: ',y.shape)
 print('d: ',d.shape)
 
-nu_mol = 0.0066667
+# for this case, ReD=160, with D=2 and U_inf = 0.0012
+# threfore, nu = U_inf D / Re = 0.0024/160 = 0.000015
+
+nu_mol = 0.000015
 
 MAX_x = max(x.flatten())
 MAX_y = max(y.flatten())
