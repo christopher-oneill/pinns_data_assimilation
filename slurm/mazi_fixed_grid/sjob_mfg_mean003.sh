@@ -8,6 +8,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --output=/home/coneill/sync/logs/slurm-%A.out
 
+
 cd $SLURM_TMPDIR
 
 mkdir $SLURM_TMPDIR/code/
@@ -17,5 +18,5 @@ tar -xf $SLURM_TMPDIR/code/pinns_galerkin_viv.tar -C $SLURM_TMPDIR/code/
 module load python/3.10
 source /home/coneill/sync/venv/tf1/bin/activate
 
-python $SLURM_TMPDIR/code/pinns_galerkin_viv/training_scripts/LD2TD2/LD2TD2_mean002.py
+python $SLURM_TMPDIR/code/pinns_galerkin_viv/training_scripts/mazi_fixed_grid/mfg_mean003.py
 
