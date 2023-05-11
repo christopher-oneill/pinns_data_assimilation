@@ -106,7 +106,7 @@ tf.config.threading.set_inter_op_parallelism_threads(3)
 if useGPU:
     physical_devices = tf.config.list_physical_devices('GPU')
     # if we are on the cluster, we need to check we use the right number of gpu, else we should raise an error
-    expected_GPU=2
+    expected_GPU=3
     assert len(physical_devices)==expected_GPU
 else:
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
