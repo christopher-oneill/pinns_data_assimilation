@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --account=def-martinuz    
-#SBATCH --gpus-per-node=1
-#SBATCH --cpus-per-task=3
-#SBATCH --mem=16000M
+#SBATCH --gpus-per-node=4
+#SBATCH --cpus-per-task=12
+#SBATCH --mem=32000M
 #SBATCH --time=0-23:00
 #SBATCH --mail-user=christopher.mark.oneill@gmail.com
 #SBATCH --mail-type=ALL
@@ -18,8 +18,6 @@ echo "This is job $SLURM_ARRAY_TASK_ID out of $SLURM_ARRAY_TASK_COUNT jobs."
 echo ""
 # ---------------------------------------------------------------------
 # Run your simulation step here...
-CASENAME="CC0018"
-
 cd $SLURM_TMPDIR
 
 mkdir $SLURM_TMPDIR/code/
@@ -29,7 +27,7 @@ tar -xf $SLURM_TMPDIR/code/pinns_galerkin_viv.tar -C $SLURM_TMPDIR/code/
 module load python/3.10
 source /home/coneill/sync/venv/tf1/bin/activate
 
-python $SLURM_TMPDIR/code/pinns_galerkin_viv/training_scripts/kevin_LD2TD2/LD2TD2_"$CASENAME"_23h.py
+python $SLURM_TMPDIR/code/pinns_galerkin_viv/training_scripts/mazi_fixed_grid/mfg_mean001.py
 
 
 # ---------------------------------------------------------------------
