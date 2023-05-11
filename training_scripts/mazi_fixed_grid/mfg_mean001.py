@@ -274,7 +274,7 @@ dense_nodes = 50
 dense_layers = 10
 if useGPU:
     tf_device_string = ['GPU:0']
-    for ngpu in range(1,len(physical_devices)-1):
+    for ngpu in range(1,len(physical_devices)):
         tf_device_string.append('GPU:'+str(ngpu))
 else:
     tf_device_string = '/CPU:0'
