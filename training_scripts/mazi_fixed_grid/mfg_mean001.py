@@ -75,7 +75,7 @@ PLOT = False
 job_name = 'mfg_mean001'
 
 # Job mgf_mean001
-# mean field assimilation for the fixed cylinder, now on a regular grid
+# mean field assimilation for the fixed cylinder, now on a regular grid, 4 gpu
 
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'

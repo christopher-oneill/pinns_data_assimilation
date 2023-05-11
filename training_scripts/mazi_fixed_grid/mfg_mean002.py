@@ -72,10 +72,10 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'mfg_mean001'
+job_name = 'mfg_mean002'
 
-# Job mgf_mean001
-# mean field assimilation for the fixed cylinder, now on a regular grid
+# Job mgf_mean002
+# mean field assimilation for the fixed cylinder, now on a regular grid, only one gpu
 
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
