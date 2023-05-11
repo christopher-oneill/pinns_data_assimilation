@@ -45,7 +45,6 @@ So this case should not be copied without correcting it so meters.)
 import numpy as np
 import scipy.io
 from scipy import interpolate
-from scipy.interpolate import griddata
 import tensorflow as tf
 import tensorflow.keras as keras
 import h5py
@@ -72,9 +71,10 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'LD2TD2_mean001'
+job_name = 'riches_uStar7_50_mean001'
 
-# mean field assimilation for the LD2TD2 case, 1GPU
+# mean field assimilation for the VIV case, 1GPU
+# now also with the poisson equation
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
@@ -112,33 +112,33 @@ else:
 
 
 # read the data
-base_dir = HOMEDIR+'data/kevin_LD2TD2/'
-meanFieldFile = h5py.File(base_dir+'meanField.mat','r')
+base_dir = HOMEDIR+'data/riches_uStar7_50/'
+meanVelocityFile = h5py.File(base_dir+'meanVelocity.mat','r')
 configFile = h5py.File(base_dir+'configuration.mat','r')
-reynoldsStress_dataFile = h5py.File(base_dir+'reynoldsStress.mat','r')
+reynoldsStressFile = h5py.File(base_dir+'reynoldsStress.mat','r')
 
 
-ux = np.array(meanFieldFile['meanField'][0,:]).transpose()
-uy = np.array(meanFieldFile['meanField'][1,:]).transpose()
+ux = np.array(meanVelocityFile['meanVelocity'][0,:]).transpose()
+uy = np.array(meanVelocityFile['meanVelocity'][1,:]).transpose()
 
-uxppuxpp = np.array(reynoldsStress_dataFile['reynoldsStress'][0,:]).transpose()
-uxppuypp = np.array(reynoldsStress_dataFile['reynoldsStress'][1,:]).transpose()
-uyppuypp = np.array(reynoldsStress_dataFile['reynoldsStress'][2,:]).transpose()
+uxppuxpp = np.array(reynoldsStressFile['reynoldsStress'][0,:]).transpose()
+uxppuypp = np.array(reynoldsStressFile['reynoldsStress'][1,:]).transpose()
+uyppuypp = np.array(reynoldsStressFile['reynoldsStress'][2,:]).transpose()
 
 
-x = np.array(configFile['xi_grid'][0,:])
-y = np.array(configFile['yi_grid'][1,:])
+x = np.array(configFile['X_vec'][0,:])
+y = np.array(configFile['X_vec'][1,:])
 d = np.array(configFile['cylinderDiameter'])
 
-c1_loc = np.array(configFile['cylinderLocation'][:,0])
-c2_loc = np.array(configFile['cylinderLocation'][:,1])
+
 
 print('u.shape: ',ux.shape)
 print('x.shape: ',x.shape)
 print('y.shape: ',y.shape)
 print('d: ',d.shape)
 
-nu_mol = 1.5E-5
+# water at 22 degrees C www.engineeringtoolbox.com
+nu_mol = 9.554E-7
 
 MAX_x = max(x.flatten())
 MAX_y = max(y.flatten())
@@ -160,21 +160,13 @@ print('min_y: ',MIN_y)
 
 
 
-MAX_p= 1E-5 # estimated maximum pressure, we should 
+MAX_p= 2*0.5*1000*0.2215*0.2215/1000 # Cp_est=2, but this is the kinematic pressure so divice by the density  estimated maximum pressure, we should 
 
 # reduce the collocation points to 25k
-colloc_limits1 = np.array([[-2.0,22.0],[-4.0,8.0]])
+colloc_limits1 = np.array([[-0.05,0.12],[-0.07,0.05]])
 colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-colloc_lhs1 = colloc_sample_lhs1(20000)
-print('colloc_lhs1.shape',colloc_lhs1.shape)
+colloc_merged = colloc_sample_lhs1(20000)
 
-# remove points inside the cylinder
-
-cylinder_inds = np.less(np.power(np.power(colloc_lhs1[:,0]-c1_loc[0],2)+np.power(colloc_lhs1[:,1]-c1_loc[1],2),0.5*d),0.5)
-print(cylinder_inds.shape)
-colloc_lhs1 = np.delete(colloc_lhs1,cylinder_inds[0,:],axis=0)
-cylinder_inds2 = np.less(np.power(np.power(colloc_lhs1[:,0]-c2_loc[0],2)+np.power(colloc_lhs1[:,1]-c2_loc[1],2),0.5*d),0.5)
-colloc_merged = np.delete(colloc_lhs1,cylinder_inds2[0,:],axis=0)
 print('colloc_merged.shape',colloc_merged.shape)
 
 
@@ -233,24 +225,30 @@ def net_f_cartesian(colloc_tensor):
 
     # gradient unmodeled reynolds stresses
     uxppuxpp_x = tf.gradients(uxppuxpp, colloc_tensor)[0][:,0]/MAX_x
+    uxppuxpp_xx = tf.gradients(uxppuxpp_x, colloc_tensor)[0][:,0]/MAX_x
     duxppuypp = tf.gradients(uxppuypp, colloc_tensor)[0]
     uxppuypp_x = duxppuypp[:,0]/MAX_x
     uxppuypp_y = duxppuypp[:,1]/MAX_y
+    uxppuypp_xy = tf.gradients(uxppuypp_x, colloc_tensor)[0][:,1]/MAX_y
     uyppuypp_y = tf.gradients(uyppuypp, colloc_tensor)[0][:,1]/MAX_y
+    uyppuypp_yy = tf.gradients(uyppuypp_y, colloc_tensor)[0][:,1]/MAX_y
 
     # pressure gradients
     dp = tf.gradients(p, colloc_tensor)[0]
     p_x = dp[:,0]/MAX_x
     p_y = dp[:,1]/MAX_y
-
+    p_xx = tf.gradients(p_x,colloc_tensor)[0][:,0]/MAX_x
+    p_yy = tf.gradients(p_y,colloc_tensor)[0][:,1]/MAX_y
 
     # governing equations
     f_x = (ux*ux_x + uy*ux_y) + (uxppuxpp_x + uxppuypp_y) + p_x - (nu_mol)*(ux_xx+ux_yy)  #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
     f_y = (ux*uy_x + uy*uy_y) + (uxppuypp_x + uyppuypp_y) + p_y - (nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
     f_mass = ux_x + uy_y
     
+    # poisson equation
+    f_p = p_xx + p_yy + tf.math.pow(ux_x,tf.constant(2.0,dtype=dtype_train)) + 2*ux_y*uy_x + tf.math.pow(uy_y,tf.constant(2.0,dtype=dtype_train))+uxppuxpp_xx+2*uxppuypp_xy+uyppuypp_yy
 
-    return f_x, f_y, f_mass
+    return f_x, f_y, f_mass, f_p
 
 
 # create NN
@@ -282,12 +280,13 @@ def custom_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tenso
         data_loss_uyppuypp = keras.losses.mean_squared_error(y_true[:,4], y_pred[:,4]) # v''v''
 
 
-        mx,my,mass = net_f_cartesian(colloc_tensor_f)
-        physical_loss1 = tf.reduce_mean(tf.square(mx))
-        physical_loss2 = tf.reduce_mean(tf.square(my))
-        physical_loss3 = tf.reduce_mean(tf.square(mass))
+        mx,my,mass,mp = net_f_cartesian(colloc_tensor_f)
+        loss_mx = tf.reduce_mean(tf.square(mx))
+        loss_my = tf.reduce_mean(tf.square(my))
+        loss_mass = tf.reduce_mean(tf.square(mass))
+        loss_pe = tf.reduce_mean(tf.square(mp))
                       
-        return data_loss_ux + data_loss_uy + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp + physics_loss_coefficient*(physical_loss1 + physical_loss2 + physical_loss3) # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
+        return data_loss_ux + data_loss_uy + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp + physics_loss_coefficient*(loss_mx + loss_my + loss_mass+ loss_pe) # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
 
     return custom_loss
 

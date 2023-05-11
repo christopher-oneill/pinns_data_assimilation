@@ -127,7 +127,7 @@ uyppuypp = np.array(reynoldsStress_dataFile['reynoldsStress'][2,:]).transpose()
 
 
 x = np.array(configFile['xi_grid'][0,:])
-y = np.array(configFile['yi_grid'][0,:])
+y = np.array(configFile['yi_grid'][1,:])
 d = np.array(configFile['cylinderDiameter'])
 
 c1_loc = np.array(configFile['cylinderLocation'][:,0])
