@@ -358,11 +358,13 @@ else:
         epochs = epochs+d_epochs
 
         if epochs>=10:
-            
             keras.backend.set_value(model.optimizer.learning_rate, 0.005)
-        if epochs>=50:
-            
+        if epochs>=20:
             keras.backend.set_value(model.optimizer.learning_rate, 0.001)
+        if epochs>=50:
+            keras.backend.set_value(model.optimizer.learning_rate, 0.0005)
+        if epochs>=300:
+            keras.backend.set_value(model.optimizer.learning_rate, 0.0001)
             
         if np.mod(epochs,10)==0:
             # save every 10th epoch

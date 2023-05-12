@@ -72,9 +72,9 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'mfg_mean002'
+job_name = 'mfg_mean003'
 
-# Job mgf_mean002
+# Job mgf_mean003
 # mean field assimilation for the fixed cylinder, now on a regular grid, only one gpu
 # also with poisson equation
 
@@ -364,12 +364,14 @@ else:
         hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
         epochs = epochs+d_epochs
 
-        if epochs>=25:
-            
+        if epochs>=10:
             keras.backend.set_value(model.optimizer.learning_rate, 0.005)
-        if epochs>=50:
-            
+        if epochs>=20:
             keras.backend.set_value(model.optimizer.learning_rate, 0.001)
+        if epochs>=50:
+            keras.backend.set_value(model.optimizer.learning_rate, 0.0005)
+        if epochs>=300:
+            keras.backend.set_value(model.optimizer.learning_rate, 0.0001)
             
         if np.mod(epochs,10)==0:
             # save every 10th epoch
