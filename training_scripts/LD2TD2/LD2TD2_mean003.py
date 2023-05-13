@@ -72,10 +72,10 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'mfg_mean002'
+job_name = 'LD2TD2_mean003'
 
-# Job mgf_mean002
-# mean field assimilation for the fixed cylinder, now on a regular grid, only one gpu
+# mean field assimilation for the LD2TD2 case, 4GPU
+# 20230513 - increased colocation points to 40000 to try to reduce errors, reduced training speed to 1E-5
 
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -96,47 +96,51 @@ else:
     
 
 # set the paths
-save_loc = HOMEDIR+'output/'+job_name+'_output/'
+save_loc = HOMEDIR+'/output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
-physics_loss_coefficient = 1.0
+physics_loss_coefficient = 0.0
 # set number of cores to compute on 
-tf.config.threading.set_intra_op_parallelism_threads(3)
-tf.config.threading.set_inter_op_parallelism_threads(3)
+tf.config.threading.set_intra_op_parallelism_threads(12)
+tf.config.threading.set_inter_op_parallelism_threads(12)
+
+# limit the gpu memory
 
 if useGPU:
     physical_devices = tf.config.list_physical_devices('GPU')
-    # if we are on the cluster, we need to check we use the right number of gpu, else we should raise an error
-    expected_GPU=1
+    expected_GPU=4
     assert len(physical_devices)==expected_GPU
 else:
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
 # read the data
-base_dir = HOMEDIR+'data/mazi_fixed_grid/'
-meanVelocityFile = h5py.File(base_dir+'meanVelocity.mat','r')
+base_dir = HOMEDIR+'data/kevin_LD2TD2/'
+meanFieldFile = h5py.File(base_dir+'meanField.mat','r')
 configFile = h5py.File(base_dir+'configuration.mat','r')
-reynoldsStressFile = h5py.File(base_dir+'reynoldsStress.mat','r')
+reynoldsStress_dataFile = h5py.File(base_dir+'reynoldsStress.mat','r')
 
 
-ux = np.array(meanVelocityFile['meanVelocity'][0,:]).transpose()
-uy = np.array(meanVelocityFile['meanVelocity'][1,:]).transpose()
+ux = np.array(meanFieldFile['meanField'][0,:]).transpose()
+uy = np.array(meanFieldFile['meanField'][1,:]).transpose()
 
-uxppuxpp = np.array(reynoldsStressFile['reynoldsStress'][0,:]).transpose()
-uxppuypp = np.array(reynoldsStressFile['reynoldsStress'][1,:]).transpose()
-uyppuypp = np.array(reynoldsStressFile['reynoldsStress'][2,:]).transpose()
+uxppuxpp = np.array(reynoldsStress_dataFile['reynoldsStress'][0,:]).transpose()
+uxppuypp = np.array(reynoldsStress_dataFile['reynoldsStress'][1,:]).transpose()
+uyppuypp = np.array(reynoldsStress_dataFile['reynoldsStress'][2,:]).transpose()
 
 
-print(configFile['X_vec'].shape)
-x = np.array(configFile['X_vec'][0,:])
-y = np.array(configFile['X_vec'][1,:])
+x = np.array(configFile['xi_grid'][0,:])
+y = np.array(configFile['yi_grid'][0,:])
 d = np.array(configFile['cylinderDiameter'])
+
+c1_loc = np.array(configFile['cylinderLocation'][:,0])
+c2_loc = np.array(configFile['cylinderLocation'][:,1])
+
 print('u.shape: ',ux.shape)
 print('x.shape: ',x.shape)
 print('y.shape: ',y.shape)
 print('d: ',d.shape)
 
-nu_mol = 0.0066667
+nu_mol = 1.5E-5
 
 MAX_x = max(x.flatten())
 MAX_y = max(y.flatten())
@@ -158,20 +162,25 @@ print('min_y: ',MIN_y)
 
 
 
-MAX_p= 1 # estimated maximum pressure, we should 
+MAX_p= 1E-5 # estimated maximum pressure, we should 
 
 # reduce the collocation points to 25k
-colloc_limits1 = np.array([[-2.0,10.0],[-2.0,2.0]])
+colloc_limits1 = np.array([[-2.0,22.0],[-4.0,8.0]])
 colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-colloc_lhs1 = colloc_sample_lhs1(20000)
+colloc_lhs1 = colloc_sample_lhs1(40000)
 print('colloc_lhs1.shape',colloc_lhs1.shape)
 
 # remove points inside the cylinder
-c1_loc = np.array([0,0],dtype=np.float64)
+
 cylinder_inds = np.less(np.power(np.power(colloc_lhs1[:,0]-c1_loc[0],2)+np.power(colloc_lhs1[:,1]-c1_loc[1],2),0.5*d),0.5)
 print(cylinder_inds.shape)
-colloc_merged = np.delete(colloc_lhs1,cylinder_inds[0,:],axis=0)
+colloc_lhs1 = np.delete(colloc_lhs1,cylinder_inds[0,:],axis=0)
+cylinder_inds2 = np.less(np.power(np.power(colloc_lhs1[:,0]-c2_loc[0],2)+np.power(colloc_lhs1[:,1]-c2_loc[1],2),0.5*d),0.5)
+colloc_merged = np.delete(colloc_lhs1,cylinder_inds2[0,:],axis=0)
 print('colloc_merged.shape',colloc_merged.shape)
+
+
+
 
 f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
 
@@ -270,7 +279,7 @@ def custom_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tenso
 
 
 # create NN
-dense_nodes = 50
+dense_nodes = 75
 dense_layers = 10
 if useGPU:
     tf_device_string = ['GPU:0']
@@ -281,7 +290,6 @@ else:
 
 strategy = tf.distribute.MirroredStrategy(devices=tf_device_string)
 
-print('Using devices: ',tf_device_string)
 with strategy.scope():
     model = keras.Sequential()
     model.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
@@ -290,6 +298,9 @@ with strategy.scope():
     model.add(keras.layers.Dense(6,activation='linear'))
     model.summary()
     model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = custom_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
+
+
+
 
 model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_filepath,
@@ -348,14 +359,15 @@ else:
     temp_Y_train = O_train[shuffle_inds,:]
     # compute canada training loop; use time based training
     while True:
-        keras.backend.set_value(model.optimizer.learning_rate, 0.0001)
+        keras.backend.set_value(model.optimizer.learning_rate, 1E-4)
         if np.mod(epochs,10)==0:
             shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
             temp_X_train = X_train[shuffle_inds,:]
             temp_Y_train = O_train[shuffle_inds,:]
         hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
         epochs = epochs+d_epochs
-        
+
+            
         if np.mod(epochs,10)==0:
             # save every 10th epoch
             model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))

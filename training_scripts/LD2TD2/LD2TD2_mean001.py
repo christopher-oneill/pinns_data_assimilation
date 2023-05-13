@@ -75,6 +75,7 @@ PLOT = False
 job_name = 'LD2TD2_mean001'
 
 # mean field assimilation for the LD2TD2 case, 1GPU
+# 20230513 - increased colocation points to 40000 to try to reduce errors, reduced training speed to 1E-5
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
@@ -165,7 +166,7 @@ MAX_p= 1E-5 # estimated maximum pressure, we should
 # reduce the collocation points to 25k
 colloc_limits1 = np.array([[-2.0,22.0],[-4.0,8.0]])
 colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-colloc_lhs1 = colloc_sample_lhs1(20000)
+colloc_lhs1 = colloc_sample_lhs1(40000)
 print('colloc_lhs1.shape',colloc_lhs1.shape)
 
 # remove points inside the cylinder
@@ -350,6 +351,7 @@ else:
     temp_Y_train = O_train[shuffle_inds,:]
     # compute canada training loop; use time based training
     while True:
+        keras.backend.set_value(model.optimizer.learning_rate, 1E-5)
         if np.mod(epochs,10)==0:
             shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
             temp_X_train = X_train[shuffle_inds,:]
@@ -357,14 +359,6 @@ else:
         hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
         epochs = epochs+d_epochs
 
-        if epochs>=10:
-            keras.backend.set_value(model.optimizer.learning_rate, 0.005)
-        if epochs>=20:
-            keras.backend.set_value(model.optimizer.learning_rate, 0.001)
-        if epochs>=50:
-            keras.backend.set_value(model.optimizer.learning_rate, 0.0005)
-        if epochs>=300:
-            keras.backend.set_value(model.optimizer.learning_rate, 0.0001)
             
         if np.mod(epochs,10)==0:
             # save every 10th epoch

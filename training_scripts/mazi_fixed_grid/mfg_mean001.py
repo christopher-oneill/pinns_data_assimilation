@@ -348,22 +348,14 @@ else:
     temp_Y_train = O_train[shuffle_inds,:]
     # compute canada training loop; use time based training
     while True:
+        keras.backend.set_value(model.optimizer.learning_rate, 0.0001)
         if np.mod(epochs,10)==0:
             shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
             temp_X_train = X_train[shuffle_inds,:]
             temp_Y_train = O_train[shuffle_inds,:]
         hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
         epochs = epochs+d_epochs
-
-        if epochs>=10:
-            keras.backend.set_value(model.optimizer.learning_rate, 0.005)
-        if epochs>=20:
-            keras.backend.set_value(model.optimizer.learning_rate, 0.001)
-        if epochs>=50:
-            keras.backend.set_value(model.optimizer.learning_rate, 0.0005)
-        if epochs>=300:
-            keras.backend.set_value(model.optimizer.learning_rate, 0.0001)
-            
+                 
         if np.mod(epochs,10)==0:
             # save every 10th epoch
             model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
