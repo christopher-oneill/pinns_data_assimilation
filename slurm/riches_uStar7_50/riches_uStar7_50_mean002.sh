@@ -10,12 +10,8 @@
 
 cd $SLURM_TMPDIR
 
-mkdir $SLURM_TMPDIR/code/
-cp /home/coneill/sync/code/pinns_galerkin_viv.tar $SLURM_TMPDIR/code/
-tar -xf $SLURM_TMPDIR/code/pinns_galerkin_viv.tar -C $SLURM_TMPDIR/code/
-
 module load python/3.10
 source /home/coneill/sync/venv/tf1/bin/activate
 
-python $SLURM_TMPDIR/code/pinns_galerkin_viv/training_scripts/riches_uStar7_50/riches_uStar7_50_mean002.py
+python /home/coneill/sync/code/pinns_galerkin_viv/training_scripts/riches_uStar7_50/riches_uStar7_50_mean002.py
 
