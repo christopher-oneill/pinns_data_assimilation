@@ -71,7 +71,7 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'riches_uStar7_50_mean002'
+job_name = 'riches_uStar7_50_mean003'
 
 # mean field assimilation for the VIV case, 1GPU
 # no poisson equation
