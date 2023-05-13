@@ -99,14 +99,14 @@ save_loc = HOMEDIR+'/output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
 physics_loss_coefficient = 0.0
 # set number of cores to compute on 
-tf.config.threading.set_intra_op_parallelism_threads(12)
-tf.config.threading.set_inter_op_parallelism_threads(12)
+tf.config.threading.set_intra_op_parallelism_threads(3)
+tf.config.threading.set_inter_op_parallelism_threads(3)
 
 # limit the gpu memory
 
 if useGPU:
     physical_devices = tf.config.list_physical_devices('GPU')
-    expected_GPU=4
+    expected_GPU=1
     assert len(physical_devices)==expected_GPU
 else:
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
