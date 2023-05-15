@@ -51,6 +51,7 @@ import tensorflow.keras as keras
 import h5py
 import os
 import glob
+import sys
 import re
 import smt
 import h5py
@@ -72,76 +73,80 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'LD2TD2_mean001'
+job_name = 'mfg_mean005'
 
-# mean field assimilation for the LD2TD2 case, 1GPU
-# Changelog
-# 20230513 - increased colocation points to 40000 to try to reduce errors, reduced training speed to 1E-5
-# 20230515 - reduce training speed to 1E-6, change MAX_P to 2E-6
+# Job mgf_mean005
+# mean field assimilation for the fixed cylinder, now on a regular grid, 4 gpu
+# 20230515 took job mgf_mean001 and copied
+# going to try to polish the result with LGFBS
+
+
+
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
     import matplotlib.pyplot as plot
     useGPU=False    
-    SLURM_TMPDIR='C:/projects/pinns_local/'
-    HOMEDIR = 'C:/projects/pinns_local/'
+    SLURM_TMPDIR='C:/projects/pinns_beluga/sync/'
+    HOMEDIR = 'C:/projects/pinns_beluga/sync/'
+    sys.path.append('C:/projects/pinns_local/code/')
 else:
+    # this should be run locally
+    raise('This is a local job')
+
     # parameters for running on compute canada
     
-    job_duration = timedelta(hours=16,minutes=30)
+    job_duration = timedelta(hours=22,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
     useGPU=True
     HOMEDIR = '/home/coneill/sync/'
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
+    sys.path.append(HOMEDIR+'code/')
     
 
 # set the paths
-save_loc = HOMEDIR+'/output/'+job_name+'_output/'
+save_loc = HOMEDIR+'output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
 physics_loss_coefficient = 1.0
 # set number of cores to compute on 
-tf.config.threading.set_intra_op_parallelism_threads(3)
-tf.config.threading.set_inter_op_parallelism_threads(3)
-
-# limit the gpu memory
+tf.config.threading.set_intra_op_parallelism_threads(12)
+tf.config.threading.set_inter_op_parallelism_threads(12)
 
 if useGPU:
     physical_devices = tf.config.list_physical_devices('GPU')
-    expected_GPU=1
+    # if we are on the cluster, we need to check we use the right number of gpu, else we should raise an error
+    expected_GPU=4
     assert len(physical_devices)==expected_GPU
 else:
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
 # read the data
-base_dir = HOMEDIR+'data/kevin_LD2TD2/'
-meanFieldFile = h5py.File(base_dir+'meanField.mat','r')
+base_dir = HOMEDIR+'data/mazi_fixed_grid/'
+meanVelocityFile = h5py.File(base_dir+'meanVelocity.mat','r')
 configFile = h5py.File(base_dir+'configuration.mat','r')
-reynoldsStress_dataFile = h5py.File(base_dir+'reynoldsStress.mat','r')
+reynoldsStressFile = h5py.File(base_dir+'reynoldsStress.mat','r')
 
 
-ux = np.array(meanFieldFile['meanField'][0,:]).transpose()
-uy = np.array(meanFieldFile['meanField'][1,:]).transpose()
+ux = np.array(meanVelocityFile['meanVelocity'][0,:]).transpose()
+uy = np.array(meanVelocityFile['meanVelocity'][1,:]).transpose()
 
-uxppuxpp = np.array(reynoldsStress_dataFile['reynoldsStress'][0,:]).transpose()
-uxppuypp = np.array(reynoldsStress_dataFile['reynoldsStress'][1,:]).transpose()
-uyppuypp = np.array(reynoldsStress_dataFile['reynoldsStress'][2,:]).transpose()
+uxppuxpp = np.array(reynoldsStressFile['reynoldsStress'][0,:]).transpose()
+uxppuypp = np.array(reynoldsStressFile['reynoldsStress'][1,:]).transpose()
+uyppuypp = np.array(reynoldsStressFile['reynoldsStress'][2,:]).transpose()
 
 
-x = np.array(configFile['xi_grid'][0,:])
-y = np.array(configFile['yi_grid'][0,:])
+print(configFile['X_vec'].shape)
+x = np.array(configFile['X_vec'][0,:])
+y = np.array(configFile['X_vec'][1,:])
 d = np.array(configFile['cylinderDiameter'])
-
-c1_loc = np.array(configFile['cylinderLocation'][:,0])
-c2_loc = np.array(configFile['cylinderLocation'][:,1])
-
 print('u.shape: ',ux.shape)
 print('x.shape: ',x.shape)
 print('y.shape: ',y.shape)
 print('d: ',d.shape)
 
-nu_mol = 1.5E-5
+nu_mol = 0.0066667
 
 MAX_x = max(x.flatten())
 MAX_y = max(y.flatten())
@@ -163,25 +168,20 @@ print('min_y: ',MIN_y)
 
 
 
-MAX_p= 2E-6 # estimated maximum pressure, we should 
+MAX_p= 1 # estimated maximum pressure, we should 
 
 # reduce the collocation points to 25k
-colloc_limits1 = np.array([[-2.0,22.0],[-4.0,8.0]])
+colloc_limits1 = np.array([[-2.0,10.0],[-2.0,2.0]])
 colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-colloc_lhs1 = colloc_sample_lhs1(40000)
+colloc_lhs1 = colloc_sample_lhs1(20000)
 print('colloc_lhs1.shape',colloc_lhs1.shape)
 
 # remove points inside the cylinder
-
+c1_loc = np.array([0,0],dtype=np.float64)
 cylinder_inds = np.less(np.power(np.power(colloc_lhs1[:,0]-c1_loc[0],2)+np.power(colloc_lhs1[:,1]-c1_loc[1],2),0.5*d),0.5)
 print(cylinder_inds.shape)
-colloc_lhs1 = np.delete(colloc_lhs1,cylinder_inds[0,:],axis=0)
-cylinder_inds2 = np.less(np.power(np.power(colloc_lhs1[:,0]-c2_loc[0],2)+np.power(colloc_lhs1[:,1]-c2_loc[1],2),0.5*d),0.5)
-colloc_merged = np.delete(colloc_lhs1,cylinder_inds2[0,:],axis=0)
+colloc_merged = np.delete(colloc_lhs1,cylinder_inds[0,:],axis=0)
 print('colloc_merged.shape',colloc_merged.shape)
-
-
-
 
 f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
 
@@ -255,6 +255,7 @@ def net_f_cartesian(colloc_tensor):
 
     return f_x, f_y, f_mass
 
+
 # function wrapper, combine data and physics loss
 def custom_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
     
@@ -277,23 +278,38 @@ def custom_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tenso
 
     return custom_loss
 
+
 # create NN
-dense_nodes = 75
+dense_nodes = 50
 dense_layers = 10
 if useGPU:
-    tf_device_string = '/GPU:0'
+    tf_device_string = ['GPU:0']
+    for ngpu in range(1,len(physical_devices)):
+        tf_device_string.append('GPU:'+str(ngpu))
+
+    strategy = tf.distribute.MirroredStrategy(devices=tf_device_string)
+    print('Using devices: ',tf_device_string)
+    with strategy.scope():
+        model = keras.Sequential()
+        model.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
+        for i in range(dense_layers-1):
+            model.add(keras.layers.Dense(dense_nodes, activation='tanh'))
+        model.add(keras.layers.Dense(6,activation='linear'))
+        model.summary()
+        model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = custom_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
 else:
     tf_device_string = '/CPU:0'
 
-with tf.device(tf_device_string):
-    model = keras.Sequential()
-    model.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
-    for i in range(dense_layers-1):
-        model.add(keras.layers.Dense(dense_nodes, activation='tanh'))
-    model.add(keras.layers.Dense(6,activation='linear'))
-    model.summary()
+    with tf.device(tf_device_string):
+        model = keras.Sequential()
+        model.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
+        for i in range(dense_layers-1):
+            model.add(keras.layers.Dense(dense_nodes, activation='tanh'))
+        model.add(keras.layers.Dense(6,activation='linear'))
+        model.summary()
+        model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = custom_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
 
-model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = custom_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
+
 
 model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_filepath,
@@ -336,16 +352,33 @@ last_epoch_time = datetime.now()
 average_epoch_time=timedelta(minutes=10)
 start_epochs = epochs
 
+
+
+
 if node_name ==LOCAL_NODE:
     # local node training loop, save every epoch for testing
-    if True:
-        for e in range(10):
-            shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
-            temp_X_train = X_train[shuffle_inds,:]
-            temp_Y_train = O_train[shuffle_inds,:]
-            hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=16, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
-            epochs = epochs+d_epochs
-            model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))   
+
+    from pinns_galerkin_viv.lib.LBFGS_example import function_factory
+    import tensorflow_probability as tfp
+
+    # continue with LBFGS steps
+    func = function_factory(model, custom_loss_wrapper(f_colloc_train), X_train, O_train)
+
+    # convert initial model parameters to a 1D tf.Tensor
+    init_params = tf.dynamic_stitch(func.idx, model.trainable_variables)
+
+    # train the model with L-BFGS solver
+    results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=5000)
+
+    # after training, the final optimized parameters are still in results.position
+    # so we have to manually put them back to the model
+    func.assign_new_model_parameters(results.position)
+    pred = model.predict(X_train,batch_size=32)
+    h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+    h5f.create_dataset('pred',data=pred)
+    # save the model:
+    model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
+    #model.save(save_loc) 
 else:
     shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
     temp_X_train = X_train[shuffle_inds,:]
@@ -359,8 +392,7 @@ else:
             temp_Y_train = O_train[shuffle_inds,:]
         hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
         epochs = epochs+d_epochs
-
-            
+                 
         if np.mod(epochs,10)==0:
             # save every 10th epoch
             model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))

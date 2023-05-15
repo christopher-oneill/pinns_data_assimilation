@@ -76,6 +76,7 @@ job_name = 'LD2TD2_mean003'
 
 # mean field assimilation for the LD2TD2 case, 4GPU
 # 20230513 - increased colocation points to 40000 to try to reduce errors, reduced training speed to 1E-5
+# training rate reduced to 1E-6
 
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -87,7 +88,7 @@ if node_name==LOCAL_NODE:
 else:
     # parameters for running on compute canada
     
-    job_duration = timedelta(hours=22,minutes=30)
+    job_duration = timedelta(hours=16,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
     useGPU=True
@@ -359,7 +360,7 @@ else:
     temp_Y_train = O_train[shuffle_inds,:]
     # compute canada training loop; use time based training
     while True:
-        keras.backend.set_value(model.optimizer.learning_rate, 1E-4)
+        keras.backend.set_value(model.optimizer.learning_rate, 1E-6)
         if np.mod(epochs,10)==0:
             shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
             temp_X_train = X_train[shuffle_inds,:]

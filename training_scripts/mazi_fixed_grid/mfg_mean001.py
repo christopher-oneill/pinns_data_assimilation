@@ -76,6 +76,7 @@ job_name = 'mfg_mean001'
 
 # Job mgf_mean001
 # mean field assimilation for the fixed cylinder, now on a regular grid, 4 gpu
+# 20230515 reduced learning rate to 1E-6
 
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -87,7 +88,7 @@ if node_name==LOCAL_NODE:
 else:
     # parameters for running on compute canada
     
-    job_duration = timedelta(hours=22,minutes=30)
+    job_duration = timedelta(hours=16,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
     useGPU=True
@@ -348,7 +349,7 @@ else:
     temp_Y_train = O_train[shuffle_inds,:]
     # compute canada training loop; use time based training
     while True:
-        keras.backend.set_value(model.optimizer.learning_rate, 0.0001)
+        keras.backend.set_value(model.optimizer.learning_rate, 1E-6)
         if np.mod(epochs,10)==0:
             shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
             temp_X_train = X_train[shuffle_inds,:]

@@ -6,8 +6,8 @@
 #SBATCH --time=0-23:00
 #SBATCH --mail-user=christopher.mark.oneill@gmail.com
 #SBATCH --mail-type=ALL
-#SBATCH --output=/home/coneill/sync/logs/slurm-%A.out
-#SBATCH --array=1-3%1   # Run a 10-job array, one job at a time.
+#SBATCH --output=/home/coneill/sync/logs/slurm-mfgm004-%A.out
+
 # ---------------------------------------------------------------------
 echo "Current working directory: `pwd`"
 echo "Starting run at: `date`"
@@ -19,7 +19,7 @@ cd $SLURM_TMPDIR
 module load python/3.10
 source /home/coneill/sync/venv/tf1/bin/activate
 
-python /home/coneill/sync/code/pinns_galerkin_viv/training_scripts/mazi_fixed_grid/mfg_mean001.py
+python /home/coneill/sync/code/pinns_galerkin_viv/training_scripts/mazi_fixed_grid/mfg_mean004.py
 
 
 # ---------------------------------------------------------------------

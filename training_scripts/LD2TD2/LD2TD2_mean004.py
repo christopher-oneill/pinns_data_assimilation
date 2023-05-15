@@ -72,7 +72,7 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'LD2TD2_mean001'
+job_name = 'LD2TD2_mean004'
 
 # mean field assimilation for the LD2TD2 case, 1GPU
 # Changelog
@@ -101,14 +101,12 @@ save_loc = HOMEDIR+'/output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
 physics_loss_coefficient = 1.0
 # set number of cores to compute on 
-tf.config.threading.set_intra_op_parallelism_threads(3)
-tf.config.threading.set_inter_op_parallelism_threads(3)
-
-# limit the gpu memory
+tf.config.threading.set_intra_op_parallelism_threads(12)
+tf.config.threading.set_inter_op_parallelism_threads(12)
 
 if useGPU:
     physical_devices = tf.config.list_physical_devices('GPU')
-    expected_GPU=1
+    expected_GPU=4
     assert len(physical_devices)==expected_GPU
 else:
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -281,19 +279,22 @@ def custom_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tenso
 dense_nodes = 75
 dense_layers = 10
 if useGPU:
-    tf_device_string = '/GPU:0'
+    tf_device_string = ['GPU:0']
+    for ngpu in range(1,len(physical_devices)):
+        tf_device_string.append('GPU:'+str(ngpu))
 else:
     tf_device_string = '/CPU:0'
 
-with tf.device(tf_device_string):
+strategy = tf.distribute.MirroredStrategy(devices=tf_device_string)
+
+with strategy.scope():
     model = keras.Sequential()
     model.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
     for i in range(dense_layers-1):
         model.add(keras.layers.Dense(dense_nodes, activation='tanh'))
     model.add(keras.layers.Dense(6,activation='linear'))
     model.summary()
-
-model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = custom_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
+    model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = custom_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
 
 model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_filepath,

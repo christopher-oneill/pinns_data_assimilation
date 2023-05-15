@@ -3,10 +3,10 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-task=3
 #SBATCH --mem=16000M
-#SBATCH --time=0-23:00
+#SBATCH --time=0-17:00
 #SBATCH --mail-user=christopher.mark.oneill@gmail.com
 #SBATCH --mail-type=ALL
-#SBATCH --output=/home/coneill/sync/logs/slurm-%A.out
+#SBATCH --output=/home/coneill/sync/logs/slurm-LD2m001-%A.out
 
 cd $SLURM_TMPDIR
 
