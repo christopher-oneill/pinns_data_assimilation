@@ -72,11 +72,11 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'mfgw_mean001'
+job_name = 'mfgw_mean002'
 
-# Job mgfw_mean001
+# Job mgfw_mean002
 # mean field assimilation for the fixed cylinder, now on a regular grid wake, 4 gpu
-# 20230515 reduced learning rate to 1E-6
+# 20230515 reduced learning rate to 1E-6, no physics loss
 
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
