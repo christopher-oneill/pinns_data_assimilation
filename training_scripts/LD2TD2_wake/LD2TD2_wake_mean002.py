@@ -72,7 +72,7 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'LD2TD2_mean003'
+job_name = 'LD2TD2_wake_mean001'
 
 # mean field assimilation for the LD2TD2 case, 4GPU
 # 20230513 - increased colocation points to 40000 to try to reduce errors, reduced training speed to 1E-5
@@ -83,12 +83,12 @@ LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
     import matplotlib.pyplot as plot
     useGPU=False    
-    SLURM_TMPDIR='C:/projects/pinns_local/'
-    HOMEDIR = 'C:/projects/pinns_local/'
+    SLURM_TMPDIR='C:/projects/pinns_beluga/sync/'
+    HOMEDIR = 'C:/projects/pinns_beluga/sync/'
 else:
     # parameters for running on compute canada
     
-    job_duration = timedelta(hours=16,minutes=30)
+    job_duration = timedelta(hours=9,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
     useGPU=True
@@ -99,7 +99,7 @@ else:
 # set the paths
 save_loc = HOMEDIR+'/output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
-physics_loss_coefficient = 0.0
+physics_loss_coefficient = 1.0
 # set number of cores to compute on 
 tf.config.threading.set_intra_op_parallelism_threads(12)
 tf.config.threading.set_inter_op_parallelism_threads(12)
@@ -115,18 +115,18 @@ else:
 
 
 # read the data
-base_dir = HOMEDIR+'data/kevin_LD2TD2/'
-meanVelocityFile = h5py.File(base_dir+'meanField.mat','r')
+base_dir = HOMEDIR+'data/kevin_LD2TD2_wake/'
+meanVelocityFile = h5py.File(base_dir+'meanVelocity.mat','r')
 configFile = h5py.File(base_dir+'configuration.mat','r')
 reynoldsStress_dataFile = h5py.File(base_dir+'reynoldsStress.mat','r')
 
 
-ux = np.array(meanVelocityFile['meanField'][0,:]).transpose()
-uy = np.array(meanVelocityFile['meanField'][1,:]).transpose()
+ux = np.array(meanVelocityFile['meanVelocity'][0,0,:]).transpose()
+uy = np.array(meanVelocityFile['meanVelocity'][1,0,:]).transpose()
 
-uxppuxpp = np.array(reynoldsStress_dataFile['reynoldsStress'][0,:]).transpose()
-uxppuypp = np.array(reynoldsStress_dataFile['reynoldsStress'][1,:]).transpose()
-uyppuypp = np.array(reynoldsStress_dataFile['reynoldsStress'][2,:]).transpose()
+uxppuxpp = np.array(reynoldsStress_dataFile['reynoldsStress'][0,0,:]).transpose()
+uxppuypp = np.array(reynoldsStress_dataFile['reynoldsStress'][1,0,:]).transpose()
+uyppuypp = np.array(reynoldsStress_dataFile['reynoldsStress'][2,0,:]).transpose()
 
 
 x = np.array(configFile['xi_grid'][0,:])
@@ -163,10 +163,10 @@ print('min_y: ',MIN_y)
 
 
 
-MAX_p= 1E-5 # estimated maximum pressure, we should 
+MAX_p= 2E-6 # estimated maximum pressure, we should 
 
 # reduce the collocation points to 25k
-colloc_limits1 = np.array([[-2.0,22.0],[-4.0,8.0]])
+colloc_limits1 = np.array([[5.0,22.0],[-4.0,8.0]])
 colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
 colloc_lhs1 = colloc_sample_lhs1(40000)
 print('colloc_lhs1.shape',colloc_lhs1.shape)
@@ -286,19 +286,29 @@ if useGPU:
     tf_device_string = ['GPU:0']
     for ngpu in range(1,len(physical_devices)):
         tf_device_string.append('GPU:'+str(ngpu))
+
+    strategy = tf.distribute.MirroredStrategy(devices=tf_device_string)
+
+    with strategy.scope():
+        model = keras.Sequential()
+        model.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
+        for i in range(dense_layers-1):
+            model.add(keras.layers.Dense(dense_nodes, activation='tanh'))
+        model.add(keras.layers.Dense(6,activation='linear'))
+        model.summary()
+        model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = custom_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
+
 else:
     tf_device_string = '/CPU:0'
 
-strategy = tf.distribute.MirroredStrategy(devices=tf_device_string)
-
-with strategy.scope():
-    model = keras.Sequential()
-    model.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
-    for i in range(dense_layers-1):
-        model.add(keras.layers.Dense(dense_nodes, activation='tanh'))
-    model.add(keras.layers.Dense(6,activation='linear'))
-    model.summary()
-    model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = custom_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
+    with tf.device(tf_device_string):
+        model = keras.Sequential()
+        model.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
+        for i in range(dense_layers-1):
+            model.add(keras.layers.Dense(dense_nodes, activation='tanh'))
+        model.add(keras.layers.Dense(6,activation='linear'))
+        model.summary()
+        model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = custom_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
 
 
 
