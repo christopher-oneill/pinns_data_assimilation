@@ -368,8 +368,8 @@ if node_name ==LOCAL_NODE:
     init_params = tf.dynamic_stitch(func.idx, model.trainable_variables)
 
     # train the model with L-BFGS solver
-    results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=5000)
-
+    results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=1000)
+    epochs = epochs +100
     # after training, the final optimized parameters are still in results.position
     # so we have to manually put them back to the model
     func.assign_new_model_parameters(results.position)

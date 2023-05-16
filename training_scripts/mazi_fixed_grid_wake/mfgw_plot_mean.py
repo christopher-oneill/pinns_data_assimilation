@@ -36,8 +36,8 @@ def create_directory_if_not_exists(path):
 # script
 
 base_dir = 'C:/projects/pinns_beluga/sync/'
-data_dir = base_dir+'data/mazi_fixed_grid/'
-case_name = 'mfg_mean003'
+data_dir = base_dir+'data/mazi_fixed_grid_wake/'
+case_name = 'mfgw_mean002'
 
 
 output_dir = base_dir+'output/'+case_name+'_output/'

@@ -72,12 +72,13 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'LD2TD2_wake_mean001'
+job_name = 'LD2TD2_wake_mean003'
 
 # mean field assimilation for the LD2TD2 case, 4GPU
 # 20230513 - increased colocation points to 40000 to try to reduce errors, reduced training speed to 1E-5
 # training rate reduced to 1E-6
-# 20230516 training rate schedule added
+# 20230516 training rate schedule added, double length
+
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
@@ -378,14 +379,13 @@ else:
         hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
         epochs = epochs+d_epochs
 
-
-        if epochs>10:
+        if epochs>20:
             keras.backend.set_value(model.optimizer.learning_rate, 1E-3)
-        if epochs>25:
+        if epochs>60:
             keras.backend.set_value(model.optimizer.learning_rate, 1E-4)
-        if epochs>50:
+        if epochs>10:
             keras.backend.set_value(model.optimizer.learning_rate, 1E-5)
-        if epochs>100:
+        if epochs>200:
             keras.backend.set_value(model.optimizer.learning_rate, 1E-6)
 
 

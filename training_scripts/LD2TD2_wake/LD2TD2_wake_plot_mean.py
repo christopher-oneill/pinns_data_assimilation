@@ -36,12 +36,12 @@ def create_directory_if_not_exists(path):
 # script
 
 base_dir = 'C:/projects/pinns_beluga/sync/'
-data_dir = base_dir+'data/kevin_LD2TD2/'
-case_name = 'LD2TD2_mean004'
+data_dir = base_dir+'data/kevin_LD2TD2_wake/'
+case_name = 'LD2TD2_wake_mean002'
 
 
 output_dir = base_dir+'output/'+case_name+'_output/'
-meanFieldFile = h5py.File(data_dir+'meanField.mat','r')
+meanVelocityFile = h5py.File(data_dir+'meanVelocity.mat','r')
 configFile = h5py.File(data_dir+'configuration.mat','r')
 meanPressureFile = h5py.File(data_dir+'meanPressure.mat','r')
 reynoldsStressFile = h5py.File(data_dir+'reynoldsStress.mat','r')
@@ -56,13 +56,13 @@ figure_prefix = figures_folder + case_name+'_ep'+str(epoch_number)
 SaveFig = True
 PlotFig = False
 
-ux = np.array(meanFieldFile['meanField'][0,:]).transpose()
-uy = np.array(meanFieldFile['meanField'][1,:]).transpose()
+ux = np.array(meanVelocityFile['meanVelocity'][0,0,:]).transpose()
+uy = np.array(meanVelocityFile['meanVelocity'][1,0,:]).transpose()
 p = np.array(meanPressureFile['meanPressure']).transpose()
 p = p[:,0]
-upup = np.array(reynoldsStressFile['reynoldsStress'][0,:]).transpose()
-upvp = np.array(reynoldsStressFile['reynoldsStress'][1,:]).transpose()
-vpvp = np.array(reynoldsStressFile['reynoldsStress'][2,:]).transpose()
+upup = np.array(reynoldsStressFile['reynoldsStress'][0,0,:]).transpose()
+upvp = np.array(reynoldsStressFile['reynoldsStress'][1,0,:]).transpose()
+vpvp = np.array(reynoldsStressFile['reynoldsStress'][2,0,:]).transpose()
 
 x = np.array(configFile['xi_grid'][0,:])
 y = np.array(configFile['yi_grid'][0,:])
