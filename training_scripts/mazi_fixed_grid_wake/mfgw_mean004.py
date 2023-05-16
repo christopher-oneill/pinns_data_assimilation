@@ -72,7 +72,7 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'mfgw_mean002'
+job_name = 'mfgw_mean004'
 
 # Job mgfw_mean002
 # mean field assimilation for the fixed cylinder, now on a regular grid wake, 4 gpu
@@ -350,11 +350,11 @@ else:
         hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
         epochs = epochs+d_epochs
 
-        if epochs>100:
+        if epochs>30:
             keras.backend.set_value(model.optimizer.learning_rate, 1E-3)
-        if epochs>130:
+        if epochs>60:
             keras.backend.set_value(model.optimizer.learning_rate, 1E-4)
-        if epochs>160:
+        if epochs>120:
             keras.backend.set_value(model.optimizer.learning_rate, 1E-5)
         if epochs>200:
             keras.backend.set_value(model.optimizer.learning_rate, 1E-6)

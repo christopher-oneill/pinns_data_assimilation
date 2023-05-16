@@ -80,12 +80,13 @@ MAX_p= 1 # estimated maximum pressure
 nu_mol = 0.0066667
 ux_pred = np.array(predFile['pred'][:,0])*MAX_ux
 uy_pred = np.array(predFile['pred'][:,1])*MAX_uy
-p_pred = np.array(predFile['pred'][:,5])*MAX_p
+p_pred = np.array(predFile['pred'][:,5])*MAX_p 
 #nu_pred =  np.power(np.array(predFile['pred'][:,3]),2)*MAX_nut
 upup_pred = np.array(predFile['pred'][:,2])*MAX_upup
 upvp_pred = np.array(predFile['pred'][:,3])*MAX_upvp
 vpvp_pred = np.array(predFile['pred'][:,4])*MAX_vpvp
 # compute the estimated reynolds stress
+
 
 #upvp_pred = -np.multiply(np.reshape(nu_pred+nu_mol,[nu_pred.shape[0],1]),dudy+dvdx)
 

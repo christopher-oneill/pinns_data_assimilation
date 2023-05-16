@@ -72,11 +72,11 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'mfgw_mean002'
+job_name = 'mfgw_mean003'
 
-# Job mgfw_mean002
+# Job mgfw_mean001
 # mean field assimilation for the fixed cylinder, now on a regular grid wake, 4 gpu
-# 20230515 reduced learning rate to 1E-6, no physics loss
+# 20230515 reduced learning rate to 1E-6
 
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -99,7 +99,7 @@ else:
 # set the paths
 save_loc = HOMEDIR+'output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
-physics_loss_coefficient = 0.0
+physics_loss_coefficient = 1.0
 # set number of cores to compute on 
 tf.config.threading.set_intra_op_parallelism_threads(12)
 tf.config.threading.set_inter_op_parallelism_threads(12)
@@ -342,7 +342,7 @@ else:
     temp_Y_train = O_train[shuffle_inds,:]
     # compute canada training loop; use time based training
     while True:
-        
+
         if np.mod(epochs,10)==0:
             shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
             temp_X_train = X_train[shuffle_inds,:]
@@ -350,11 +350,11 @@ else:
         hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
         epochs = epochs+d_epochs
 
-        if epochs>100:
+        if epochs>20:
             keras.backend.set_value(model.optimizer.learning_rate, 1E-3)
-        if epochs>130:
+        if epochs>50:
             keras.backend.set_value(model.optimizer.learning_rate, 1E-4)
-        if epochs>160:
+        if epochs>100:
             keras.backend.set_value(model.optimizer.learning_rate, 1E-5)
         if epochs>200:
             keras.backend.set_value(model.optimizer.learning_rate, 1E-6)
