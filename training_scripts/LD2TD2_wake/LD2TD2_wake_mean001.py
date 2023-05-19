@@ -78,6 +78,7 @@ job_name = 'LD2TD2_wake_mean001'
 # 20230513 - increased colocation points to 40000 to try to reduce errors, reduced training speed to 1E-5
 # training rate reduced to 1E-6
 # 20230516 training rate schedule added
+# 20230519 set the physics loss to 0.1
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
@@ -88,7 +89,7 @@ if node_name==LOCAL_NODE:
 else:
     # parameters for running on compute canada
     
-    job_duration = timedelta(hours=9,minutes=30)
+    job_duration = timedelta(hours=22,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
     useGPU=True
@@ -99,7 +100,7 @@ else:
 # set the paths
 save_loc = HOMEDIR+'/output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
-physics_loss_coefficient = 0.0
+physics_loss_coefficient = 0.1
 # set number of cores to compute on 
 tf.config.threading.set_intra_op_parallelism_threads(12)
 tf.config.threading.set_inter_op_parallelism_threads(12)

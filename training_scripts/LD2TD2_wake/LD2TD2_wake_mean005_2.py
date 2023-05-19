@@ -72,13 +72,13 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'LD2TD2_wake_mean003'
+job_name = 'LD2TD2_wake_mean005_2'
 
 # mean field assimilation for the LD2TD2 case, 4GPU
 # 20230513 - increased colocation points to 40000 to try to reduce errors, reduced training speed to 1E-5
 # training rate reduced to 1E-6
-# 20230516 training rate schedule added, double length
-# 20230519 set the phsyics loss to 0.1
+# 20230516 training rate schedule added 
+
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
@@ -100,7 +100,7 @@ else:
 # set the paths
 save_loc = HOMEDIR+'/output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
-physics_loss_coefficient = 0.1
+physics_loss_coefficient = 1.0
 # set number of cores to compute on 
 tf.config.threading.set_intra_op_parallelism_threads(12)
 tf.config.threading.set_inter_op_parallelism_threads(12)
@@ -381,11 +381,11 @@ else:
 
         if epochs>20:
             keras.backend.set_value(model.optimizer.learning_rate, 1E-3)
-        if epochs>60:
+        if epochs>50:
             keras.backend.set_value(model.optimizer.learning_rate, 1E-4)
-        if epochs>10:
+        if epochs>250:
             keras.backend.set_value(model.optimizer.learning_rate, 1E-5)
-        if epochs>200:
+        if epochs>1000:
             keras.backend.set_value(model.optimizer.learning_rate, 1E-6)
 
 

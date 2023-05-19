@@ -37,7 +37,7 @@ def create_directory_if_not_exists(path):
 
 base_dir = 'C:/projects/pinns_beluga/sync/'
 data_dir = base_dir+'data/riches_uStar7_50/'
-case_name = 'riches_uStar7_50_mean004'
+case_name = 'riches_uStar7_50_mean005'
 
 
 output_dir = base_dir+'output/'+case_name+'_output/'

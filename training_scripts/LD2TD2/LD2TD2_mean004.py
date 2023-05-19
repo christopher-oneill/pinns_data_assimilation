@@ -59,6 +59,7 @@ from pyDOE import lhs
 from datetime import datetime
 from datetime import timedelta
 import platform
+import sys
 
 keras.backend.set_floatx('float64')
 dtype_train = tf.float64
@@ -85,6 +86,7 @@ if node_name==LOCAL_NODE:
     useGPU=False    
     SLURM_TMPDIR='C:/projects/pinns_local/'
     HOMEDIR = 'C:/projects/pinns_local/'
+    sys.path.append('C:/projects/pinns_local/code/')
 else:
     # parameters for running on compute canada
     
@@ -282,19 +284,29 @@ if useGPU:
     tf_device_string = ['GPU:0']
     for ngpu in range(1,len(physical_devices)):
         tf_device_string.append('GPU:'+str(ngpu))
+        strategy = tf.distribute.MirroredStrategy(devices=tf_device_string)
+
+    with strategy.scope():
+        model = keras.Sequential()
+        model.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
+        for i in range(dense_layers-1):
+            model.add(keras.layers.Dense(dense_nodes, activation='tanh'))
+        model.add(keras.layers.Dense(6,activation='linear'))
+        model.summary()
+        model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = custom_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
+
 else:
     tf_device_string = '/CPU:0'
+    with tf.device(tf_device_string):
+        model = keras.Sequential()
+        model.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
+        for i in range(dense_layers-1):
+            model.add(keras.layers.Dense(dense_nodes, activation='tanh'))
+        model.add(keras.layers.Dense(6,activation='linear'))
+        model.summary()
+        model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = custom_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
+    
 
-strategy = tf.distribute.MirroredStrategy(devices=tf_device_string)
-
-with strategy.scope():
-    model = keras.Sequential()
-    model.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
-    for i in range(dense_layers-1):
-        model.add(keras.layers.Dense(dense_nodes, activation='tanh'))
-    model.add(keras.layers.Dense(6,activation='linear'))
-    model.summary()
-    model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = custom_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
 
 model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_filepath,
@@ -339,14 +351,27 @@ start_epochs = epochs
 
 if node_name ==LOCAL_NODE:
     # local node training loop, save every epoch for testing
-    if True:
-        for e in range(10):
-            shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
-            temp_X_train = X_train[shuffle_inds,:]
-            temp_Y_train = O_train[shuffle_inds,:]
-            hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=16, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
-            epochs = epochs+d_epochs
-            model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))   
+    from pinns_galerkin_viv.lib.LBFGS_example import function_factory
+    import tensorflow_probability as tfp
+
+    # continue with LBFGS steps
+    func = function_factory(model, custom_loss_wrapper(f_colloc_train), X_train, O_train)
+
+    # convert initial model parameters to a 1D tf.Tensor
+    init_params = tf.dynamic_stitch(func.idx, model.trainable_variables)
+
+    # train the model with L-BFGS solver
+    results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=1000)
+    epochs = epochs +100
+    # after training, the final optimized parameters are still in results.position
+    # so we have to manually put them back to the model
+    func.assign_new_model_parameters(results.position)
+    pred = model.predict(X_train,batch_size=32)
+    h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+    h5f.create_dataset('pred',data=pred)
+    # save the model:
+    model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
+    #model.save(save_loc)   
 else:
     shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
     temp_X_train = X_train[shuffle_inds,:]

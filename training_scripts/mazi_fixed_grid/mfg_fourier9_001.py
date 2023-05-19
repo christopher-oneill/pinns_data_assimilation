@@ -51,6 +51,7 @@ import tensorflow.keras as keras
 import h5py
 import os
 import glob
+import sys
 import re
 import smt
 import h5py
@@ -72,13 +73,15 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'LD2TD2_wake_mean003'
+job_name = 'mfg_fourier9_001'
 
-# mean field assimilation for the LD2TD2 case, 4GPU
-# 20230513 - increased colocation points to 40000 to try to reduce errors, reduced training speed to 1E-5
-# training rate reduced to 1E-6
-# 20230516 training rate schedule added, double length
-# 20230519 set the phsyics loss to 0.1
+# Job mgf_mean005
+# mean field assimilation for the fixed cylinder, now on a regular grid, 4 gpu
+# 20230515 took job mgf_mean001 and copied
+# going to try to polish the result with LGFBS
+
+
+
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
@@ -86,29 +89,30 @@ if node_name==LOCAL_NODE:
     useGPU=False    
     SLURM_TMPDIR='C:/projects/pinns_beluga/sync/'
     HOMEDIR = 'C:/projects/pinns_beluga/sync/'
+    sys.path.append('C:/projects/pinns_local/code/')
 else:
     # parameters for running on compute canada
-    
     job_duration = timedelta(hours=22,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
     useGPU=True
     HOMEDIR = '/home/coneill/sync/'
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
+    sys.path.append(HOMEDIR+'code/')
     
 
 # set the paths
-save_loc = HOMEDIR+'/output/'+job_name+'_output/'
+save_loc = HOMEDIR+'output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
-physics_loss_coefficient = 0.1
+physics_loss_coefficient = 0.0
+mode_number=8 # the number of the truncated mode to assimilate, note that this is mode 9 in matlab!
 # set number of cores to compute on 
 tf.config.threading.set_intra_op_parallelism_threads(12)
 tf.config.threading.set_inter_op_parallelism_threads(12)
 
-# limit the gpu memory
-
 if useGPU:
     physical_devices = tf.config.list_physical_devices('GPU')
+    # if we are on the cluster, we need to check we use the right number of gpu, else we should raise an error
     expected_GPU=4
     assert len(physical_devices)==expected_GPU
 else:
@@ -116,88 +120,93 @@ else:
 
 
 # read the data
-base_dir = HOMEDIR+'data/kevin_LD2TD2_wake/'
-meanVelocityFile = h5py.File(base_dir+'meanVelocity.mat','r')
+base_dir = HOMEDIR+'data/mazi_fixed_grid/'
+fourierModeFile = h5py.File(base_dir+'fourierDataShort.mat','r')
 configFile = h5py.File(base_dir+'configuration.mat','r')
-reynoldsStress_dataFile = h5py.File(base_dir+'reynoldsStress.mat','r')
 
+phi_xr = np.real(np.array(fourierModeFile['velocityModesShort'][0,mode_number,:])).transpose()
+phi_xi = np.imag(np.array(fourierModeFile['velocityModesShort'][0,mode_number,:])).transpose()
+phi_yr = np.real(np.array(fourierModeFile['velocityModesShort'][1,mode_number,:])).transpose()
+phi_yi = np.imag(np.array(fourierModeFile['velocityModesShort'][1,mode_number,:])).transpose()
 
-ux = np.array(meanVelocityFile['meanVelocity'][0,0,:]).transpose()
-uy = np.array(meanVelocityFile['meanVelocity'][1,0,:]).transpose()
+#psi_r = np.real(np.array(fourierModeFile['pressureModesShort'][mode_number,:])).transpose()
+#psi_i = np.imag(np.array(fourierModeFile['pressureModesShort'][mode_number,:])).transpose()
 
-uxppuxpp = np.array(reynoldsStress_dataFile['reynoldsStress'][0,0,:]).transpose()
-uxppuypp = np.array(reynoldsStress_dataFile['reynoldsStress'][1,0,:]).transpose()
-uyppuypp = np.array(reynoldsStress_dataFile['reynoldsStress'][2,0,:]).transpose()
+chi_xx_r = np.real(np.array(fourierModeFile['stressModesShort'][0,mode_number,:])).transpose()
+chi_xx_i = np.imag(np.array(fourierModeFile['stressModesShort'][0,mode_number,:])).transpose()
+chi_xy_r = np.real(np.array(fourierModeFile['stressModesShort'][1,mode_number,:])).transpose()
+chi_xy_i = np.imag(np.array(fourierModeFile['stressModesShort'][1,mode_number,:])).transpose()
+chi_yy_r = np.real(np.array(fourierModeFile['stressModesShort'][2,mode_number,:])).transpose()
+chi_yy_i = np.imag(np.array(fourierModeFile['stressModesShort'][2,mode_number,:])).transpose()
 
+omega = np.array(fourierModeFile['fShort'][0,mode_number])
 
-x = np.array(configFile['xi_grid'][0,:])
-y = np.array(configFile['yi_grid'][0,:])
+x = np.array(configFile['X_vec'][0,:])
+y = np.array(configFile['X_vec'][1,:])
 d = np.array(configFile['cylinderDiameter'])
-
-c1_loc = np.array(configFile['cylinderLocation'][:,0])
-c2_loc = np.array(configFile['cylinderLocation'][:,1])
-
-print('u.shape: ',ux.shape)
+print('phi_m_xr.shape: ',phi_xr.shape)
 print('x.shape: ',x.shape)
 print('y.shape: ',y.shape)
 print('d: ',d.shape)
 
-nu_mol = 1.5E-5
+nu_mol = 0.0066667
 
 MAX_x = max(x.flatten())
 MAX_y = max(y.flatten())
-MAX_ux = max(ux.flatten())
-MAX_uy = max(uy.flatten())
+MAX_phi_xr = max(phi_xr.flatten())
+MAX_phi_xi = max(phi_xi.flatten())
+MAX_phi_yr = max(phi_yr.flatten())
+MAX_phi_yi = max(phi_yi.flatten())
 MIN_x = min(x.flatten())
 MIN_y = min(y.flatten())
-MIN_ux = min(ux.flatten())
-MIN_uy = min(uy.flatten())
-MAX_uxppuxpp = max(uxppuxpp.flatten())
-MAX_uxppuypp = max(uxppuypp.flatten())
-MAX_uyppuypp = max(uyppuypp.flatten())
 
+MAX_chi_xx_r = max(chi_xx_r.flatten())
+MAX_chi_xx_i = max(chi_xx_i.flatten())
+MAX_chi_xy_r = max(chi_xy_r.flatten())
+MAX_chi_xy_i = max(chi_xy_i.flatten())
+MAX_chi_yy_r = max(chi_yy_r.flatten())
+MAX_chi_yy_i = max(chi_yy_i.flatten())
 
 print('max_x: ',MAX_x)
 print('min_x: ',MIN_x)
 print('max_y: ',MAX_y)
 print('min_y: ',MIN_y)
 
-
-
-MAX_p= 2E-6 # estimated maximum pressure, we should 
+MAX_psi= 0.1 # chosen based on abs(max(psi))
 
 # reduce the collocation points to 25k
-colloc_limits1 = np.array([[5.0,22.0],[-4.0,8.0]])
+colloc_limits1 = np.array([[-2.0,10.0],[-2.0,2.0]])
 colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-colloc_lhs1 = colloc_sample_lhs1(40000)
+colloc_lhs1 = colloc_sample_lhs1(20000)
 print('colloc_lhs1.shape',colloc_lhs1.shape)
 
 # remove points inside the cylinder
-
+c1_loc = np.array([0,0],dtype=np.float64)
 cylinder_inds = np.less(np.power(np.power(colloc_lhs1[:,0]-c1_loc[0],2)+np.power(colloc_lhs1[:,1]-c1_loc[1],2),0.5*d),0.5)
 print(cylinder_inds.shape)
-colloc_lhs1 = np.delete(colloc_lhs1,cylinder_inds[0,:],axis=0)
-cylinder_inds2 = np.less(np.power(np.power(colloc_lhs1[:,0]-c2_loc[0],2)+np.power(colloc_lhs1[:,1]-c2_loc[1],2),0.5*d),0.5)
-colloc_merged = np.delete(colloc_lhs1,cylinder_inds2[0,:],axis=0)
+colloc_merged = np.delete(colloc_lhs1,cylinder_inds[0,:],axis=0)
 print('colloc_merged.shape',colloc_merged.shape)
-
-
-
 
 f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
 
 # normalize the training data:
 x_train = x/MAX_x
 y_train = y/MAX_y
-ux_train = ux/MAX_ux
-uy_train = uy/MAX_uy
-uxppuxpp_train = uxppuxpp/MAX_uxppuxpp
-uxppuypp_train = uxppuypp/MAX_uxppuypp
-uyppuypp_train = uyppuypp/MAX_uyppuypp
+phi_xr_train = phi_xr/MAX_phi_xr
+phi_xi_train = phi_xi/MAX_phi_xi
+phi_yr_train = phi_yr/MAX_phi_yr
+phi_yi_train = phi_yi/MAX_phi_yi
+
+chi_xx_r_train = chi_xx_r/MAX_chi_xx_r
+chi_xx_i_train = chi_xx_i/MAX_chi_xx_i
+chi_xy_r_train = chi_xy_r/MAX_chi_xy_r
+chi_xy_i_train = chi_xy_i/MAX_chi_xy_i
+chi_yy_r_train = chi_yy_r/MAX_chi_yy_r
+chi_yy_i_train = chi_yy_i/MAX_chi_yy_i
 
 
 # the order here must be identical to inside the cost functions
-O_train = np.hstack(((ux_train).reshape(-1,1),(uy_train).reshape(-1,1),(uxppuxpp_train).reshape(-1,1),(uxppuypp_train).reshape(-1,1),(uyppuypp_train).reshape(-1,1),)) # training data
+O_train = np.hstack(((phi_xr_train).reshape(-1,1),(phi_xi_train).reshape(-1,1),(phi_yr_train).reshape(-1,1),(phi_yi_train).reshape(-1,1),(chi_xx_r).reshape(-1,1),(chi_xx_i).reshape(-1,1),(chi_xy_r).reshape(-1,1),(chi_xy_i).reshape(-1,1),(chi_yy_r).reshape(-1,1),(chi_yy_i).reshape(-1,1))) # training data
 # note that the order here needs to be the same as the split inside the network!
 X_train = np.hstack((x_train.reshape(-1,1),y_train.reshape(-1,1)))
 
@@ -205,35 +214,60 @@ print('X_train.shape: ',X_train.shape)
 print('O_train.shape: ',O_train.shape)
 
 @tf.function
-def net_f_cartesian(colloc_tensor):
+def net_f_cartesian(colloc_tensor, colloc_grads):
     
     up = model(colloc_tensor)
-    # knowns
-    ux = up[:,0]*MAX_ux
-    uy = up[:,1]*MAX_uy
-    uxppuxpp = up[:,2]*MAX_uxppuxpp
-    uxppuypp = up[:,3]*MAX_uxppuypp
-    uyppuypp = up[:,4]*MAX_uyppuypp
-    # unknowns
-    p = up[:,5]*MAX_p
+    # velocity fourier coefficients
+    phi_xr = up[:,0]*MAX_phi_xr
+    phi_xi = up[:,1]*MAX_phi_xi
+    phi_yr = up[:,2]*MAX_phi_yr
+    phi_yi = up[:,3]*MAX_phi_yi
+
+    # fourier coefficients of the fluctuating field
+    chi_xx_r = up[:,4]*MAX_chi_xx_r
+    chi_xx_i = up[:,5]*MAX_chi_xx_i
+    chi_xy_r = up[:,6]*MAX_chi_xy_r
+    chi_xy_i = up[:,7]*MAX_chi_xy_i
+    chi_yy_r = up[:,8]*MAX_chi_yy_r
+    chi_yy_i = up[:,9]*MAX_chi_yy_i
+    # unknowns, pressure fourier modes
+    psi_r = up[:,10]*MAX_psi
+    psi_i = up[:,11]*MAX_psi
     
+
+    ux_x = colloc_grads[:,0]
+    ux_y = colloc_grads[:,1]
+    uy_x = colloc_grads[:,2]
+    uy_y = colloc_grads[:,3]
+
+
     # compute the gradients of the quantities
     
-    # ux gradient
-    dux = tf.gradients(ux, colloc_tensor)[0]
-    ux_x = dux[:,0]/MAX_x
-    ux_y = dux[:,1]/MAX_y
+    # phi_xr gradient
+    dphi_xr = tf.gradients(phi_xr, colloc_tensor)[0]
+    phi_xr_x = dphi_xr[:,0]/MAX_x
+    phi_xr_y = dphi_xr[:,1]/MAX_y
     # and second derivative
-    ux_xx = tf.gradients(ux_x, colloc_tensor)[0][:,0]/MAX_x
-    ux_yy = tf.gradients(ux_y, colloc_tensor)[0][:,1]/MAX_y
+    phi_xr_xx = tf.gradients(phi_xr_x, colloc_tensor)[0][:,0]/MAX_x
+    phi_xr_yy = tf.gradients(phi_xr_x, colloc_tensor)[0][:,1]/MAX_y
+
+        # phi_xr gradient
+    dphi_xi = tf.gradients(phi_xi, colloc_tensor)[0]
+    phi_xi_x = dphi_xi[:,0]/MAX_x
+    phi_xi_y = dphi_xi[:,1]/MAX_y
+    # and second derivative
+    phi_xi_xx = tf.gradients(phi_xi_x, colloc_tensor)[0][:,0]/MAX_x
+    phi_xi_yy = tf.gradients(phi_xi_x, colloc_tensor)[0][:,1]/MAX_y
+
+        # phi_xr gradient
+    dphi_xr = tf.gradients(phi_xr, colloc_tensor)[0]
+    phi_xr_x = dphi_xr[:,0]/MAX_x
+    phi_xr_y = dphi_xr[:,1]/MAX_y
+    # and second derivative
+    phi_xr_xx = tf.gradients(phi_xr_x, colloc_tensor)[0][:,0]/MAX_x
+    phi_xr_yy = tf.gradients(phi_xr_x, colloc_tensor)[0][:,1]/MAX_y
     
-    # uy gradient
-    duy = tf.gradients(uy, colloc_tensor)[0]
-    uy_x = duy[:,0]/MAX_x
-    uy_y = duy[:,1]/MAX_y
-    # and second derivative
-    uy_xx = tf.gradients(uy_x, colloc_tensor)[0][:,0]/MAX_x
-    uy_yy = tf.gradients(uy_y, colloc_tensor)[0][:,1]/MAX_y
+
 
     # gradient unmodeled reynolds stresses
     uxppuxpp_x = tf.gradients(uxppuxpp, colloc_tensor)[0][:,0]/MAX_x
@@ -249,8 +283,9 @@ def net_f_cartesian(colloc_tensor):
 
 
     # governing equations
-    f_x = (ux*ux_x + uy*ux_y) + (uxppuxpp_x + uxppuypp_y) + p_x - (nu_mol)*(ux_xx+ux_yy)  #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
-    f_y = (ux*uy_x + uy*uy_y) + (uxppuypp_x + uyppuypp_y) + p_y - (nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
+    f_xr = -omega*phi_xi+(phi_xr*ux_x + phi_yr*ux_y) + (uxppuxpp_x + uxppuypp_y) + p_x - (nu_mol)*(ux_xx+ux_yy)  #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
+    
+    f_yr = (ux*uy_x + uy*uy_y) + (uxppuypp_x + uyppuypp_y) + p_y - (nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
     f_mass = ux_x + uy_y
     
 
@@ -258,7 +293,7 @@ def net_f_cartesian(colloc_tensor):
 
 
 # function wrapper, combine data and physics loss
-def custom_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
+def custom_loss_wrapper(colloc_tensor_f,colloc_grads): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
     
     def custom_loss(y_true, y_pred):
         # this needs to match the order that they are concatinated in the array when setting up the network
@@ -270,7 +305,7 @@ def custom_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tenso
         data_loss_uyppuypp = keras.losses.mean_squared_error(y_true[:,4], y_pred[:,4]) # v''v''
 
 
-        mx,my,mass = net_f_cartesian(colloc_tensor_f)
+        mx,my,mass = net_f_cartesian(colloc_tensor_f,colloc_grads)
         physical_loss1 = tf.reduce_mean(tf.square(mx))
         physical_loss2 = tf.reduce_mean(tf.square(my))
         physical_loss3 = tf.reduce_mean(tf.square(mass))
@@ -281,7 +316,7 @@ def custom_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tenso
 
 
 # create NN
-dense_nodes = 75
+dense_nodes = 50
 dense_layers = 10
 if useGPU:
     tf_device_string = ['GPU:0']
@@ -289,7 +324,7 @@ if useGPU:
         tf_device_string.append('GPU:'+str(ngpu))
 
     strategy = tf.distribute.MirroredStrategy(devices=tf_device_string)
-
+    print('Using devices: ',tf_device_string)
     with strategy.scope():
         model = keras.Sequential()
         model.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
@@ -298,7 +333,6 @@ if useGPU:
         model.add(keras.layers.Dense(6,activation='linear'))
         model.summary()
         model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = custom_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
-
 else:
     tf_device_string = '/CPU:0'
 
@@ -310,7 +344,6 @@ else:
         model.add(keras.layers.Dense(6,activation='linear'))
         model.summary()
         model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = custom_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
-
 
 
 
@@ -355,41 +388,47 @@ last_epoch_time = datetime.now()
 average_epoch_time=timedelta(minutes=10)
 start_epochs = epochs
 
+
+
+
 if node_name ==LOCAL_NODE:
     # local node training loop, save every epoch for testing
-    if True:
-        for e in range(10):
-            shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
-            temp_X_train = X_train[shuffle_inds,:]
-            temp_Y_train = O_train[shuffle_inds,:]
-            hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=16, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
-            epochs = epochs+d_epochs
-            model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))   
+
+    from pinns_galerkin_viv.lib.LBFGS_example import function_factory
+    import tensorflow_probability as tfp
+
+    # continue with LBFGS steps
+    func = function_factory(model, custom_loss_wrapper(f_colloc_train), X_train, O_train)
+
+    # convert initial model parameters to a 1D tf.Tensor
+    init_params = tf.dynamic_stitch(func.idx, model.trainable_variables)
+
+    # train the model with L-BFGS solver
+    results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=1000)
+    epochs = epochs +100
+    # after training, the final optimized parameters are still in results.position
+    # so we have to manually put them back to the model
+    func.assign_new_model_parameters(results.position)
+    pred = model.predict(X_train,batch_size=32)
+    h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+    h5f.create_dataset('pred',data=pred)
+    # save the model:
+    model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
+    #model.save(save_loc) 
 else:
     shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
     temp_X_train = X_train[shuffle_inds,:]
     temp_Y_train = O_train[shuffle_inds,:]
     # compute canada training loop; use time based training
     while True:
-        
+        keras.backend.set_value(model.optimizer.learning_rate, 1E-6)
         if np.mod(epochs,10)==0:
             shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
             temp_X_train = X_train[shuffle_inds,:]
             temp_Y_train = O_train[shuffle_inds,:]
         hist = model.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
         epochs = epochs+d_epochs
-
-        if epochs>20:
-            keras.backend.set_value(model.optimizer.learning_rate, 1E-3)
-        if epochs>60:
-            keras.backend.set_value(model.optimizer.learning_rate, 1E-4)
-        if epochs>10:
-            keras.backend.set_value(model.optimizer.learning_rate, 1E-5)
-        if epochs>200:
-            keras.backend.set_value(model.optimizer.learning_rate, 1E-6)
-
-
-            
+                 
         if np.mod(epochs,10)==0:
             # save every 10th epoch
             model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))

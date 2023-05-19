@@ -37,7 +37,7 @@ def create_directory_if_not_exists(path):
 
 base_dir = 'C:/projects/pinns_beluga/sync/'
 data_dir = base_dir+'data/kevin_LD2TD2_wake/'
-case_name = 'LD2TD2_wake_mean002'
+case_name = 'LD2TD2_wake_mean004'
 
 
 output_dir = base_dir+'output/'+case_name+'_output/'
@@ -76,7 +76,7 @@ MAX_upup = np.max(upup)
 MAX_upvp = np.max(upvp) # estimated maximum of nut # THIS VALUE is internally multiplied with 0.001 (mm and m)
 MAX_vpvp = np.max(vpvp)
 #MAX_p= 1E-5 # estimated maximum pressure, we should 
-MAX_p = np.max(p)
+MAX_p= 2E-6 
 
 ux_pred = np.array(predFile['pred'][:,0])*MAX_ux
 uy_pred = np.array(predFile['pred'][:,1])*MAX_uy
