@@ -71,7 +71,6 @@ node_name = platform.node()
 
 PLOT = False
 
-
 job_name = 'LD2TD2_wake_mean005_4'
 
 # mean field assimilation for the LD2TD2 case, 4GPU
