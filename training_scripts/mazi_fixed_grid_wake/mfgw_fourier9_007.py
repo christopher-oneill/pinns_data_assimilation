@@ -150,7 +150,7 @@ tau_xy_i = np.array(fourierModeFile['stressModesShortImag'][1,mode_number,:]).tr
 tau_yy_r = np.array(fourierModeFile['stressModesShortReal'][2,mode_number,:]).transpose()
 tau_yy_i = np.array(fourierModeFile['stressModesShortImag'][2,mode_number,:]).transpose()
 
-omega = np.array(fourierModeFile['fShort'][0,mode_number])*2*np.pi()
+omega = np.array(fourierModeFile['fShort'][0,mode_number])*2*np.pi
 
 print(configFile['X_vec'].shape)
 x = np.array(configFile['X_vec'][0,:])

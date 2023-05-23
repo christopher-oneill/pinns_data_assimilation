@@ -92,7 +92,7 @@ if node_name==LOCAL_NODE:
     tf.config.threading.set_inter_op_parallelism_threads(16)
 else:
     # parameters for running on compute canada
-    job_duration = timedelta(hours=1,minutes=30)
+    job_duration = timedelta(hours=22,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
     useGPU=True
