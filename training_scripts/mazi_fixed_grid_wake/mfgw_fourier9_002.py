@@ -75,9 +75,9 @@ PLOT = False
 
 job_name = 'mfgw_fourier9_002'
 
-# Job mgfw_fourier002 (same as fourier9_001)
+# Job mgfw_fourier002
 # 20230523: fourier mode assimilation, fixed cylinder Re=150
-# physics loss set to 0.00, slow learning rate schedule 
+# physics loss set to 0.01, slow learning rate schedule
 
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -87,11 +87,11 @@ if node_name==LOCAL_NODE:
     SLURM_TMPDIR='C:/projects/pinns_beluga/sync/'
     HOMEDIR = 'C:/projects/pinns_beluga/sync/'
     sys.path.append('C:/projects/pinns_local/code/')
+    # set number of cores to compute on 
     tf.config.threading.set_intra_op_parallelism_threads(16)
     tf.config.threading.set_inter_op_parallelism_threads(16)
 else:
     # parameters for running on compute canada
-    
     job_duration = timedelta(hours=22,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
@@ -99,6 +99,7 @@ else:
     HOMEDIR = '/home/coneill/sync/'
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     sys.path.append(HOMEDIR+'code/')
+    # set number of cores to compute on 
     tf.config.threading.set_intra_op_parallelism_threads(12)
     tf.config.threading.set_inter_op_parallelism_threads(12)
     
@@ -106,9 +107,8 @@ else:
 # set the paths
 save_loc = HOMEDIR+'output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
-physics_loss_coefficient = 0.00
+physics_loss_coefficient = 0.01
 mode_number=8 # the number of the truncated mode to assimilate, note that this is mode 9 in matlab!
-# set number of cores to compute on 
 
 
 if useGPU:
@@ -226,7 +226,7 @@ tau_yy_i_train = tau_yy_i/MAX_tau_yy_i
 
 # the order here must be identical to inside the cost functions
 O_train = np.hstack(((ux_train).reshape(-1,1),(uy_train).reshape(-1,1),(uxppuxpp_train).reshape(-1,1),(uxppuypp_train).reshape(-1,1),(uyppuypp_train).reshape(-1,1),)) # training data
-F_train = np.hstack(((phi_xr_train).reshape(-1,1),(phi_xi_train).reshape(-1,1),(phi_yr_train).reshape(-1,1),(phi_yi_train).reshape(-1,1),(tau_xx_r).reshape(-1,1),(tau_xx_i).reshape(-1,1),(tau_xy_r).reshape(-1,1),(tau_xy_i).reshape(-1,1),(tau_yy_r).reshape(-1,1),(tau_yy_i).reshape(-1,1))) # training data
+F_train = np.hstack(((phi_xr_train).reshape(-1,1),(phi_xi_train).reshape(-1,1),(phi_yr_train).reshape(-1,1),(phi_yi_train).reshape(-1,1),(tau_xx_r_train).reshape(-1,1),(tau_xx_i_train).reshape(-1,1),(tau_xy_r_train).reshape(-1,1),(tau_xy_i_train).reshape(-1,1),(tau_yy_r_train).reshape(-1,1),(tau_yy_i_train).reshape(-1,1))) # training data
 # note that the order here needs to be the same as the split inside the network!
 X_train = np.hstack((x_train.reshape(-1,1),y_train.reshape(-1,1)))
 # the order here must be identical to inside the cost functions
@@ -488,48 +488,11 @@ mean_data = mean_cartesian(f_colloc_train)
 # clear the session, we will now create the fourier model
 tf.keras.backend.clear_session()
 
-fourier_nodes = 75
-fourier_layers = 10
-if useGPU:
-    tf_device_string = ['GPU:0']
-    for ngpu in range(1,len(physical_devices)):
-        tf_device_string.append('GPU:'+str(ngpu))
-            
-    strategy = tf.distribute.MirroredStrategy(devices=tf_device_string)
-    print('Using devices: ',tf_device_string)
-    with strategy.scope():
-        model_fourier = keras.Sequential()
-        model_fourier.add(keras.layers.Dense(fourier_nodes, activation='tanh', input_shape=(2,)))
-        for i in range(fourier_layers-1):
-            model_fourier.add(keras.layers.Dense(fourier_nodes, activation='tanh'))
-        model_fourier.add(keras.layers.Dense(12,activation='linear'))
-        model_fourier.summary()
-        model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train)),jit_compile=False) 
-else:
-    with tf.device('/CPU:0'):
-        model_fourier = keras.Sequential()
-        model_fourier.add(keras.layers.Dense(fourier_nodes, activation='tanh', input_shape=(2,)))
-        for i in range(dense_layers-1):
-            model_fourier.add(keras.layers.Dense(fourier_nodes, activation='tanh'))
-        model_fourier.add(keras.layers.Dense(12,activation='linear'))
-        model_fourier.summary()
-        model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train)),jit_compile=False) 
-
-fourier_checkpoint_callback = keras.callbacks.ModelCheckpoint(
-    filepath=checkpoint_filepath,
-    save_weights_only=True,
-    monitor='loss',
-    mode='min',
-    save_best_only=True)
-fourier_early_stop_callback = keras.callbacks.EarlyStopping(monitor='loss', patience=500)
-
-
-
 # check if the model has been created before, if so load it
 def get_filepaths_with_glob(root_path: str, file_regex: str):
     return glob.glob(os.path.join(root_path, file_regex))
 # we need to check if there are already checkpoints for this job
-checkpoint_files = get_filepaths_with_glob(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep*.index')
+checkpoint_files = get_filepaths_with_glob(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep*_model.h5')
 if len(checkpoint_files)>0:
     files_epoch_number = np.zeros([len(checkpoint_files),1],dtype=np.uint)
     # if there are checkpoints, train based on the most recent checkpoint
@@ -538,14 +501,51 @@ if len(checkpoint_files)>0:
         files_epoch_number[f_indx]=int(checkpoint_files[f_indx][(re_result.start()+2):re_result.end()])
     epochs = np.uint(np.max(files_epoch_number))
     print(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
-    model_fourier.load_weights(HOMEDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs))
+    model_fourier = keras.models.load_model(HOMEDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'custom_loss':fourier_loss_wrapper(f_colloc_train,mean_data),})
 else:
     # if not, we train from the beginning
     epochs = 0
-    if ~os.path.isdir(HOMEDIR+'/output/'+job_name+'_output/'):
-        os.mkdir(HOMEDIR+'/output/'+job_name+'_output/')
+    if (not os.path.isdir(HOMEDIR+'output/'+job_name+'_output/')):
+        os.mkdir(HOMEDIR+'output/'+job_name+'_output/')
 
+    # create the fourier model
+    fourier_nodes = 75
+    fourier_layers = 10
+    if useGPU:
+        tf_device_string = ['GPU:0']
+        for ngpu in range(1,len(physical_devices)):
+            tf_device_string.append('GPU:'+str(ngpu))
+                
+        strategy = tf.distribute.MirroredStrategy(devices=tf_device_string)
+        print('Using devices: ',tf_device_string)
+        with strategy.scope():
+            model_fourier = keras.Sequential()
+            model_fourier.add(keras.layers.Dense(fourier_nodes, activation='tanh', input_shape=(2,)))
+            for i in range(fourier_layers-1):
+                model_fourier.add(keras.layers.Dense(fourier_nodes, activation='tanh'))
+            model_fourier.add(keras.layers.Dense(12,activation='linear'))
+            model_fourier.summary()
+            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train)),jit_compile=False) 
+    else:
+        with tf.device('/CPU:0'):
+            model_fourier = keras.Sequential()
+            model_fourier.add(keras.layers.Dense(fourier_nodes, activation='tanh', input_shape=(2,)))
+            for i in range(dense_layers-1):
+                model_fourier.add(keras.layers.Dense(fourier_nodes, activation='tanh'))
+            model_fourier.add(keras.layers.Dense(12,activation='linear'))
+            model_fourier.summary()
+            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train)),jit_compile=False) 
 
+# set the training call back
+fourier_checkpoint_callback = keras.callbacks.ModelCheckpoint(
+    filepath=checkpoint_filepath,
+    save_weights_only=True,
+    monitor='loss',
+    mode='min',
+    save_best_only=True)
+fourier_early_stop_callback = keras.callbacks.EarlyStopping(monitor='loss', patience=500)
+
+# setup the training data
 # this time we randomly shuffle the order of X and O
 rng = np.random.default_rng()
 # train the network
@@ -556,15 +556,15 @@ last_epoch_time = datetime.now()
 average_epoch_time=timedelta(minutes=10)
 start_epochs = epochs
 
+shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
+temp_X_train = X_train[shuffle_inds,:]
+temp_Y_train = F_train[shuffle_inds,:]
+
 if node_name ==LOCAL_NODE:
-    pass    
+    pass
 else:
-    shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
-    temp_X_train = X_train[shuffle_inds,:]
-    temp_Y_train = F_train[shuffle_inds,:]
     # compute canada training loop; use time based training
     while True:
-
         if np.mod(epochs,10)==0:
             shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
             temp_X_train = X_train[shuffle_inds,:]
@@ -573,20 +573,20 @@ else:
         epochs = epochs+d_epochs
 
         if epochs>20:
-            keras.backend.set_value(model.optimizer.learning_rate, 1E-3)
+            keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-3)
         if epochs>50:
-            keras.backend.set_value(model.optimizer.learning_rate, 5E-4)
+            keras.backend.set_value(model_fourier.optimizer.learning_rate, 5E-4)
         if epochs>100:
-            keras.backend.set_value(model.optimizer.learning_rate, 1E-4)
+            keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-4)
         if epochs>200:
-            keras.backend.set_value(model.optimizer.learning_rate, 5E-5)
+            keras.backend.set_value(model_fourier.optimizer.learning_rate, 5E-5)
         if epochs>400:
-            keras.backend.set_value(model.optimizer.learning_rate, 1E-5)
+            keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-5)
 
         if np.mod(epochs,10)==0:
             # save every 10th epoch
-            model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
-            pred = model.predict(X_train,batch_size=32)
+            model_fourier.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
+            pred = model_fourier.predict(X_train,batch_size=32)
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
             h5f.create_dataset('pred',data=pred)
             h5f.close() 
@@ -597,8 +597,8 @@ else:
             # if there is not enough time to complete the next epoch, exit
             print("Remaining time is insufficient for another epoch, exiting...")
             # save the last epoch before exiting
-            model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
-            pred = model.predict(X_train,batch_size=32)
+            model_fourier.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
+            pred = model_fourier.predict(X_train,batch_size=32)
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
             h5f.create_dataset('pred',data=pred)
             h5f.close()

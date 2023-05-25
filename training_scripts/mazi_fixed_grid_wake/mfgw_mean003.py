@@ -340,13 +340,14 @@ start_epochs = epochs
 
 if node_name ==LOCAL_NODE:
 
-    #model.save(HOMEDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model')
-    pred = model.predict(X_train,batch_size=32)
-    h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred2.mat','w')
-    h5f.create_dataset('pred',data=pred)
-    h5f.close() 
-
     if False:
+        #model.save(HOMEDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model')
+        pred = model.predict(X_train,batch_size=32)
+        h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred2.mat','w')
+        h5f.create_dataset('pred',data=pred)
+        h5f.close() 
+
+    if True:
         # local node training loop, save every epoch for testing
         from pinns_galerkin_viv.lib.LBFGS_example import function_factory
         import tensorflow_probability as tfp
