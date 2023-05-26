@@ -73,10 +73,10 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'mfgwS8m003'
+job_name = 'mfgwS16m002'
 
-# Job mgfwS8m001
-# mean field assimilation for the fixed cylinder, now on a regular grid wake 8x downsample, 4 gpu
+# Job mgfwS16m001
+# mean field assimilation for the fixed cylinder, now on a regular grid wake 16x downsample, 4 gpu
 # 20230515 reduced learning rate to 1E-6
 
 
@@ -107,7 +107,7 @@ else:
 # set the paths
 save_loc = HOMEDIR+'output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
-physics_loss_coefficient = 1.00
+physics_loss_coefficient = 0.10
 
 
 if useGPU:
@@ -121,9 +121,9 @@ else:
 
 # read the data
 base_dir = HOMEDIR+'data/mazi_fixed_grid_wake/'
-meanVelocityFile = h5py.File(base_dir+'meanVelocityS8.mat','r')
-configFile = h5py.File(base_dir+'configurationS8.mat','r')
-reynoldsStressFile = h5py.File(base_dir+'reynoldsStressS8.mat','r')
+meanVelocityFile = h5py.File(base_dir+'meanVelocityS16.mat','r')
+configFile = h5py.File(base_dir+'configurationS16.mat','r')
+reynoldsStressFile = h5py.File(base_dir+'reynoldsStressS16.mat','r')
 
 
 ux = np.array(meanVelocityFile['meanVelocity'][0,:]).transpose()

@@ -73,10 +73,10 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'mfgwS8m003'
+job_name = 'mfgwS32m003'
 
-# Job mgfwS8m001
-# mean field assimilation for the fixed cylinder, now on a regular grid wake 8x downsample, 4 gpu
+# Job mgfwS32m003
+# mean field assimilation for the fixed cylinder, now on a regular grid wake 32x downsample, 4 gpu
 # 20230515 reduced learning rate to 1E-6
 
 
@@ -121,9 +121,9 @@ else:
 
 # read the data
 base_dir = HOMEDIR+'data/mazi_fixed_grid_wake/'
-meanVelocityFile = h5py.File(base_dir+'meanVelocityS8.mat','r')
-configFile = h5py.File(base_dir+'configurationS8.mat','r')
-reynoldsStressFile = h5py.File(base_dir+'reynoldsStressS8.mat','r')
+meanVelocityFile = h5py.File(base_dir+'meanVelocityS32.mat','r')
+configFile = h5py.File(base_dir+'configurationS32.mat','r')
+reynoldsStressFile = h5py.File(base_dir+'reynoldsStressS32.mat','r')
 
 
 ux = np.array(meanVelocityFile['meanVelocity'][0,:]).transpose()
