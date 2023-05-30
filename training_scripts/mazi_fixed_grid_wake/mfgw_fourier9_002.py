@@ -107,7 +107,7 @@ else:
 # set the paths
 save_loc = HOMEDIR+'output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
-physics_loss_coefficient = 0.01
+physics_loss_coefficient = 1.0
 mode_number=8 # the number of the truncated mode to assimilate, note that this is mode 9 in matlab!
 
 
@@ -502,6 +502,7 @@ if len(checkpoint_files)>0:
     epochs = np.uint(np.max(files_epoch_number))
     print(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
     model_fourier = keras.models.load_model(HOMEDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'custom_loss':fourier_loss_wrapper(f_colloc_train,mean_data),})
+    model_fourier.summary()
 else:
     # if not, we train from the beginning
     epochs = 0
@@ -561,7 +562,28 @@ temp_X_train = X_train[shuffle_inds,:]
 temp_Y_train = F_train[shuffle_inds,:]
 
 if node_name ==LOCAL_NODE:
-    pass
+    if True:
+        # local node training loop, save every epoch for testing
+        from pinns_galerkin_viv.lib.LBFGS_example import function_factory
+        import tensorflow_probability as tfp
+
+        # continue with LBFGS steps
+        func = function_factory(model_fourier, fourier_loss_wrapper(f_colloc_train,mean_data), X_train, F_train)
+
+        # convert initial model parameters to a 1D tf.Tensor
+        init_params = tf.dynamic_stitch(func.idx, model_fourier.trainable_variables)
+
+        # train the model with L-BFGS solver
+        results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=3300)
+        epochs = epochs +100
+        # after training, the final optimized parameters are still in results.position
+        # so we have to manually put them back to the model
+        func.assign_new_model_parameters(results.position)
+        pred = model_fourier.predict(X_train,batch_size=32)
+        h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+        h5f.create_dataset('pred',data=pred)
+        # save the model:
+        model_fourier.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5') 
 else:
     # compute canada training loop; use time based training
     while True:

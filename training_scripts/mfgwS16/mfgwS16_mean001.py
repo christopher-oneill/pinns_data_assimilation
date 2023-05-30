@@ -124,7 +124,7 @@ base_dir = HOMEDIR+'data/mazi_fixed_grid_wake/'
 meanVelocityFile = h5py.File(base_dir+'meanVelocityS16.mat','r')
 configFile = h5py.File(base_dir+'configurationS16.mat','r')
 reynoldsStressFile = h5py.File(base_dir+'reynoldsStressS16.mat','r')
-
+configFileF = h5py.File(base_dir+'configuration.mat','r')
 
 ux = np.array(meanVelocityFile['meanVelocity'][0,:]).transpose()
 uy = np.array(meanVelocityFile['meanVelocity'][1,:]).transpose()
@@ -137,6 +137,8 @@ uyppuypp = np.array(reynoldsStressFile['reynoldsStress'][2,:]).transpose()
 print(configFile['X_vec'].shape)
 x = np.array(configFile['X_vec'][0,:])
 y = np.array(configFile['X_vec'][1,:])
+xF = np.array(configFileF['X_vec'][0,:])
+yF = np.array(configFileF['X_vec'][1,:])
 d = np.array(configFile['cylinderDiameter'])
 print('u.shape: ',ux.shape)
 print('x.shape: ',x.shape)
@@ -184,6 +186,11 @@ uxppuxpp_train = uxppuxpp/MAX_uxppuxpp
 uxppuypp_train = uxppuypp/MAX_uxppuypp
 uyppuypp_train = uyppuypp/MAX_uyppuypp
 
+
+xF_norm = xF/MAX_x
+yF_norm = yF/MAX_y
+
+X_test = np.hstack((xF_norm.reshape(-1,1),yF_norm.reshape(-1,1)))
 
 # the order here must be identical to inside the cost functions
 O_train = np.hstack(((ux_train).reshape(-1,1),(uy_train).reshape(-1,1),(uxppuxpp_train).reshape(-1,1),(uxppuypp_train).reshape(-1,1),(uyppuypp_train).reshape(-1,1),)) # training data
@@ -278,6 +285,7 @@ if len(checkpoint_files)>0:
     print(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
     
     model_mean =keras.models.load_model(HOMEDIR+'output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'mean_loss':loss_wrapper(f_colloc_train),})
+    model_mean.summary()
 else:
     # if not, we train from the beginning
     epochs = 0
@@ -336,10 +344,10 @@ temp_X_train = X_train[shuffle_inds,:]
 temp_Y_train = O_train[shuffle_inds,:]
 if node_name ==LOCAL_NODE:
     # local node training loop, save every epoch for testing
-    if True:
-            hist = model_mean.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
-            epochs = epochs+d_epochs
-            model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')   
+    pred = model_mean.predict(X_test,batch_size=32)
+    h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+    h5f.create_dataset('pred',data=pred)
+    h5f.close()
 else:
 
     # compute canada training loop; use time based training
@@ -364,7 +372,7 @@ else:
         if np.mod(epochs,10)==0:
             # save every 10th epoch
             model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
-            pred = model_mean.predict(X_train,batch_size=32)
+            pred = model_mean.predict(X_test,batch_size=32)
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
             h5f.create_dataset('pred',data=pred)
             h5f.close() 
@@ -376,7 +384,7 @@ else:
             print("Remaining time is insufficient for another epoch, exiting...")
             # save the last epoch before exiting
             model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
-            pred = model_mean.predict(X_train,batch_size=32)
+            pred = model_mean.predict(X_test,batch_size=32)
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
             h5f.create_dataset('pred',data=pred)
             h5f.close()

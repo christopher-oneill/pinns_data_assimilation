@@ -96,13 +96,13 @@ else:
     job_duration = timedelta(hours=22,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
-    useGPU=True
+    useGPU=False
     HOMEDIR = '/home/coneill/sync/'
     sys.path.append(HOMEDIR+'code/')
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     # set number of cores to compute on 
-    tf.config.threading.set_intra_op_parallelism_threads(12)
-    tf.config.threading.set_inter_op_parallelism_threads(12)
+    tf.config.threading.set_intra_op_parallelism_threads(16)
+    tf.config.threading.set_inter_op_parallelism_threads(16)
 
 # set the paths
 save_loc = HOMEDIR+'output/'+job_name+'_output/'
@@ -123,6 +123,7 @@ else:
 base_dir = HOMEDIR+'data/mazi_fixed_grid_wake/'
 meanVelocityFile = h5py.File(base_dir+'meanVelocityS8.mat','r')
 configFile = h5py.File(base_dir+'configurationS8.mat','r')
+configFileF = h5py.File(base_dir+'configuration.mat','r')
 reynoldsStressFile = h5py.File(base_dir+'reynoldsStressS8.mat','r')
 
 
@@ -137,6 +138,8 @@ uyppuypp = np.array(reynoldsStressFile['reynoldsStress'][2,:]).transpose()
 print(configFile['X_vec'].shape)
 x = np.array(configFile['X_vec'][0,:])
 y = np.array(configFile['X_vec'][1,:])
+xF = np.array(configFileF['X_vec'][0,:])
+yF = np.array(configFileF['X_vec'][1,:])
 d = np.array(configFile['cylinderDiameter'])
 print('u.shape: ',ux.shape)
 print('x.shape: ',x.shape)
@@ -184,6 +187,10 @@ uxppuxpp_train = uxppuxpp/MAX_uxppuxpp
 uxppuypp_train = uxppuypp/MAX_uxppuypp
 uyppuypp_train = uyppuypp/MAX_uyppuypp
 
+xF_norm = xF/MAX_x
+yF_norm = yF/MAX_y
+
+X_test = np.hstack((xF_norm.reshape(-1,1),yF_norm.reshape(-1,1)))
 
 # the order here must be identical to inside the cost functions
 O_train = np.hstack(((ux_train).reshape(-1,1),(uy_train).reshape(-1,1),(uxppuxpp_train).reshape(-1,1),(uxppuypp_train).reshape(-1,1),(uyppuypp_train).reshape(-1,1),)) # training data
@@ -278,6 +285,7 @@ if len(checkpoint_files)>0:
     print(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
     
     model_mean =keras.models.load_model(HOMEDIR+'output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'mean_loss':loss_wrapper(f_colloc_train),})
+    model_mean.summary()
 else:
     # if not, we train from the beginning
     epochs = 0
@@ -336,14 +344,73 @@ temp_X_train = X_train[shuffle_inds,:]
 temp_Y_train = O_train[shuffle_inds,:]
 if node_name ==LOCAL_NODE:
     # local node training loop, save every epoch for testing
-    if True:
-            hist = model_mean.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[early_stop_callback,model_checkpoint_callback])
-            epochs = epochs+d_epochs
-            model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')   
+            # local node training loop, save every epoch for testing
+    from pinns_galerkin_viv.lib.LBFGS_example import function_factory
+    import tensorflow_probability as tfp
+
+    # continue with LBFGS steps
+    func = function_factory(model_mean, loss_wrapper(f_colloc_train), X_train, O_train)
+
+    # convert initial model parameters to a 1D tf.Tensor
+    init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables)
+
+    # train the model with L-BFGS solver
+    results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=100)
+    epochs = epochs +100
+    # after training, the final optimized parameters are still in results.position
+    # so we have to manually put them back to the model
+    func.assign_new_model_parameters(results.position)
+    pred = model_mean.predict(X_test,batch_size=32)
+    h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+    h5f.create_dataset('pred',data=pred)
+    # save the model:
+    model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5') 
 else:
 
+    # compute canada LGFBS loop
+    if True:
+        from pinns_galerkin_viv.lib.LBFGS_example import function_factory
+        import tensorflow_probability as tfp
+
+        func = function_factory(model_mean, loss_wrapper(f_colloc_train), X_train, O_train)
+        init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables)
+        L_iter = 0
+
+        while True:
+                # train the model with L-BFGS solver
+            results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=100)
+            func.assign_new_model_parameters(results.position)
+            epochs = epochs +100
+            L_iter = L_iter+1
+            
+            # after training, the final optimized parameters are still in results.position
+            # so we have to manually put them back to the model
+            
+            if np.mod(L_iter,10)==0:
+                model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
+                pred = model_mean.predict(X_test,batch_size=32)
+                h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+                h5f.create_dataset('pred',data=pred)
+                h5f.close()
+
+            # check if we should exit
+            average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
+            if (datetime.now()+average_epoch_time)>end_time:
+                # if there is not enough time to complete the next epoch, exit
+                print("Remaining time is insufficient for another epoch, exiting...")
+                # save the last epoch before exiting
+                model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
+                pred = model_mean.predict(X_test,batch_size=32)
+                h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+                h5f.create_dataset('pred',data=pred)
+                h5f.close()
+                exit()
+            last_epoch_time = datetime.now()
+
+
+
     # compute canada training loop; use time based training
-    while True:
+    while False:
 
         if np.mod(epochs,10)==0:
             shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
@@ -361,10 +428,10 @@ else:
         if epochs>100:
             keras.backend.set_value(model_mean.optimizer.learning_rate, 1E-6)
 
-        if np.mod(epochs,10)==0:
+        if np.mod(epochs,1000)==0:
             # save every 10th epoch
             model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
-            pred = model_mean.predict(X_train,batch_size=32)
+            pred = model_mean.predict(X_test,batch_size=32)
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
             h5f.create_dataset('pred',data=pred)
             h5f.close() 
@@ -376,7 +443,7 @@ else:
             print("Remaining time is insufficient for another epoch, exiting...")
             # save the last epoch before exiting
             model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
-            pred = model_mean.predict(X_train,batch_size=32)
+            pred = model_mean.predict(X_test,batch_size=32)
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
             h5f.create_dataset('pred',data=pred)
             h5f.close()
