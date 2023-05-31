@@ -380,6 +380,7 @@ else:
                 # train the model with L-BFGS solver
             results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=100)
             func.assign_new_model_parameters(results.position)
+            init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables) # we need to reasign the parameters otherwise we start from the beginning each time
             epochs = epochs +100
             L_iter = L_iter+1
             
