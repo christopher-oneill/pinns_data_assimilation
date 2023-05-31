@@ -96,18 +96,18 @@ else:
     job_duration = timedelta(hours=22,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
-    useGPU=True
+    useGPU=False
     HOMEDIR = '/home/coneill/sync/'
     sys.path.append(HOMEDIR+'code/')
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     # set number of cores to compute on 
-    tf.config.threading.set_intra_op_parallelism_threads(12)
-    tf.config.threading.set_inter_op_parallelism_threads(12)
+    tf.config.threading.set_intra_op_parallelism_threads(16)
+    tf.config.threading.set_inter_op_parallelism_threads(16)
 
 # set the paths
 save_loc = HOMEDIR+'output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
-physics_loss_coefficient = 0.10
+physics_loss_coefficient = 1.0
 
 
 if useGPU:
@@ -350,6 +350,48 @@ if node_name ==LOCAL_NODE:
     h5f.create_dataset('pred',data=pred)
     h5f.close() 
 else:
+    # compute canada LGFBS loop
+    if True:
+        from pinns_galerkin_viv.lib.LBFGS_example import function_factory
+        import tensorflow_probability as tfp
+
+        func = function_factory(model_mean, loss_wrapper(f_colloc_train), X_train, O_train)
+        init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables)
+        L_iter = 0
+
+        while True:
+                # train the model with L-BFGS solver
+            results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=100)
+            func.assign_new_model_parameters(results.position)
+            init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables) # we need to reasign the parameters otherwise we start from the beginning each time
+            epochs = epochs +100
+            L_iter = L_iter+1
+            
+            # after training, the final optimized parameters are still in results.position
+            # so we have to manually put them back to the model
+            
+            if np.mod(L_iter,10)==0:
+                model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
+                pred = model_mean.predict(X_test,batch_size=32)
+                h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+                h5f.create_dataset('pred',data=pred)
+                h5f.close()
+
+            # check if we should exit
+            average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
+            if (datetime.now()+average_epoch_time)>end_time:
+                # if there is not enough time to complete the next epoch, exit
+                print("Remaining time is insufficient for another epoch, exiting...")
+                # save the last epoch before exiting
+                model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
+                pred = model_mean.predict(X_test,batch_size=32)
+                h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+                h5f.create_dataset('pred',data=pred)
+                h5f.close()
+                exit()
+            last_epoch_time = datetime.now()
+
+
 
     # compute canada training loop; use time based training
     while True:

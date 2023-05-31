@@ -96,18 +96,18 @@ else:
     job_duration = timedelta(hours=22,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
-    useGPU=True
+    useGPU=False
     HOMEDIR = '/home/coneill/sync/'
     sys.path.append(HOMEDIR+'code/')
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     # set number of cores to compute on 
-    tf.config.threading.set_intra_op_parallelism_threads(12)
-    tf.config.threading.set_inter_op_parallelism_threads(12)
+    tf.config.threading.set_intra_op_parallelism_threads(16)
+    tf.config.threading.set_inter_op_parallelism_threads(16)
 
 # set the paths
 save_loc = HOMEDIR+'output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
-physics_loss_coefficient = 0.01
+physics_loss_coefficient = 1.0
 
 
 if useGPU:
@@ -124,7 +124,7 @@ base_dir = HOMEDIR+'data/mazi_fixed_grid_wake/'
 meanVelocityFile = h5py.File(base_dir+'meanVelocityS64.mat','r')
 configFile = h5py.File(base_dir+'configurationS64.mat','r')
 reynoldsStressFile = h5py.File(base_dir+'reynoldsStressS64.mat','r')
-
+configFileF = h5py.File(base_dir+'configuration.mat','r')
 
 ux = np.array(meanVelocityFile['meanVelocity'][0,:]).transpose()
 uy = np.array(meanVelocityFile['meanVelocity'][1,:]).transpose()
@@ -137,6 +137,8 @@ uyppuypp = np.array(reynoldsStressFile['reynoldsStress'][2,:]).transpose()
 print(configFile['X_vec'].shape)
 x = np.array(configFile['X_vec'][0,:])
 y = np.array(configFile['X_vec'][1,:])
+xF = np.array(configFileF['X_vec'][0,:])
+yF = np.array(configFileF['X_vec'][1,:])
 d = np.array(configFile['cylinderDiameter'])
 print('u.shape: ',ux.shape)
 print('x.shape: ',x.shape)
@@ -184,7 +186,10 @@ uxppuxpp_train = uxppuxpp/MAX_uxppuxpp
 uxppuypp_train = uxppuypp/MAX_uxppuypp
 uyppuypp_train = uyppuypp/MAX_uyppuypp
 
+xF_norm = xF/MAX_x
+yF_norm = yF/MAX_y
 
+X_test = np.hstack((xF_norm.reshape(-1,1),yF_norm.reshape(-1,1)))
 # the order here must be identical to inside the cost functions
 O_train = np.hstack(((ux_train).reshape(-1,1),(uy_train).reshape(-1,1),(uxppuxpp_train).reshape(-1,1),(uxppuypp_train).reshape(-1,1),(uyppuypp_train).reshape(-1,1),)) # training data
 # note that the order here needs to be the same as the split inside the network!
