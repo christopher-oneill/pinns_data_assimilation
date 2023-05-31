@@ -107,7 +107,7 @@ else:
 # set the paths
 save_loc = HOMEDIR+'output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
-physics_loss_coefficient = 0.00
+physics_loss_coefficient = 1.00
 mode_number=8 # the number of the truncated mode to assimilate, note that this is mode 9 in matlab!
 
 
@@ -580,8 +580,12 @@ else:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-4)
         if epochs>200:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 5E-5)
-        if epochs>400:
+        if epochs>300:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-5)
+        if epochs>400:
+            keras.backend.set_value(model_fourier.optimizer.learning_rate, 5E-6)
+        if epochs>400:
+            keras.backend.set_value(model_fourier.optimizer.learning_rate, 5E-6)
 
         if np.mod(epochs,10)==0:
             # save every 10th epoch
