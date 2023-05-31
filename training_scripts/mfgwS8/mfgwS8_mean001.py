@@ -82,7 +82,7 @@ job_name = 'mfgwS8m001'
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
-    import matplotlib.pyplot as plot
+    
     useGPU=False    
     SLURM_TMPDIR='C:/projects/pinns_narval/'
     HOMEDIR = 'C:/projects/pinns_narval/'

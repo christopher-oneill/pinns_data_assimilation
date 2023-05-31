@@ -14,7 +14,7 @@ L-BFGS optimizer example
 import numpy as np 
 import tensorflow as tf
 import tensorflow_probability as tfp
-from matplotlib import pyplot
+
 
 def function_factory(model, loss, train_x, train_y):
     """A factory to create a function required by tfp.optimizer.lbfgs_minimize.
