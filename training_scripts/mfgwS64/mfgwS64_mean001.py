@@ -346,6 +346,46 @@ if node_name ==LOCAL_NODE:
             epochs = epochs+d_epochs
             model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')   
 else:
+  # compute canada LGFBS loop
+    if True:
+        from pinns_galerkin_viv.lib.LBFGS_example import function_factory
+        import tensorflow_probability as tfp
+
+        func = function_factory(model_mean, loss_wrapper(f_colloc_train), X_train, O_train)
+        init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables)
+        L_iter = 0
+
+        while True:
+                # train the model with L-BFGS solver
+            results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=100)
+            func.assign_new_model_parameters(results.position)
+            init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables) # we need to reasign the parameters otherwise we start from the beginning each time
+            epochs = epochs +100
+            L_iter = L_iter+1
+            
+            # after training, the final optimized parameters are still in results.position
+            # so we have to manually put them back to the model
+            
+            if np.mod(L_iter,10)==0:
+                model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
+                pred = model_mean.predict(X_test,batch_size=32)
+                h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+                h5f.create_dataset('pred',data=pred)
+                h5f.close()
+
+            # check if we should exit
+            average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
+            if (datetime.now()+average_epoch_time)>end_time:
+                # if there is not enough time to complete the next epoch, exit
+                print("Remaining time is insufficient for another epoch, exiting...")
+                # save the last epoch before exiting
+                model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
+                pred = model_mean.predict(X_test,batch_size=32)
+                h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+                h5f.create_dataset('pred',data=pred)
+                h5f.close()
+                exit()
+            last_epoch_time = datetime.now()
 
     # compute canada training loop; use time based training
     while True:
