@@ -66,11 +66,14 @@ for k in training_cases:
     case_name = case_prefix + "{:03d}".format(k)
     output_dir = output_base_dir+case_name + '_output/'
 
-    meanVelocityFile = h5py.File(data_dir+'meanVelocity.mat','r')
+    meanVelocityFileF = h5py.File(data_dir+'meanVelocity.mat','r')
+    meanVelocityFile = h5py.File(data_dir+'meanVelocityS8.mat','r')
     configFileF = h5py.File(data_dir+'configuration.mat','r')
     configFile = h5py.File(data_dir+'configurationS8.mat','r')
-    meanPressureFile = h5py.File(data_dir+'meanPressure.mat','r')
-    reynoldsStressFile = h5py.File(data_dir+'reynoldsStress.mat','r')
+    meanPressureFileF = h5py.File(data_dir+'meanPressure.mat','r')
+    meanPressureFile = h5py.File(data_dir+'meanPressureS8.mat','r')
+    reynoldsStressFileF = h5py.File(data_dir+'reynoldsStress.mat','r')    
+    reynoldsStressFile = h5py.File(data_dir+'reynoldsStressS8.mat','r')
 
     predfilename,epoch_number = find_highest_numbered_file(output_dir+case_name+'_ep','[0-9]*','_pred.mat')
     predFile =  h5py.File(predfilename,'r')
@@ -82,13 +85,13 @@ for k in training_cases:
     SaveFig = True
     PlotFig = False
 
-    ux = np.array(meanVelocityFile['meanVelocity'][0,:]).transpose()
-    uy = np.array(meanVelocityFile['meanVelocity'][1,:]).transpose()
-    p = np.array(meanPressureFile['meanPressure']).transpose()
+    ux = np.array(meanVelocityFileF['meanVelocity'][0,:]).transpose()
+    uy = np.array(meanVelocityFileF['meanVelocity'][1,:]).transpose()
+    p = np.array(meanPressureFileF['meanPressure']).transpose()
     p = p[:,0]
-    upup = np.array(reynoldsStressFile['reynoldsStress'][0,:]).transpose()
-    upvp = np.array(reynoldsStressFile['reynoldsStress'][1,:]).transpose()
-    vpvp = np.array(reynoldsStressFile['reynoldsStress'][2,:]).transpose()
+    upup = np.array(reynoldsStressFileF['reynoldsStress'][0,:]).transpose()
+    upvp = np.array(reynoldsStressFileF['reynoldsStress'][1,:]).transpose()
+    vpvp = np.array(reynoldsStressFileF['reynoldsStress'][2,:]).transpose()
 
     x = np.array(configFileF['X_vec'][0,:])
     X_grid_temp = np.array(configFileF['X_grid'])
@@ -101,12 +104,14 @@ for k in training_cases:
     xp = np.array(configFile['X_vec'][0,:])
     yp = np.array(configFile['X_vec'][1,:])
 
-    MAX_ux = np.max(ux)
-    MAX_uy = np.max(uy)
-    MAX_upup = np.max(upup)
-    MAX_upvp = np.max(upvp) # estimated maximum of nut # THIS VALUE is internally multiplied with 0.001 (mm and m)
-    MAX_vpvp = np.max(vpvp)
+    # note that these need to be from the downsampled file, since this is what the internal values to the NN were scaled on
+    MAX_ux = np.max(np.array(meanVelocityFile['meanVelocity'][0,:]))
+    MAX_uy = np.max(np.array(meanVelocityFile['meanVelocity'][1,:]))
+    MAX_upup = np.max(np.array(reynoldsStressFile['reynoldsStress'][0,:]))
+    MAX_upvp = np.max(np.array(reynoldsStressFile['reynoldsStress'][1,:])) # estimated maximum of nut # THIS VALUE is internally multiplied with 0.001 (mm and m)
+    MAX_vpvp = np.max(np.array(reynoldsStressFile['reynoldsStress'][2,:]))
     MAX_p= 1 # estimated maximum pressure
+
 
     nu_mol = 0.0066667
     ux_pred = np.array(predFile['pred'][:,0])*MAX_ux
@@ -146,7 +151,7 @@ for k in training_cases:
     p_grid = np.reshape(p,X_grid.shape)
     ux_pred_grid = np.reshape(ux_pred,X_grid.shape)
     uy_pred_grid = np.reshape(uy_pred,X_grid.shape)
-    p_pred_grid = np.reshape(p_pred,X_grid.shape)
+    p_pred_grid = np.reshape(p_pred,X_grid.shape) -np.mean(p_pred) + np.mean(p)
     upup_grid = np.reshape(upup,X_grid.shape)
     upup_pred_grid = np.reshape(upup_pred,X_grid.shape)
     upvp_grid = np.reshape(upvp,X_grid.shape)
@@ -157,7 +162,7 @@ for k in training_cases:
 
     x_lim_vec = [0.5,10.0]
     y_lim_vec = [-2.0,2.0]
-    f1_levels = np.linspace(-MAX_ux,MAX_ux,21)
+    f1_levels = np.linspace(-1.2*MAX_ux,1.2*MAX_ux,21)
     fig = plot.figure(1)
     ax = fig.add_subplot(3,1,1)
     plot.axis('equal')
@@ -168,8 +173,7 @@ for k in training_cases:
     ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
     plot.ylabel('y/D')
-    dots = plot.scatter(xp,yp,0.01,edgecolors='k')
-    dots.set_facecolor('k')
+    dots = plot.scatter(xp,yp,0.1,color='black')
     fig.add_subplot(3,1,2)
     plot.contourf(X_grid,Y_grid,ux_pred_grid,levels=f1_levels)
     plot.set_cmap('bwr')
@@ -192,7 +196,7 @@ for k in training_cases:
     if SaveFig:
         plot.savefig(figure_prefix+'_mean_ux.png',dpi=1200)
 
-    f2_levels = np.linspace(-MAX_uy,MAX_uy,21)
+    f2_levels = np.linspace(-1.2*MAX_uy,1.2*MAX_uy,21)
     fig2 = plot.figure(2)
     fig2.add_subplot(3,1,1)
     plot.axis('equal')
@@ -202,6 +206,7 @@ for k in training_cases:
     ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
     plot.ylabel('y/D')
+    dots = plot.scatter(xp,yp,0.1,color='black')
     fig2.add_subplot(3,1,2)
     plot.contourf(X_grid,Y_grid,uy_pred_grid,levels=f2_levels)
     plot.set_cmap('bwr')
@@ -225,7 +230,7 @@ for k in training_cases:
         plot.savefig(figure_prefix+'_mean_uy.png',dpi=300)
 
 
-    f3_levels = np.linspace(-MAX_p,MAX_p,21)
+    f3_levels = np.linspace(-1.2*MAX_p,1.2*MAX_p,21)
     fig3 = plot.figure(3)
     fig3.add_subplot(3,1,1)
     plot.axis('equal')
@@ -233,6 +238,7 @@ for k in training_cases:
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.ylabel('y/D')
+    dots = plot.scatter(xp,yp,0.1,color='black')
     ax=plot.gca()
     ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
@@ -259,7 +265,7 @@ for k in training_cases:
         plot.savefig(figure_prefix+'_mean_p.png',dpi=300)
 
 
-    f4_levels = np.linspace(-MAX_upup,MAX_upup,21)
+    f4_levels = np.linspace(-1.2*MAX_upup,1.2*MAX_upup,21)
     fig4 = plot.figure(4)
     fig4.add_subplot(3,1,1)
     plot.axis('equal')
@@ -267,6 +273,7 @@ for k in training_cases:
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.ylabel('y/D')
+    dots = plot.scatter(xp,yp,0.1,color='black')
     ax=plot.gca()
     ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
@@ -293,7 +300,7 @@ for k in training_cases:
         plot.savefig(figure_prefix+'_mean_upup.png',dpi=300)
 
 
-    f5_levels = np.linspace(-MAX_upvp,MAX_upvp,21)
+    f5_levels = np.linspace(-1.2*MAX_upvp,1.2*MAX_upvp,21)
     fig5 = plot.figure(5)
     fig5.add_subplot(3,1,1)
     plot.axis('equal')
@@ -301,6 +308,7 @@ for k in training_cases:
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.ylabel('y/D')
+    dots = plot.scatter(xp,yp,0.1,color='black')
     ax=plot.gca()
     ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
@@ -327,7 +335,7 @@ for k in training_cases:
         plot.savefig(figure_prefix+'_mean_upvp.png',dpi=300)
 
 
-    f6_levels = np.linspace(-MAX_vpvp,MAX_vpvp,21)
+    f6_levels = np.linspace(-1.2*MAX_vpvp,1.2*MAX_vpvp,21)
     fig6 = plot.figure(6)
     fig6.add_subplot(3,1,1)
     plot.axis('equal')
@@ -335,6 +343,7 @@ for k in training_cases:
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.ylabel('y/D')
+    dots = plot.scatter(xp,yp,0.1,color='black')
     ax=plot.gca()
     ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
