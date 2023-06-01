@@ -172,7 +172,7 @@ MAX_p= 1 # estimated maximum pressure, we should
 # reduce the collocation points to 25k
 colloc_limits1 = np.array([[0.5,10.0],[-2.0,2.0]])
 colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-colloc_merged = colloc_sample_lhs1(40000)
+colloc_merged = colloc_sample_lhs1(60000)
 print('colloc_merged.shape',colloc_merged.shape)
 
 f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
