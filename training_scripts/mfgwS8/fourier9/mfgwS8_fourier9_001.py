@@ -204,8 +204,8 @@ colloc_limits1 = np.array([[4.0,10.0],[-2.0,2.0]])
 colloc_limits2 = np.array([[0.5,4.0],[-2.0,2.0]])
 colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
 colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
-colloc_lhs1 = colloc_sample_lhs1(10000)
-colloc_lhs2 = colloc_sample_lhs2(20000)
+colloc_lhs1 = colloc_sample_lhs1(15000)
+colloc_lhs2 = colloc_sample_lhs2(25000)
 colloc_merged = np.vstack((colloc_lhs1,colloc_lhs2))
 print('colloc_merged.shape',colloc_merged.shape)
 
@@ -515,7 +515,7 @@ else:
                 model_fourier.add(keras.layers.Dense(fourier_nodes, activation='tanh'))
             model_fourier.add(keras.layers.Dense(12,activation='linear'))
             model_fourier.summary()
-            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train)),jit_compile=False) 
+            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.001), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train)),jit_compile=False) 
     else:
         with tf.device('/CPU:0'):
             model_fourier = keras.Sequential()
@@ -524,7 +524,7 @@ else:
                 model_fourier.add(keras.layers.Dense(fourier_nodes, activation='tanh'))
             model_fourier.add(keras.layers.Dense(12,activation='linear'))
             model_fourier.summary()
-            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train)),jit_compile=False) 
+            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.001), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train)),jit_compile=False) 
 
 # set the training call back
 fourier_checkpoint_callback = keras.callbacks.ModelCheckpoint(
@@ -606,16 +606,14 @@ else:
         epochs = epochs+d_epochs
 
         if epochs>20:
-            keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-3)
-        if epochs>40:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 5E-4)
-        if epochs>80:
+        if epochs>40:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-4)
-        if epochs>120:
+        if epochs>80:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 5E-5)
-        if epochs>180:
+        if epochs>120:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-5)
-        if epochs>2400:
+        if epochs>180:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-6)
 
         if np.mod(epochs,10)==0:
