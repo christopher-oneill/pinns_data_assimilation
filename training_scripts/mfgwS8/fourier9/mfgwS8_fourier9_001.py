@@ -95,7 +95,7 @@ else:
     job_duration = timedelta(hours=22,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
-    useGPU=True
+    useGPU=False
     HOMEDIR = '/home/coneill/sync/'
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     sys.path.append(HOMEDIR+'code/')
@@ -554,7 +554,7 @@ if node_name ==LOCAL_NODE:
     pass
 else:
     # compute canada LGFBS loop
-    if False:
+    if True:
         from pinns_galerkin_viv.lib.LBFGS_example import function_factory
         import tensorflow_probability as tfp
 
