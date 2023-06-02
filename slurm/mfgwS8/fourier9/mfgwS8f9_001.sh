@@ -1,5 +1,6 @@
 #!/bin/bash
-#SBATCH --account=def-martinuz    
+#SBATCH --account=def-martinuz
+#SBATCH --gpus-per-node=4   
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=32000M
 #SBATCH --time=0-23:00
