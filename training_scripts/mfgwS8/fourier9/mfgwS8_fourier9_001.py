@@ -303,7 +303,7 @@ def net_f_mean_cartesian(colloc_tensor):
 
 def mean_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
     
-    def custom_loss(y_true, y_pred):
+    def mean_loss(y_true, y_pred):
         # this needs to match the order that they are concatinated in the array when setting up the network
         # additionally, the known quantities must be first, unknown quantites second
         data_loss_ux = keras.losses.mean_squared_error(y_true[:,0], y_pred[:,0]) # u 
@@ -320,7 +320,7 @@ def mean_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tensor_
                       
         return data_loss_ux + data_loss_uy + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp + physics_loss_coefficient*(physical_loss1 + physical_loss2 + physical_loss3) # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
 
-    return custom_loss
+    return mean_loss
 
 @tf.function
 def mean_cartesian(colloc_tensor):
@@ -438,7 +438,7 @@ def net_f_fourier_cartesian(colloc_tensor, mean_grads):
 # function wrapper, combine data and physics loss
 def fourier_loss_wrapper(colloc_tensor_f,colloc_grads): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
     
-    def custom_loss(y_true, y_pred):
+    def fourier_loss(y_true, y_pred):
         # this needs to match the order that they are concatinated in the array when setting up the network
         # additionally, the known quantities must be first, unknown quantites second
         data_loss_phi_xr = keras.losses.mean_squared_error(y_true[:,0], y_pred[:,0])
@@ -463,14 +463,14 @@ def fourier_loss_wrapper(colloc_tensor_f,colloc_grads): # def custom_loss_wrappe
                       
         return data_loss_phi_xr + data_loss_phi_xi + data_loss_phi_yr + data_loss_phi_yi +data_loss_tau_xx_r+data_loss_tau_xx_i+data_loss_tau_xy_r+data_loss_tau_xy_i+data_loss_tau_yy_r+data_loss_tau_yy_i + physics_loss_coefficient*(loss_mxr + loss_mxi + loss_myr+loss_myi+loss_massr+loss_massi) # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
 
-    return custom_loss
+    return fourier_loss
 
 def get_filepaths_with_glob(root_path: str, file_regex: str):
     return glob.glob(os.path.join(root_path, file_regex))
 
 # load the saved mean model on the CPU
 with tf.device('/CPU:0'):
-    model_mean = keras.models.load_model(HOMEDIR+'output/mfgwS8m003_output/mfgwS8m003_ep46990_model.h5',custom_objects={'custom_loss':mean_loss_wrapper(f_colloc_train),})
+    model_mean = keras.models.load_model(HOMEDIR+'output/mfgwS8m003_output/mfgwS8m003_ep46990_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train),})
 
 # get the values for the mean_data tensor
 mean_data = mean_cartesian(f_colloc_train)
@@ -491,7 +491,7 @@ if len(checkpoint_files)>0:
         files_epoch_number[f_indx]=int(checkpoint_files[f_indx][(re_result.start()+2):re_result.end()])
     epochs = np.uint(np.max(files_epoch_number))
     print(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
-    model_fourier = keras.models.load_model(HOMEDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'custom_loss':fourier_loss_wrapper(f_colloc_train,mean_data),})
+    model_fourier = keras.models.load_model(HOMEDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'fourier_loss':fourier_loss_wrapper(f_colloc_train,mean_data),})
 else:
     # if not, we train from the beginning
     epochs = 0
