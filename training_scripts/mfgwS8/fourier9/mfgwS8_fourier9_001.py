@@ -554,7 +554,7 @@ if node_name ==LOCAL_NODE:
     pass
 else:
     # compute canada LGFBS loop
-    if True:
+    if False:
         from pinns_galerkin_viv.lib.LBFGS_example import function_factory
         import tensorflow_probability as tfp
 
@@ -607,15 +607,15 @@ else:
 
         if epochs>20:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-3)
-        if epochs>50:
+        if epochs>40:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 5E-4)
-        if epochs>100:
+        if epochs>80:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-4)
-        if epochs>200:
+        if epochs>120:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 5E-5)
-        if epochs>400:
+        if epochs>180:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-5)
-        if epochs>800:
+        if epochs>2400:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-6)
 
         if np.mod(epochs,10)==0:
