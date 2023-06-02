@@ -608,18 +608,18 @@ else:
         if epochs>20:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 5E-4)
         if epochs>40:
-            keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-4)
-        if epochs>80:
-            keras.backend.set_value(model_fourier.optimizer.learning_rate, 5E-5)
-        if epochs>120:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-5)
-        if epochs>180:
+        if epochs>80:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-6)
+        if epochs>120:
+            keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-7)
+        if epochs>180:
+            keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-8)
 
         if np.mod(epochs,10)==0:
             # save every 10th epoch
             model_fourier.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
-            pred = model_fourier.predict(X_train,batch_size=32)
+            pred = model_fourier.predict(X_test,batch_size=32)
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
             h5f.create_dataset('pred',data=pred)
             h5f.close() 
@@ -631,7 +631,7 @@ else:
             print("Remaining time is insufficient for another epoch, exiting...")
             # save the last epoch before exiting
             model_fourier.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
-            pred = model_fourier.predict(X_train,batch_size=32)
+            pred = model_fourier.predict(X_test,batch_size=32)
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
             h5f.create_dataset('pred',data=pred)
             h5f.close()
