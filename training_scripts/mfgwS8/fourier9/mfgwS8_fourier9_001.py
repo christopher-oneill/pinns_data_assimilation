@@ -470,7 +470,7 @@ def get_filepaths_with_glob(root_path: str, file_regex: str):
 
 # load the saved mean model on the CPU
 with tf.device('/CPU:0'):
-    model_mean = keras.models.load_model(HOMEDIR+'/output/mfgwS8m003_output/mfgwS8_mean003_ep46990_model.h5',custom_objects={'custom_loss':mean_loss_wrapper(f_colloc_train),})
+    model_mean = keras.models.load_model(HOMEDIR+'output/mfgwS8m003_output/mfgwS8m003_ep46990_model.h5',custom_objects={'custom_loss':mean_loss_wrapper(f_colloc_train),})
 
 # get the values for the mean_data tensor
 mean_data = mean_cartesian(f_colloc_train)

@@ -2,6 +2,7 @@
 # salloc --account=def-martinuz --gres=gpu:1 --cpus-per-task=3 --mem=16000M --time=2:00:00
 # salloc --account=def-martinuz --gres=gpu:4 --cpus-per-task=12 --mem=32000M --time=2:00:00
 # salloc --account=def-martinuz --cpus-per-task=2 --mem=1000M --time=1:00:00
+# salloc --account=def-martinuz --cpus-per-task=16 --mem=32000M --time=2:00:00
 
 # some useful commands
 
