@@ -73,7 +73,7 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'mfgw_fourier9_001'
+job_name = 'mfgw_fourier9_006'
 
 # Job mgfw_fourier001
 # 20230523: fourier mode assimilation, fixed cylinder Re=150
@@ -516,7 +516,7 @@ else:
                 model_fourier.add(keras.layers.Dense(fourier_nodes, activation='tanh'))
             model_fourier.add(keras.layers.Dense(12,activation='linear'))
             model_fourier.summary()
-            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train)),jit_compile=False) 
+            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.0001), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train)),jit_compile=False) 
     else:
         with tf.device('/CPU:0'):
             model_fourier = keras.Sequential()
@@ -525,7 +525,7 @@ else:
                 model_fourier.add(keras.layers.Dense(fourier_nodes, activation='tanh'))
             model_fourier.add(keras.layers.Dense(12,activation='linear'))
             model_fourier.summary()
-            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train)),jit_compile=False) 
+            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.0001), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train)),jit_compile=False) 
 
 # set the training call back
 fourier_checkpoint_callback = keras.callbacks.ModelCheckpoint(
@@ -653,18 +653,24 @@ else:
         hist = model_fourier.fit(temp_X_train[0,:,:],temp_Y_train[0,:,:], batch_size=32, epochs=d_epochs, callbacks=[fourier_early_stop_callback,fourier_checkpoint_callback])
         epochs = epochs+d_epochs
 
+        t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(f_colloc_train,mean_data)
+        print("Loss mxr: ",tf.reduce_mean(tf.square(t_mxr)))
+        print("Loss mxi: ",tf.reduce_mean(tf.square(t_mxi)))
+        print("Loss myr: ",tf.reduce_mean(tf.square(t_myr)))
+        print("Loss myi: ",tf.reduce_mean(tf.square(t_myi)))
+        print("Loss massr: ",tf.reduce_mean(tf.square(t_massr)))
+        print("Loss massi: ",tf.reduce_mean(tf.square(t_massi)))
+
         if epochs>20:
-            keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-3)
-        if epochs>40:
-            keras.backend.set_value(model_fourier.optimizer.learning_rate, 5E-4)
-        if epochs>60:
-            keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-4)
-        if epochs>80:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 5E-5)
-        if epochs>100:
+        if epochs>40:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-5)
-        if epochs>120:
+        if epochs>60:
             keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-6)
+        if epochs>80:
+            keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-7)
+        if epochs>100:
+            keras.backend.set_value(model_fourier.optimizer.learning_rate, 1E-8)
 
         if np.mod(epochs,20)==0:
             # save every 10th epoch
