@@ -95,13 +95,13 @@ else:
     job_duration = timedelta(hours=22,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
-    useGPU=False
+    useGPU=True
     HOMEDIR = '/home/coneill/sync/'
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     sys.path.append(HOMEDIR+'code/')
     # set number of cores to compute on 
-    tf.config.threading.set_intra_op_parallelism_threads(16)
-    tf.config.threading.set_inter_op_parallelism_threads(16)
+    tf.config.threading.set_intra_op_parallelism_threads(12)
+    tf.config.threading.set_inter_op_parallelism_threads(12)
     
 
 # set the paths
@@ -474,6 +474,7 @@ with tf.device('/CPU:0'):
 
 # get the values for the mean_data tensor
 mean_data = mean_cartesian(f_colloc_train)
+mean_data_test = mean_cartesian(X_test)
 
 # clear the session, we will now create the fourier model
 tf.keras.backend.clear_session()
@@ -554,7 +555,7 @@ if node_name ==LOCAL_NODE:
     pass
 else:
     # compute canada LGFBS loop
-    if True:
+    if False:
         from pinns_galerkin_viv.lib.LBFGS_example import function_factory
         import tensorflow_probability as tfp
 
@@ -579,6 +580,15 @@ else:
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
                 h5f.create_dataset('pred',data=pred)
                 h5f.close()
+                t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(X_test,mean_data_test)
+                h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
+                h5f.create_dataset('mxr',data=t_mxr)
+                h5f.create_dataset('mxi',data=t_mxi)
+                h5f.create_dataset('myr',data=t_myr)
+                h5f.create_dataset('myi',data=t_myi)
+                h5f.create_dataset('massr',data=t_massr)
+                h5f.create_dataset('massi',data=t_massi)
+                h5f.close()
 
             # check if we should exit
             average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
@@ -590,6 +600,15 @@ else:
                 pred = model_fourier.predict(X_test,batch_size=32)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
                 h5f.create_dataset('pred',data=pred)
+                h5f.close()
+                t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(X_test,mean_data_test)
+                h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
+                h5f.create_dataset('mxr',data=t_mxr)
+                h5f.create_dataset('mxi',data=t_mxi)
+                h5f.create_dataset('myr',data=t_myr)
+                h5f.create_dataset('myi',data=t_myi)
+                h5f.create_dataset('massr',data=t_massr)
+                h5f.create_dataset('massi',data=t_massi)
                 h5f.close()
                 exit()
             last_epoch_time = datetime.now()
@@ -622,7 +641,16 @@ else:
             pred = model_fourier.predict(X_test,batch_size=32)
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
             h5f.create_dataset('pred',data=pred)
-            h5f.close() 
+            h5f.close()
+            t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(X_test,mean_data_test)
+            h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
+            h5f.create_dataset('mxr',data=t_mxr)
+            h5f.create_dataset('mxi',data=t_mxi)
+            h5f.create_dataset('myr',data=t_myr)
+            h5f.create_dataset('myi',data=t_myi)
+            h5f.create_dataset('massr',data=t_massr)
+            h5f.create_dataset('massi',data=t_massi)
+            h5f.close()
 
         # check if we should exit
         average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
@@ -634,6 +662,15 @@ else:
             pred = model_fourier.predict(X_test,batch_size=32)
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
             h5f.create_dataset('pred',data=pred)
+            h5f.close()
+            t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(X_test,mean_data_test)
+            h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
+            h5f.create_dataset('mxr',data=t_mxr)
+            h5f.create_dataset('mxi',data=t_mxi)
+            h5f.create_dataset('myr',data=t_myr)
+            h5f.create_dataset('myi',data=t_myi)
+            h5f.create_dataset('massr',data=t_massr)
+            h5f.create_dataset('massi',data=t_massi)
             h5f.close()
             exit()
         last_epoch_time = datetime.now()
