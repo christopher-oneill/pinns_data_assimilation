@@ -365,7 +365,7 @@ def net_f_fourier_cartesian(colloc_tensor, mean_grads):
     phi_xr_y = dphi_xr[:,1]/MAX_y
     # and second derivative
     phi_xr_xx = tf.gradients(phi_xr_x, colloc_tensor)[0][:,0]/MAX_x
-    phi_xr_yy = tf.gradients(phi_xr_x, colloc_tensor)[0][:,1]/MAX_y
+    phi_xr_yy = tf.gradients(phi_xr_y, colloc_tensor)[0][:,1]/MAX_y
 
     # phi_xi gradient
     dphi_xi = tf.gradients(phi_xi, colloc_tensor)[0]
@@ -373,7 +373,7 @@ def net_f_fourier_cartesian(colloc_tensor, mean_grads):
     phi_xi_y = dphi_xi[:,1]/MAX_y
     # and second derivative
     phi_xi_xx = tf.gradients(phi_xi_x, colloc_tensor)[0][:,0]/MAX_x
-    phi_xi_yy = tf.gradients(phi_xi_x, colloc_tensor)[0][:,1]/MAX_y
+    phi_xi_yy = tf.gradients(phi_xi_y, colloc_tensor)[0][:,1]/MAX_y
 
     # phi_yr gradient
     dphi_yr = tf.gradients(phi_yr, colloc_tensor)[0]
@@ -381,7 +381,7 @@ def net_f_fourier_cartesian(colloc_tensor, mean_grads):
     phi_yr_y = dphi_yr[:,1]/MAX_y
     # and second derivative
     phi_yr_xx = tf.gradients(phi_yr_x, colloc_tensor)[0][:,0]/MAX_x
-    phi_yr_yy = tf.gradients(phi_yr_x, colloc_tensor)[0][:,1]/MAX_y
+    phi_yr_yy = tf.gradients(phi_yr_y, colloc_tensor)[0][:,1]/MAX_y
     
     # phi_yi gradient
     dphi_yi = tf.gradients(phi_yi, colloc_tensor)[0]
@@ -389,7 +389,7 @@ def net_f_fourier_cartesian(colloc_tensor, mean_grads):
     phi_yi_y = dphi_yi[:,1]/MAX_y
     # and second derivative
     phi_yi_xx = tf.gradients(phi_yi_x, colloc_tensor)[0][:,0]/MAX_x
-    phi_yi_yy = tf.gradients(phi_yi_x, colloc_tensor)[0][:,1]/MAX_y
+    phi_yi_yy = tf.gradients(phi_yi_y, colloc_tensor)[0][:,1]/MAX_y
 
     # gradient reynolds stress fourier component, real
     tau_xx_r_x = tf.gradients(tau_xx_r, colloc_tensor)[0][:,0]/MAX_x

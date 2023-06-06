@@ -240,7 +240,7 @@ print('O_train.shape: ',O_train.shape)
 @tf.function
 def net_f_mean_cartesian(colloc_tensor):
     
-    up = model(colloc_tensor)
+    up = model_mean(colloc_tensor)
     # knowns
     ux = up[:,0]*MAX_ux
     uy = up[:,1]*MAX_uy
@@ -313,7 +313,7 @@ def mean_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tensor_
 @tf.function
 def mean_cartesian(colloc_tensor):
 
-    u_mean = model(colloc_tensor)
+    u_mean = model_mean(colloc_tensor)
     ux = u_mean[:,0]*MAX_ux
     uy = u_mean[:,1]*MAX_uy
 
@@ -365,7 +365,7 @@ def net_f_fourier_cartesian(colloc_tensor, mean_grads):
     phi_xr_y = dphi_xr[:,1]/MAX_y
     # and second derivative
     phi_xr_xx = tf.gradients(phi_xr_x, colloc_tensor)[0][:,0]/MAX_x
-    phi_xr_yy = tf.gradients(phi_xr_x, colloc_tensor)[0][:,1]/MAX_y
+    phi_xr_yy = tf.gradients(phi_xr_y, colloc_tensor)[0][:,1]/MAX_y
 
     # phi_xi gradient
     dphi_xi = tf.gradients(phi_xi, colloc_tensor)[0]
@@ -373,7 +373,7 @@ def net_f_fourier_cartesian(colloc_tensor, mean_grads):
     phi_xi_y = dphi_xi[:,1]/MAX_y
     # and second derivative
     phi_xi_xx = tf.gradients(phi_xi_x, colloc_tensor)[0][:,0]/MAX_x
-    phi_xi_yy = tf.gradients(phi_xi_x, colloc_tensor)[0][:,1]/MAX_y
+    phi_xi_yy = tf.gradients(phi_xi_y, colloc_tensor)[0][:,1]/MAX_y
 
     # phi_yr gradient
     dphi_yr = tf.gradients(phi_yr, colloc_tensor)[0]
@@ -381,7 +381,7 @@ def net_f_fourier_cartesian(colloc_tensor, mean_grads):
     phi_yr_y = dphi_yr[:,1]/MAX_y
     # and second derivative
     phi_yr_xx = tf.gradients(phi_yr_x, colloc_tensor)[0][:,0]/MAX_x
-    phi_yr_yy = tf.gradients(phi_yr_x, colloc_tensor)[0][:,1]/MAX_y
+    phi_yr_yy = tf.gradients(phi_yr_y, colloc_tensor)[0][:,1]/MAX_y
     
     # phi_yi gradient
     dphi_yi = tf.gradients(phi_yi, colloc_tensor)[0]
@@ -389,7 +389,7 @@ def net_f_fourier_cartesian(colloc_tensor, mean_grads):
     phi_yi_y = dphi_yi[:,1]/MAX_y
     # and second derivative
     phi_yi_xx = tf.gradients(phi_yi_x, colloc_tensor)[0][:,0]/MAX_x
-    phi_yi_yy = tf.gradients(phi_yi_x, colloc_tensor)[0][:,1]/MAX_y
+    phi_yi_yy = tf.gradients(phi_yi_y, colloc_tensor)[0][:,1]/MAX_y
 
     # gradient reynolds stress fourier component, real
     tau_xx_r_x = tf.gradients(tau_xx_r, colloc_tensor)[0][:,0]/MAX_x
@@ -455,18 +455,6 @@ def fourier_loss_wrapper(colloc_tensor_f,colloc_grads): # def custom_loss_wrappe
 
 # create the NNs
 # create mean NN on the CPU
-dense_nodes = 50
-dense_layers = 10
-
-with tf.device('/CPU:0'):
-    model = keras.Sequential()
-    model.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
-    for i in range(dense_layers-1):
-        model.add(keras.layers.Dense(dense_nodes, activation='tanh'))
-    model.add(keras.layers.Dense(6,activation='linear'))
-    model.summary()
-    model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = mean_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
-    model.trainable=False
 
 model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_filepath,
@@ -481,7 +469,9 @@ def get_filepaths_with_glob(root_path: str, file_regex: str):
 
 
 # load the saved mean model
-model.load_weights(HOMEDIR+'/output/mfgw_mean003_output/mfgw_mean003_ep416')
+with tf.device('/CPU:0'):
+    model_mean = keras.models.load_model(HOMEDIR+'output/mfgw_mean003_output/mfgw_mean003_ep26716_model.h5',custom_objects={'custom_loss':mean_loss_wrapper(f_colloc_train),})
+    model_mean.trainable=False
 # get the values for the mean_data tensor
 mean_data = mean_cartesian(f_colloc_train)
 
@@ -586,7 +576,7 @@ if node_name ==LOCAL_NODE:
         model_fourier.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5') 
 else:
         # compute canada LGFBS loop
-    if True:
+    if False:
         from pinns_galerkin_viv.lib.LBFGS_example import function_factory
         import tensorflow_probability as tfp
 
@@ -611,6 +601,21 @@ else:
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
                 h5f.create_dataset('pred',data=pred)
                 h5f.close()
+                t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(f_colloc_train,mean_data)
+                h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
+                h5f.create_dataset('mxr',data=t_mxr)
+                h5f.create_dataset('mxi',data=t_mxi)
+                h5f.create_dataset('myr',data=t_myr)
+                h5f.create_dataset('myi',data=t_myi)
+                h5f.create_dataset('massr',data=t_massr)
+                h5f.create_dataset('massi',data=t_massi)
+                h5f.close()
+                print("Loss mxr: ",tf.reduce_mean(tf.square(t_mxr)))
+                print("Loss mxi: ",tf.reduce_mean(tf.square(t_mxi)))
+                print("Loss myr: ",tf.reduce_mean(tf.square(t_myr)))
+                print("Loss myi: ",tf.reduce_mean(tf.square(t_myi)))
+                print("Loss massr: ",tf.reduce_mean(tf.square(t_massr)))
+                print("Loss massi: ",tf.reduce_mean(tf.square(t_massi)))
 
             # check if we should exit
             average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
@@ -623,6 +628,21 @@ else:
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
                 h5f.create_dataset('pred',data=pred)
                 h5f.close()
+                t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(f_colloc_train,mean_data)
+                h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
+                h5f.create_dataset('mxr',data=t_mxr)
+                h5f.create_dataset('mxi',data=t_mxi)
+                h5f.create_dataset('myr',data=t_myr)
+                h5f.create_dataset('myi',data=t_myi)
+                h5f.create_dataset('massr',data=t_massr)
+                h5f.create_dataset('massi',data=t_massi)
+                h5f.close()
+                print("Loss mxr: ",tf.reduce_mean(tf.square(t_mxr)))
+                print("Loss mxi: ",tf.reduce_mean(tf.square(t_mxi)))
+                print("Loss myr: ",tf.reduce_mean(tf.square(t_myr)))
+                print("Loss myi: ",tf.reduce_mean(tf.square(t_myi)))
+                print("Loss massr: ",tf.reduce_mean(tf.square(t_massr)))
+                print("Loss massi: ",tf.reduce_mean(tf.square(t_massi)))
                 exit()
             last_epoch_time = datetime.now()
 
@@ -661,7 +681,22 @@ else:
             pred = model_fourier.predict(X_train,batch_size=32)
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
             h5f.create_dataset('pred',data=pred)
-            h5f.close() 
+            h5f.close()
+            t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(f_colloc_train,mean_data)
+            h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
+            h5f.create_dataset('mxr',data=t_mxr)
+            h5f.create_dataset('mxi',data=t_mxi)
+            h5f.create_dataset('myr',data=t_myr)
+            h5f.create_dataset('myi',data=t_myi)
+            h5f.create_dataset('massr',data=t_massr)
+            h5f.create_dataset('massi',data=t_massi)
+            h5f.close()
+            print("Loss mxr: ",tf.reduce_mean(tf.square(t_mxr)))
+            print("Loss mxi: ",tf.reduce_mean(tf.square(t_mxi)))
+            print("Loss myr: ",tf.reduce_mean(tf.square(t_myr)))
+            print("Loss myi: ",tf.reduce_mean(tf.square(t_myi)))
+            print("Loss massr: ",tf.reduce_mean(tf.square(t_massr)))
+            print("Loss massi: ",tf.reduce_mean(tf.square(t_massi))) 
 
         # check if we should exit
         average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
@@ -674,5 +709,20 @@ else:
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
             h5f.create_dataset('pred',data=pred)
             h5f.close()
+            t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(f_colloc_train,mean_data)
+            h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
+            h5f.create_dataset('mxr',data=t_mxr)
+            h5f.create_dataset('mxi',data=t_mxi)
+            h5f.create_dataset('myr',data=t_myr)
+            h5f.create_dataset('myi',data=t_myi)
+            h5f.create_dataset('massr',data=t_massr)
+            h5f.create_dataset('massi',data=t_massi)
+            h5f.close()
+            print("Loss mxr: ",tf.reduce_mean(tf.square(t_mxr)))
+            print("Loss mxi: ",tf.reduce_mean(tf.square(t_mxi)))
+            print("Loss myr: ",tf.reduce_mean(tf.square(t_myr)))
+            print("Loss myi: ",tf.reduce_mean(tf.square(t_myi)))
+            print("Loss massr: ",tf.reduce_mean(tf.square(t_massr)))
+            print("Loss massi: ",tf.reduce_mean(tf.square(t_massi)))
             exit()
         last_epoch_time = datetime.now()
