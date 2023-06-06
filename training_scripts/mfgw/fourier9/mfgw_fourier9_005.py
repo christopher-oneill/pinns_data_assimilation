@@ -95,13 +95,13 @@ else:
     job_duration = timedelta(hours=22,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
-    useGPU=False
+    useGPU=True
     HOMEDIR = '/home/coneill/sync/'
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     sys.path.append(HOMEDIR+'code/')
     # set number of cores to compute on 
-    tf.config.threading.set_intra_op_parallelism_threads(16)
-    tf.config.threading.set_inter_op_parallelism_threads(16)
+    tf.config.threading.set_intra_op_parallelism_threads(12)
+    tf.config.threading.set_inter_op_parallelism_threads(12)
     
 
 # set the paths
@@ -521,7 +521,7 @@ else:
         with tf.device('/CPU:0'):
             model_fourier = keras.Sequential()
             model_fourier.add(keras.layers.Dense(fourier_nodes, activation='tanh', input_shape=(2,)))
-            for i in range(dense_layers-1):
+            for i in range(fourier_layers-1):
                 model_fourier.add(keras.layers.Dense(fourier_nodes, activation='tanh'))
             model_fourier.add(keras.layers.Dense(12,activation='linear'))
             model_fourier.summary()

@@ -95,13 +95,13 @@ else:
     job_duration = timedelta(hours=22,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
-    useGPU=False
+    useGPU=True
     HOMEDIR = '/home/coneill/sync/'
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     sys.path.append(HOMEDIR+'code/')
     # set number of cores to compute on 
-    tf.config.threading.set_intra_op_parallelism_threads(16)
-    tf.config.threading.set_inter_op_parallelism_threads(16)
+    tf.config.threading.set_intra_op_parallelism_threads(12)
+    tf.config.threading.set_inter_op_parallelism_threads(12)
     
 
 # set the paths

@@ -100,8 +100,8 @@ else:
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     sys.path.append(HOMEDIR+'code/')
     # set number of cores to compute on 
-    tf.config.threading.set_intra_op_parallelism_threads(16)
-    tf.config.threading.set_inter_op_parallelism_threads(16)
+    tf.config.threading.set_intra_op_parallelism_threads(12)
+    tf.config.threading.set_inter_op_parallelism_threads(12)
     
 
 # set the paths
@@ -472,7 +472,7 @@ def get_filepaths_with_glob(root_path: str, file_regex: str):
 with tf.device('/CPU:0'):
     model_mean = keras.models.load_model(HOMEDIR+'output/mfgw_mean003_output/mfgw_mean003_ep26716_model.h5',custom_objects={'custom_loss':mean_loss_wrapper(f_colloc_train),})
     model_mean.trainable=False
-    
+
 # get the values for the mean_data tensor
 mean_data = mean_cartesian(f_colloc_train)
 

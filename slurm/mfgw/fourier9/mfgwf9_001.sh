@@ -1,6 +1,7 @@
 #!/bin/bash
-#SBATCH --account=def-martinuz    
-#SBATCH --cpus-per-task=16
+#SBATCH --account=def-martinuz 
+#SBATCH --gpus-per-node=4   
+#SBATCH --cpus-per-task=12
 #SBATCH --mem=32000M
 #SBATCH --time=0-23:00
 #SBATCH --mail-user=christopher.mark.oneill@gmail.com
