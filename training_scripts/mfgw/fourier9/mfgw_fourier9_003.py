@@ -95,13 +95,13 @@ else:
     job_duration = timedelta(hours=22,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
-    useGPU=True
+    useGPU=False
     HOMEDIR = '/home/coneill/sync/'
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     sys.path.append(HOMEDIR+'code/')
     # set number of cores to compute on 
-    tf.config.threading.set_intra_op_parallelism_threads(12)
-    tf.config.threading.set_inter_op_parallelism_threads(12)
+    tf.config.threading.set_intra_op_parallelism_threads(16)
+    tf.config.threading.set_inter_op_parallelism_threads(16)
     
 
 # set the paths
@@ -199,7 +199,7 @@ MAX_psi= 0.1 # chosen based on abs(max(psi))
 # reduce the collocation points to 25k
 colloc_limits1 = np.array([[0.5,10.0],[-2.0,2.0]])
 colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-colloc_merged = colloc_sample_lhs1(20000)
+colloc_merged = colloc_sample_lhs1(40000)
 print('colloc_merged.shape',colloc_merged.shape)
 
 f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
@@ -413,10 +413,10 @@ def net_f_fourier_cartesian(colloc_tensor, mean_grads):
     psi_i_y = dpsi_i[:,1]/MAX_y
 
     # governing equations
-    f_xr = -omega*phi_xi+(phi_xr*ux_x + phi_yr*ux_y+ ux*phi_xr_x +uy*phi_xr_y ) + (tau_xx_r_x + tau_xy_r_y) + psi_r_x - (nu_mol)*(phi_xr_xx+phi_xr_yy)  
-    f_xi =  omega*phi_xr+(phi_xi*ux_x + phi_yi*ux_y+ ux*phi_xi_x +uy*phi_xi_y ) + (tau_xx_i_x + tau_xy_i_y) + psi_i_x - (nu_mol)*(phi_xi_xx+phi_xi_yy)  
-    f_yr = -omega*phi_yi+(phi_xr*uy_x + phi_yr*uy_y+ ux*phi_yr_x +uy*phi_yr_y ) + (tau_xy_r_x + tau_yy_r_y) + psi_r_y - (nu_mol)*(phi_yr_xx+phi_yr_yy) 
-    f_yi =  omega*phi_yr+(phi_xi*uy_x + phi_yi*uy_y+ ux*phi_yi_x +uy*phi_yi_y ) + (tau_xy_i_x + tau_yy_i_y) + psi_i_y - (nu_mol)*(phi_yi_xx+phi_yi_yy)  
+    f_xr = -phi_xi+(phi_xr*ux_x + phi_yr*ux_y+ ux*phi_xr_x +uy*phi_xr_y ) + (tau_xx_r_x + tau_xy_r_y) + psi_r_x - (nu_mol)*(phi_xr_xx+phi_xr_yy)  
+    f_xi =  phi_xr+(phi_xi*ux_x + phi_yi*ux_y+ ux*phi_xi_x +uy*phi_xi_y ) + (tau_xx_i_x + tau_xy_i_y) + psi_i_x - (nu_mol)*(phi_xi_xx+phi_xi_yy)  
+    f_yr = -phi_yi+(phi_xr*uy_x + phi_yr*uy_y+ ux*phi_yr_x +uy*phi_yr_y ) + (tau_xy_r_x + tau_yy_r_y) + psi_r_y - (nu_mol)*(phi_yr_xx+phi_yr_yy) 
+    f_yi =  phi_yr+(phi_xi*uy_x + phi_yi*uy_y+ ux*phi_yi_x +uy*phi_yi_y ) + (tau_xy_i_x + tau_yy_i_y) + psi_i_y - (nu_mol)*(phi_yi_xx+phi_yi_yy)  
     f_mr = phi_xr_x + phi_yr_y
     f_mi = phi_xi_x + phi_yi_y
 
@@ -476,6 +476,7 @@ with tf.device('/CPU:0'):
     model_mean.trainable=False
 # get the values for the mean_data tensor
 mean_data = mean_cartesian(f_colloc_train)
+mean_data_test = mean_cartesian(X_train)
 
 # clear the session, we will now create the fourier model
 tf.keras.backend.clear_session()
@@ -556,7 +557,7 @@ if node_name ==LOCAL_NODE:
     pass
 else:
        # compute canada LGFBS loop
-    if False:
+    if True:
         from pinns_galerkin_viv.lib.LBFGS_example import function_factory
         import tensorflow_probability as tfp
 
@@ -581,7 +582,7 @@ else:
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
                 h5f.create_dataset('pred',data=pred)
                 h5f.close()
-                t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(f_colloc_train,mean_data)
+                t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(X_train,mean_data_test)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
                 h5f.create_dataset('mxr',data=t_mxr)
                 h5f.create_dataset('mxi',data=t_mxi)
@@ -590,12 +591,6 @@ else:
                 h5f.create_dataset('massr',data=t_massr)
                 h5f.create_dataset('massi',data=t_massi)
                 h5f.close()
-                print("Loss mxr: ",tf.reduce_mean(tf.square(t_mxr)))
-                print("Loss mxi: ",tf.reduce_mean(tf.square(t_mxi)))
-                print("Loss myr: ",tf.reduce_mean(tf.square(t_myr)))
-                print("Loss myi: ",tf.reduce_mean(tf.square(t_myi)))
-                print("Loss massr: ",tf.reduce_mean(tf.square(t_massr)))
-                print("Loss massi: ",tf.reduce_mean(tf.square(t_massi)))
 
             # check if we should exit
             average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
@@ -608,7 +603,7 @@ else:
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
                 h5f.create_dataset('pred',data=pred)
                 h5f.close()
-                t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(f_colloc_train,mean_data)
+                t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(X_train,mean_data_test)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
                 h5f.create_dataset('mxr',data=t_mxr)
                 h5f.create_dataset('mxi',data=t_mxi)
@@ -617,12 +612,6 @@ else:
                 h5f.create_dataset('massr',data=t_massr)
                 h5f.create_dataset('massi',data=t_massi)
                 h5f.close()
-                print("Loss mxr: ",tf.reduce_mean(tf.square(t_mxr)))
-                print("Loss mxi: ",tf.reduce_mean(tf.square(t_mxi)))
-                print("Loss myr: ",tf.reduce_mean(tf.square(t_myr)))
-                print("Loss myi: ",tf.reduce_mean(tf.square(t_myi)))
-                print("Loss massr: ",tf.reduce_mean(tf.square(t_massr)))
-                print("Loss massi: ",tf.reduce_mean(tf.square(t_massi)))
                 exit()
             last_epoch_time = datetime.now()
 
