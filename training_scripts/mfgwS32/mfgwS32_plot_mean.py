@@ -235,7 +235,7 @@ for k in training_cases:
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.ylabel('y/D')
-    dots = plot.scatter(xp,yp,0.1,color='black')
+
     ax=plot.gca()
     ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])

@@ -239,7 +239,7 @@ for k in training_cases:
     ax=plot.gca()
     ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
-    dots = plot.scatter(xp,yp,0.1,color='black')
+
     fig3.add_subplot(3,1,2)
     plot.contourf(X_grid,Y_grid,p_pred_grid,f3_levels)
     plot.set_cmap('bwr')

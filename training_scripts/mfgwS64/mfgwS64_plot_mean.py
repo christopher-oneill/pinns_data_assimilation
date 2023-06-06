@@ -237,7 +237,7 @@ for k in training_cases:
     plot.colorbar()
     plot.ylabel('y/D')
     ax=plot.gca()
-    dots = plot.scatter(xp,yp,0.1,color='black')
+
     ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
     fig3.add_subplot(3,1,2)
