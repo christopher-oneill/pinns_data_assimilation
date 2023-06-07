@@ -18,7 +18,7 @@ cd $SLURM_TMPDIR
 module load python/3.10
 source /home/coneill/sync/venv/tf1/bin/activate
 
-python /home/coneill/sync/code/pinns_galerkin_viv/training_scripts/mfgwS8/fourier9/mfgwS8_fourier10_002.py
+python /home/coneill/sync/code/pinns_galerkin_viv/training_scripts/mfgwS8/fourier10/mfgwS8_fourier10_002.py
 
 
 # ---------------------------------------------------------------------
