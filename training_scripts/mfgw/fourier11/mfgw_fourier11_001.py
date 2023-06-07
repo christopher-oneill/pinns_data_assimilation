@@ -75,9 +75,9 @@ PLOT = False
 
 job_name = 'mfgw_fourier11_001'
 
-# Job mgfw_fourier10_001
+# Job mgfw_fourier002
 # 20230523: fourier mode assimilation, fixed cylinder Re=150
-# physics loss set to 1.0, slow learning rate schedule
+# physics loss set to 0.01, slow learning rate schedule
 
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -95,20 +95,20 @@ else:
     job_duration = timedelta(hours=22,minutes=30)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
-    useGPU=True
+    useGPU=False
     HOMEDIR = '/home/coneill/sync/'
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     sys.path.append(HOMEDIR+'code/')
     # set number of cores to compute on 
-    tf.config.threading.set_intra_op_parallelism_threads(12)
-    tf.config.threading.set_inter_op_parallelism_threads(12)
+    tf.config.threading.set_intra_op_parallelism_threads(16)
+    tf.config.threading.set_inter_op_parallelism_threads(16)
     
 
 # set the paths
 save_loc = HOMEDIR+'output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
-physics_loss_coefficient = 1.00
-mode_number=10 # the number of the truncated mode to assimilate, note that this is mode 11 in matlab!
+physics_loss_coefficient = 1.0
+mode_number=10 # the number of the truncated mode to assimilate, note that this is mode n+1 in matlab!
 
 
 if useGPU:
@@ -197,9 +197,13 @@ MAX_p= 1 # estimated maximum pressure, we should
 MAX_psi= 0.1 # chosen based on abs(max(psi))
 
 # reduce the collocation points to 25k
-colloc_limits1 = np.array([[0.5,10.0],[-2.0,2.0]])
+colloc_limits1 = np.array([[4.0,10.0],[-2.0,2.0]])
+colloc_limits2 = np.array([[0.5,4.0],[-2.0,2.0]])
 colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-colloc_merged = colloc_sample_lhs1(20000)
+colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
+colloc_lhs1 = colloc_sample_lhs1(15000)
+colloc_lhs2 = colloc_sample_lhs2(25000)
+colloc_merged = np.vstack((colloc_lhs1,colloc_lhs2))
 print('colloc_merged.shape',colloc_merged.shape)
 
 f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
@@ -240,7 +244,7 @@ print('O_train.shape: ',O_train.shape)
 @tf.function
 def net_f_mean_cartesian(colloc_tensor):
     
-    up = model(colloc_tensor)
+    up = model_mean(colloc_tensor)
     # knowns
     ux = up[:,0]*MAX_ux
     uy = up[:,1]*MAX_uy
@@ -313,7 +317,7 @@ def mean_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tensor_
 @tf.function
 def mean_cartesian(colloc_tensor):
 
-    u_mean = model(colloc_tensor)
+    u_mean = model_mean(colloc_tensor)
     ux = u_mean[:,0]*MAX_ux
     uy = u_mean[:,1]*MAX_uy
 
@@ -330,7 +334,7 @@ def mean_cartesian(colloc_tensor):
 # fourier NN functions
 @tf.function
 def net_f_fourier_cartesian(colloc_tensor, mean_grads):
-    
+  
     up = model_fourier(colloc_tensor)
     # velocity fourier coefficients
     phi_xr = up[:,0]*MAX_phi_xr
@@ -413,14 +417,14 @@ def net_f_fourier_cartesian(colloc_tensor, mean_grads):
     psi_i_y = dpsi_i[:,1]/MAX_y
 
     # governing equations
-    f_xr = -omega*phi_xi+(phi_xr*ux_x + phi_yr*ux_y+ ux*phi_xr_x +uy*phi_xr_y ) + (tau_xx_r_x + tau_xy_r_y) + psi_r_x - (nu_mol)*(phi_xr_xx+phi_xr_yy)  
-    f_xi =  omega*phi_xr+(phi_xi*ux_x + phi_yi*ux_y+ ux*phi_xi_x +uy*phi_xi_y ) + (tau_xx_i_x + tau_xy_i_y) + psi_i_x - (nu_mol)*(phi_xi_xx+phi_xi_yy)  
-    f_yr = -omega*phi_yi+(phi_xr*uy_x + phi_yr*uy_y+ ux*phi_yr_x +uy*phi_yr_y ) + (tau_xy_r_x + tau_yy_r_y) + psi_r_y - (nu_mol)*(phi_yr_xx+phi_yr_yy) 
-    f_yi =  omega*phi_yr+(phi_xi*uy_x + phi_yi*uy_y+ ux*phi_yi_x +uy*phi_yi_y ) + (tau_xy_i_x + tau_yy_i_y) + psi_i_y - (nu_mol)*(phi_yi_xx+phi_yi_yy)  
+    f_xr = -phi_xi+(phi_xr*ux_x + phi_yr*ux_y+ ux*phi_xr_x +uy*phi_xr_y ) + (tau_xx_r_x + tau_xy_r_y) + psi_r_x - (nu_mol)*(phi_xr_xx+phi_xr_yy)  
+    f_xi =  phi_xr+(phi_xi*ux_x + phi_yi*ux_y+ ux*phi_xi_x +uy*phi_xi_y ) + (tau_xx_i_x + tau_xy_i_y) + psi_i_x - (nu_mol)*(phi_xi_xx+phi_xi_yy)  
+    f_yr = -phi_yi+(phi_xr*uy_x + phi_yr*uy_y+ ux*phi_yr_x +uy*phi_yr_y ) + (tau_xy_r_x + tau_yy_r_y) + psi_r_y - (nu_mol)*(phi_yr_xx+phi_yr_yy) 
+    f_yi =  phi_yr+(phi_xi*uy_x + phi_yi*uy_y+ ux*phi_yi_x +uy*phi_yi_y ) + (tau_xy_i_x + tau_yy_i_y) + psi_i_y - (nu_mol)*(phi_yi_xx+phi_yi_yy)  
     f_mr = phi_xr_x + phi_yr_y
     f_mi = phi_xi_x + phi_yi_y
 
-    return f_xr,f_xi, f_yr,f_yi, f_mr, f_mi
+    return f_xr, f_xi, f_yr, f_yi, f_mr, f_mi
 
 
 # function wrapper, combine data and physics loss
@@ -458,16 +462,6 @@ def fourier_loss_wrapper(colloc_tensor_f,colloc_grads): # def custom_loss_wrappe
 dense_nodes = 50
 dense_layers = 10
 
-with tf.device('/CPU:0'):
-    model = keras.Sequential()
-    model.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
-    for i in range(dense_layers-1):
-        model.add(keras.layers.Dense(dense_nodes, activation='tanh'))
-    model.add(keras.layers.Dense(6,activation='linear'))
-    model.summary()
-    model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = mean_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
-    model.trainable=False
-
 model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_filepath,
     save_weights_only=True,
@@ -481,9 +475,12 @@ def get_filepaths_with_glob(root_path: str, file_regex: str):
 
 
 # load the saved mean model
-model.load_weights(HOMEDIR+'/output/mfgw_mean003_output/mfgw_mean003_ep416')
+with tf.device('/CPU:0'):
+    model_mean = keras.models.load_model(HOMEDIR+'output/mfgw_mean003_output/mfgw_mean003_ep26716_model.h5',custom_objects={'custom_loss':mean_loss_wrapper(f_colloc_train),})
+    model_mean.trainable=False
 # get the values for the mean_data tensor
 mean_data = mean_cartesian(f_colloc_train)
+mean_data_test = mean_cartesian(X_train)
 
 # clear the session, we will now create the fourier model
 tf.keras.backend.clear_session()
@@ -502,6 +499,7 @@ if len(checkpoint_files)>0:
     epochs = np.uint(np.max(files_epoch_number))
     print(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
     model_fourier = keras.models.load_model(HOMEDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'custom_loss':fourier_loss_wrapper(f_colloc_train,mean_data),})
+    model_fourier.summary()
 else:
     # if not, we train from the beginning
     epochs = 0
@@ -561,8 +559,93 @@ temp_X_train = X_train[shuffle_inds,:]
 temp_Y_train = F_train[shuffle_inds,:]
 
 if node_name ==LOCAL_NODE:
-    pass
+    if True:
+        # local node training loop, save every epoch for testing
+        from pinns_galerkin_viv.lib.LBFGS_example import function_factory
+        import tensorflow_probability as tfp
+
+        # continue with LBFGS steps
+        func = function_factory(model_fourier, fourier_loss_wrapper(f_colloc_train,mean_data), X_train, F_train)
+
+        # convert initial model parameters to a 1D tf.Tensor
+        init_params = tf.dynamic_stitch(func.idx, model_fourier.trainable_variables)
+
+        # train the model with L-BFGS solver
+        results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=3300)
+        epochs = epochs +100
+        # after training, the final optimized parameters are still in results.position
+        # so we have to manually put them back to the model
+        func.assign_new_model_parameters(results.position)
+        pred = model_fourier.predict(X_train,batch_size=32)
+        h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+        h5f.create_dataset('pred',data=pred)
+        # save the model:
+        model_fourier.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5') 
 else:
+       # compute canada LGFBS loop
+    if True:
+        from pinns_galerkin_viv.lib.LBFGS_example import function_factory
+        import tensorflow_probability as tfp
+
+        func = function_factory(model_fourier, fourier_loss_wrapper(f_colloc_train,mean_data), X_train, F_train)
+        init_params = tf.dynamic_stitch(func.idx, model_fourier.trainable_variables)
+        L_iter = 0
+
+        while True:
+                # train the model with L-BFGS solver
+            results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=333)
+            func.assign_new_model_parameters(results.position)
+            init_params = tf.dynamic_stitch(func.idx, model_fourier.trainable_variables) # we need to reasign the parameters otherwise we start from the beginning each time
+            epochs = epochs +1000
+            L_iter = L_iter+1
+            
+            # after training, the final optimized parameters are still in results.position
+            # so we have to manually put them back to the model
+            
+            if np.mod(L_iter,1)==0:
+                model_fourier.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
+                pred = model_fourier.predict(X_train,batch_size=32)
+                h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+                h5f.create_dataset('pred',data=pred)
+                h5f.close()
+                t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(X_train,mean_data_test)
+                h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
+                h5f.create_dataset('mxr',data=t_mxr)
+                h5f.create_dataset('mxi',data=t_mxi)
+                h5f.create_dataset('myr',data=t_myr)
+                h5f.create_dataset('myi',data=t_myi)
+                h5f.create_dataset('massr',data=t_massr)
+                h5f.create_dataset('massi',data=t_massi)
+                h5f.close()
+
+            # check if we should exit
+            average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
+            if (datetime.now()+average_epoch_time)>end_time:
+                # if there is not enough time to complete the next epoch, exit
+                print("Remaining time is insufficient for another epoch, exiting...")
+                # save the last epoch before exiting
+                model_fourier.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
+                pred = model_fourier.predict(X_train,batch_size=32)
+                h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+                h5f.create_dataset('pred',data=pred)
+                h5f.close()
+                t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(X_train,mean_data_test)
+                h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
+                h5f.create_dataset('mxr',data=t_mxr)
+                h5f.create_dataset('mxi',data=t_mxi)
+                h5f.create_dataset('myr',data=t_myr)
+                h5f.create_dataset('myi',data=t_myi)
+                h5f.create_dataset('massr',data=t_massr)
+                h5f.create_dataset('massi',data=t_massi)
+                h5f.close()
+                exit()
+            last_epoch_time = datetime.now()
+
+
+
+   
+   
+   
     # compute canada training loop; use time based training
     while True:
         if np.mod(epochs,10)==0:
@@ -589,7 +672,16 @@ else:
             pred = model_fourier.predict(X_train,batch_size=32)
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
             h5f.create_dataset('pred',data=pred)
-            h5f.close() 
+            h5f.close()
+            t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(f_colloc_train,mean_data)
+            h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
+            h5f.create_dataset('mxr',data=t_mxr)
+            h5f.create_dataset('mxi',data=t_mxi)
+            h5f.create_dataset('myr',data=t_myr)
+            h5f.create_dataset('myi',data=t_myi)
+            h5f.create_dataset('massr',data=t_massr)
+            h5f.create_dataset('massi',data=t_massi)
+            h5f.close()
 
         # check if we should exit
         average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
@@ -602,5 +694,15 @@ else:
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
             h5f.create_dataset('pred',data=pred)
             h5f.close()
+            t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(f_colloc_train,mean_data)
+            h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
+            h5f.create_dataset('mxr',data=t_mxr)
+            h5f.create_dataset('mxi',data=t_mxi)
+            h5f.create_dataset('myr',data=t_myr)
+            h5f.create_dataset('myi',data=t_myi)
+            h5f.create_dataset('massr',data=t_massr)
+            h5f.create_dataset('massi',data=t_massi)
+            h5f.close()
+
             exit()
         last_epoch_time = datetime.now()

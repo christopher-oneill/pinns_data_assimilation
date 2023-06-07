@@ -78,11 +78,14 @@ for k in training_cases:
     fourierModeFile = h5py.File(data_dir+'fourierDataShortS8.mat','r')
 
     predfilename,epoch_number = find_highest_numbered_file(output_dir+case_name+'_ep','[0-9]*','_pred.mat')
-
+    print(predfilename)
     predFile =  h5py.File(predfilename,'r')
     figures_folder = output_dir+'figures/'
     create_directory_if_not_exists(figures_folder)
     figure_prefix = figures_folder + case_name+'_ep'+str(epoch_number)
+
+    errorfilename,epoch_number2 = find_highest_numbered_file(output_dir+case_name+'_ep','[0-9]*','_error.mat')
+    errorFile =  h5py.File(errorfilename,'r')
 
     SaveFig = True
     PlotFig = False
@@ -112,6 +115,13 @@ for k in training_cases:
 
     omega = np.array(fourierModeFileF['fShort'][0,mode_number])*2*np.pi
 
+
+    mxr = np.array(errorFile['mxr'])
+    mxi = np.array(errorFile['mxi'])
+    myr = np.array(errorFile['myr'])
+    myi = np.array(errorFile['myi'])
+    massr = np.array(errorFile['massr'])
+    massi = np.array(errorFile['massi'])
 
     x = np.array(configFileF['X_vec'][0,:])
     X_grid_temp = np.array(configFileF['X_grid'])
@@ -165,9 +175,18 @@ for k in training_cases:
     # unknowns, pressure fourier modes
     psi_r_pred = np.array(predFile['pred'][:,10])*MAX_psi
     psi_i_pred = np.array(predFile['pred'][:,11])*MAX_psi
-    # compute the estimated reynolds stress
 
-    #upvp_pred = -np.multiply(np.reshape(nu_pred+nu_mol,[nu_pred.shape[0],1]),dudy+dvdx)
+
+
+    # error fields
+    mxr_grid = np.reshape(mxr,X_grid.shape)
+    mxi_grid = np.reshape(mxi,X_grid.shape)
+    myr_grid = np.reshape(myr,X_grid.shape)
+    myi_grid = np.reshape(myi,X_grid.shape)
+    massr_grid = np.reshape(massr,X_grid.shape)
+    massi_grid = np.reshape(massi,X_grid.shape)
+
+
 
     print('ux.shape: ',ux.shape)
     print('uy.shape: ',uy.shape)
@@ -231,7 +250,7 @@ for k in training_cases:
 
     x_lim_vec = [0.5,10.0]
     y_lim_vec = [-2.0,2.0]
-    f1_levels = np.linspace(-MAX_phi_xr,MAX_phi_xr,21)
+    f1_levels = np.linspace(-1.2*MAX_phi_xr,1.2*MAX_phi_xr,21)
     fig = plot.figure(1)
     ax = fig.add_subplot(3,1,1)
     plot.axis('equal')
@@ -265,7 +284,7 @@ for k in training_cases:
     if SaveFig:
         plot.savefig(figure_prefix+'_phi_xr.png',dpi=300)
 
-    f2_levels = np.linspace(-MAX_phi_xi,MAX_phi_xi,21)
+    f2_levels = np.linspace(-1.2*MAX_phi_xi,1.2*MAX_phi_xi,21)
     fig2 = plot.figure(2)
     fig2.add_subplot(3,1,1)
     plot.axis('equal')
@@ -299,7 +318,7 @@ for k in training_cases:
         plot.savefig(figure_prefix+'_phi_xi.png',dpi=300)
 
 
-    f3_levels = np.linspace(-MAX_phi_yr,MAX_phi_yr,21)
+    f3_levels = np.linspace(-1.2*MAX_phi_yr,1.2*MAX_phi_yr,21)
     fig3 = plot.figure(3)
     fig3.add_subplot(3,1,1)
     plot.axis('equal')
@@ -334,7 +353,7 @@ for k in training_cases:
         plot.savefig(figure_prefix+'_phi_yr.png',dpi=300)
 
 
-    f4_levels = np.linspace(-MAX_phi_yi,MAX_phi_yi,21)
+    f4_levels = np.linspace(-1.2*MAX_phi_yi,1.2*MAX_phi_yi,21)
     fig4 = plot.figure(4)
     fig4.add_subplot(3,1,1)
     plot.axis('equal')
@@ -370,7 +389,7 @@ for k in training_cases:
 
 
     MAX_psi_r = np.max(psi_r)
-    f5_levels = np.linspace(-MAX_psi_r,MAX_psi_r,21)
+    f5_levels = np.linspace(-1.2*MAX_psi_r,1.2*MAX_psi_r,21)
     fig5 = plot.figure(5)
     fig5.add_subplot(3,1,1)
     plot.axis('equal')
@@ -406,7 +425,7 @@ for k in training_cases:
 
     MAX_psi_i = np.max(psi_i)
     print(MAX_psi_i)
-    f6_levels = np.linspace(-MAX_psi_i,MAX_psi_i,21)
+    f6_levels = np.linspace(-1.2*MAX_psi_i,1.2*MAX_psi_i,21)
     fig6 = plot.figure(6)
     fig6.add_subplot(3,1,1)
     plot.axis('equal')
@@ -439,7 +458,7 @@ for k in training_cases:
     if SaveFig:
         plot.savefig(figure_prefix+'_psi_i.png',dpi=300)
 
-    fig7_levels = np.linspace(-MAX_tau_xx_r,MAX_tau_xx_r,21)
+    fig7_levels = np.linspace(-1.2*MAX_tau_xx_r,1.2*MAX_tau_xx_r,21)
     fig7 = plot.figure(7)
     fig7.add_subplot(3,1,1)
     plot.axis('equal')
@@ -452,7 +471,7 @@ for k in training_cases:
     ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
     fig7.add_subplot(3,1,2)
-    plot.contourf(X_grid,Y_grid,tau_xx_r_pred_grid,21)
+    plot.contourf(X_grid,Y_grid,tau_xx_r_pred_grid,fig7_levels)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.axis('equal')
@@ -474,7 +493,7 @@ for k in training_cases:
         plot.savefig(figure_prefix+'_tau_xx_r.png',dpi=300)
 
 
-    fig8_levels = np.linspace(-MAX_tau_xx_i,MAX_tau_xx_i,21)
+    fig8_levels = np.linspace(-1.2*MAX_tau_xx_i,1.2*MAX_tau_xx_i,21)
     fig8 = plot.figure(8)
     fig8.add_subplot(3,1,1)
     
@@ -509,7 +528,7 @@ for k in training_cases:
     if SaveFig:
         plot.savefig(figure_prefix+'_tau_xx_i.png',dpi=300)
 
-    fig9_levels = np.linspace(-MAX_tau_xy_r,MAX_tau_xy_r,21)
+    fig9_levels = np.linspace(-1.2*MAX_tau_xy_r,1.2*MAX_tau_xy_r,21)
     fig9 = plot.figure(9)
     fig9.add_subplot(3,1,1)
     plot.axis('equal')
@@ -522,7 +541,7 @@ for k in training_cases:
     ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
     fig9.add_subplot(3,1,2)
-    plot.contourf(X_grid,Y_grid,tau_xy_r_pred_grid,21)
+    plot.contourf(X_grid,Y_grid,tau_xy_r_pred_grid,fig9_levels)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.axis('equal')
@@ -543,7 +562,7 @@ for k in training_cases:
     if SaveFig:
         plot.savefig(figure_prefix+'_tau_xy_r.png',dpi=300)
 
-    fig10_levels = np.linspace(-MAX_tau_xy_i,MAX_tau_xy_i,21)
+    fig10_levels = np.linspace(-1.2*MAX_tau_xy_i,1.2*MAX_tau_xy_i,21)
     fig10 = plot.figure(10)
     fig10.add_subplot(3,1,1)
     plot.axis('equal')
@@ -556,7 +575,7 @@ for k in training_cases:
     ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
     fig10.add_subplot(3,1,2)
-    plot.contourf(X_grid,Y_grid,tau_xy_i_pred_grid,21)
+    plot.contourf(X_grid,Y_grid,tau_xy_i_pred_grid,fig10_levels)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.axis('equal')
@@ -577,7 +596,7 @@ for k in training_cases:
     if SaveFig:
         plot.savefig(figure_prefix+'_tau_xy_i.png',dpi=300)
 
-    fig11_levels = np.linspace(-MAX_tau_yy_r,MAX_tau_yy_r,21)
+    fig11_levels = np.linspace(-1.2*MAX_tau_yy_r,1.2*MAX_tau_yy_r,21)
     fig11 = plot.figure(11)
     fig11.add_subplot(3,1,1)
     plot.axis('equal')
@@ -611,7 +630,7 @@ for k in training_cases:
     if SaveFig:
         plot.savefig(figure_prefix+'_tau_yy_r.png',dpi=300)
 
-    fig12_levels = np.linspace(-MAX_tau_yy_i,MAX_tau_yy_i,21)
+    fig12_levels = np.linspace(-1.2*MAX_tau_yy_i,1.2*MAX_tau_yy_i,21)
     fig12 = plot.figure(12)
     fig12.add_subplot(3,1,1)
     plot.axis('equal')
@@ -644,6 +663,79 @@ for k in training_cases:
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
     if SaveFig:
         plot.savefig(figure_prefix+'_tau_yy_i.png',dpi=300)
+
+
+    x_lim_vec = [0.5,10.0]
+    y_lim_vec = [-2.0,2.0]
+    fig13 = plot.figure(13)
+    ax = fig13.add_subplot(3,1,1)
+    plot.axis('equal')
+    plot.contourf(X_grid,Y_grid,mxr_grid,levels=21)
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    ax=plot.gca()
+    ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
+    ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
+    plot.ylabel('y/D')
+    fig13.add_subplot(3,1,2)
+    plot.contourf(X_grid,Y_grid,mxi_grid,levels=21)
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.ylabel('y/D')
+    ax=plot.gca()
+    ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
+    ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
+    plot.axis('equal')
+    fig13.add_subplot(3,1,3)
+    plot.contourf(X_grid,Y_grid,myr_grid,levels=21)
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.ylabel('y/D')
+    plot.xlabel('x/D')
+    plot.axis('equal')
+    ax=plot.gca()
+    ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
+    ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
+    if SaveFig:
+        plot.savefig(figure_prefix+'_error1.png',dpi=300)
+
+
+    fig14 = plot.figure(14)
+    fig14.add_subplot(3,1,1)
+    plot.axis('equal')
+    plot.contourf(X_grid,Y_grid,myi_grid,levels=21)
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
+    ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
+    plot.ylabel('y/D')
+    fig14.add_subplot(3,1,2)
+    plot.contourf(X_grid,Y_grid,massr_grid,levels=21)
+    plot.set_cmap('bwr')
+    ax=plot.gca()
+    ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
+    ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
+    plot.colorbar()
+    plot.axis('equal')
+    plot.ylabel('y/D')
+    fig14.add_subplot(3,1,3)
+    plot.contourf(X_grid,Y_grid,massi_grid,levels=21)
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.ylabel('y/D')
+    plot.xlabel('x/D')
+    ax=plot.gca()
+    ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
+    ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
+    plot.axis('equal')
+    if SaveFig:
+        plot.savefig(figure_prefix+'_error2.png',dpi=300)
+
+
+
+
+
+
 
     if PlotFig:
         plot.show()

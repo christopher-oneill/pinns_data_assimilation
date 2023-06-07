@@ -197,9 +197,13 @@ MAX_p= 1 # estimated maximum pressure, we should
 MAX_psi= 0.1 # chosen based on abs(max(psi))
 
 # reduce the collocation points to 25k
-colloc_limits1 = np.array([[0.5,10.0],[-2.0,2.0]])
+colloc_limits1 = np.array([[4.0,10.0],[-2.0,2.0]])
+colloc_limits2 = np.array([[0.5,4.0],[-2.0,2.0]])
 colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-colloc_merged = colloc_sample_lhs1(20000)
+colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
+colloc_lhs1 = colloc_sample_lhs1(15000)
+colloc_lhs2 = colloc_sample_lhs2(25000)
+colloc_merged = np.vstack((colloc_lhs1,colloc_lhs2))
 print('colloc_merged.shape',colloc_merged.shape)
 
 f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
@@ -240,7 +244,7 @@ print('O_train.shape: ',O_train.shape)
 @tf.function
 def net_f_mean_cartesian(colloc_tensor):
     
-    up = model(colloc_tensor)
+    up = model_mean(colloc_tensor)
     # knowns
     ux = up[:,0]*MAX_ux
     uy = up[:,1]*MAX_uy
@@ -313,7 +317,7 @@ def mean_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tensor_
 @tf.function
 def mean_cartesian(colloc_tensor):
 
-    u_mean = model(colloc_tensor)
+    u_mean = model_mean(colloc_tensor)
     ux = u_mean[:,0]*MAX_ux
     uy = u_mean[:,1]*MAX_uy
 
@@ -458,16 +462,6 @@ def fourier_loss_wrapper(colloc_tensor_f,colloc_grads): # def custom_loss_wrappe
 dense_nodes = 50
 dense_layers = 10
 
-with tf.device('/CPU:0'):
-    model = keras.Sequential()
-    model.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
-    for i in range(dense_layers-1):
-        model.add(keras.layers.Dense(dense_nodes, activation='tanh'))
-    model.add(keras.layers.Dense(6,activation='linear'))
-    model.summary()
-    model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = mean_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
-    model.trainable=False
-
 model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_filepath,
     save_weights_only=True,
@@ -481,7 +475,9 @@ def get_filepaths_with_glob(root_path: str, file_regex: str):
 
 
 # load the saved mean model
-model.load_weights(HOMEDIR+'/output/mfgw_mean003_output/mfgw_mean003_ep416')
+with tf.device('/CPU:0'):
+    model_mean = keras.models.load_model(HOMEDIR+'output/mfgw_mean003_output/mfgw_mean003_ep26716_model.h5',custom_objects={'custom_loss':mean_loss_wrapper(f_colloc_train),})
+    model_mean.trainable=False
 # get the values for the mean_data tensor
 mean_data = mean_cartesian(f_colloc_train)
 mean_data_test = mean_cartesian(X_train)
@@ -597,16 +593,16 @@ else:
 
         while True:
                 # train the model with L-BFGS solver
-            results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=100)
+            results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=333)
             func.assign_new_model_parameters(results.position)
             init_params = tf.dynamic_stitch(func.idx, model_fourier.trainable_variables) # we need to reasign the parameters otherwise we start from the beginning each time
-            epochs = epochs +100
+            epochs = epochs +1000
             L_iter = L_iter+1
             
             # after training, the final optimized parameters are still in results.position
             # so we have to manually put them back to the model
             
-            if np.mod(L_iter,10)==0:
+            if np.mod(L_iter,1)==0:
                 model_fourier.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
                 pred = model_fourier.predict(X_train,batch_size=32)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')

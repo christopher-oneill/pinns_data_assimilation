@@ -223,7 +223,7 @@ for k in training_cases:
 
     x_lim_vec = [0.5,10.0]
     y_lim_vec = [-2.0,2.0]
-    f1_levels = np.linspace(-MAX_phi_xr,MAX_phi_xr,21)
+    f1_levels = np.linspace(-1.2*MAX_phi_xr,1.2*MAX_phi_xr,21)
     fig = plot.figure(1)
     ax = fig.add_subplot(3,1,1)
     plot.axis('equal')
@@ -256,7 +256,7 @@ for k in training_cases:
     if SaveFig:
         plot.savefig(figure_prefix+'_phi_xr.png',dpi=300)
 
-    f2_levels = np.linspace(-MAX_phi_xi,MAX_phi_xi,21)
+    f2_levels = np.linspace(-1.2*MAX_phi_xi,1.2*MAX_phi_xi,21)
     fig2 = plot.figure(2)
     fig2.add_subplot(3,1,1)
     plot.axis('equal')
@@ -289,7 +289,7 @@ for k in training_cases:
         plot.savefig(figure_prefix+'_phi_xi.png',dpi=300)
 
 
-    f3_levels = np.linspace(-MAX_phi_yr,MAX_phi_yr,21)
+    f3_levels = np.linspace(-1.2*MAX_phi_yr,1.2*MAX_phi_yr,21)
     fig3 = plot.figure(3)
     fig3.add_subplot(3,1,1)
     plot.axis('equal')
@@ -323,7 +323,7 @@ for k in training_cases:
         plot.savefig(figure_prefix+'_phi_yr.png',dpi=300)
 
 
-    f4_levels = np.linspace(-MAX_phi_yi,MAX_phi_yi,21)
+    f4_levels = np.linspace(-1.2*MAX_phi_yi,1.2*MAX_phi_yi,21)
     fig4 = plot.figure(4)
     fig4.add_subplot(3,1,1)
     plot.axis('equal')
@@ -358,7 +358,7 @@ for k in training_cases:
 
 
     MAX_psi_r = np.max(psi_r)
-    f5_levels = np.linspace(-MAX_psi_r,MAX_psi_r,21)
+    f5_levels = np.linspace(-1.2*MAX_psi_r,1.2*MAX_psi_r,21)
     fig5 = plot.figure(5)
     fig5.add_subplot(3,1,1)
     plot.axis('equal')
@@ -394,7 +394,7 @@ for k in training_cases:
 
     MAX_psi_i = np.max(psi_i)
     print(MAX_psi_i)
-    f6_levels = np.linspace(-MAX_psi_i,MAX_psi_i,21)
+    f6_levels = np.linspace(-1.2*MAX_psi_i,1.2*MAX_psi_i,21)
     fig6 = plot.figure(6)
     fig6.add_subplot(3,1,1)
     plot.axis('equal')
@@ -427,7 +427,7 @@ for k in training_cases:
     if SaveFig:
         plot.savefig(figure_prefix+'_psi_i.png',dpi=300)
 
-    fig7_levels = np.linspace(-MAX_tau_xx_r,MAX_tau_xx_r,21)
+    fig7_levels = np.linspace(-1.2*MAX_tau_xx_r,1.2*MAX_tau_xx_r,21)
     fig7 = plot.figure(7)
     fig7.add_subplot(3,1,1)
     plot.axis('equal')
@@ -461,7 +461,7 @@ for k in training_cases:
         plot.savefig(figure_prefix+'_tau_xx_r.png',dpi=300)
 
 
-    fig8_levels = np.linspace(-MAX_tau_xx_i,MAX_tau_xx_i,21)
+    fig8_levels = np.linspace(-1.2*MAX_tau_xx_i,1.2*MAX_tau_xx_i,21)
     fig8 = plot.figure(8)
     fig8.add_subplot(3,1,1)
     plot.axis('equal')
@@ -494,7 +494,7 @@ for k in training_cases:
     if SaveFig:
         plot.savefig(figure_prefix+'_tau_xx_i.png',dpi=300)
 
-    fig9_levels = np.linspace(-MAX_tau_xy_r,MAX_tau_xy_r,21)
+    fig9_levels = np.linspace(-1.2*MAX_tau_xy_r,1.2*MAX_tau_xy_r,21)
     fig9 = plot.figure(9)
     fig9.add_subplot(3,1,1)
     plot.axis('equal')
@@ -527,7 +527,7 @@ for k in training_cases:
     if SaveFig:
         plot.savefig(figure_prefix+'_tau_xy_r.png',dpi=300)
 
-    fig10_levels = np.linspace(-MAX_tau_xy_i,MAX_tau_xy_i,21)
+    fig10_levels = np.linspace(-1.2*MAX_tau_xy_i,1.2*MAX_tau_xy_i,21)
     fig10 = plot.figure(10)
     fig10.add_subplot(3,1,1)
     plot.axis('equal')
@@ -560,7 +560,7 @@ for k in training_cases:
     if SaveFig:
         plot.savefig(figure_prefix+'_tau_xy_i.png',dpi=300)
 
-    fig11_levels = np.linspace(-MAX_tau_yy_r,MAX_tau_yy_r,21)
+    fig11_levels = np.linspace(-1.2*MAX_tau_yy_r,1.2*MAX_tau_yy_r,21)
     fig11 = plot.figure(11)
     fig11.add_subplot(3,1,1)
     plot.axis('equal')
@@ -593,7 +593,7 @@ for k in training_cases:
     if SaveFig:
         plot.savefig(figure_prefix+'_tau_yy_r.png',dpi=300)
 
-    fig12_levels = np.linspace(-MAX_tau_yy_i,MAX_tau_yy_i,21)
+    fig12_levels = np.linspace(-1.2*MAX_tau_yy_i,1.2*MAX_tau_yy_i,21)
     fig12 = plot.figure(12)
     fig12.add_subplot(3,1,1)
     plot.axis('equal')
