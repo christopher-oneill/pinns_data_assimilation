@@ -379,8 +379,8 @@ else:
                 t_mx,t_my,t_mass = net_f_mean_cartesian(X_test)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
                 h5f.create_dataset('mx',data=t_mx)
-                h5f.create_dataset('mx',data=t_my)
-                h5f.create_dataset('mx',data=t_mass)
+                h5f.create_dataset('my',data=t_my)
+                h5f.create_dataset('mass',data=t_mass)
                 h5f.close()    
             # check if we should exit
             average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
@@ -396,8 +396,8 @@ else:
                 t_mx,t_my,t_mass = net_f_mean_cartesian(X_test)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
                 h5f.create_dataset('mx',data=t_mx)
-                h5f.create_dataset('mx',data=t_my)
-                h5f.create_dataset('mx',data=t_mass)
+                h5f.create_dataset('my',data=t_my)
+                h5f.create_dataset('mass',data=t_mass)
                 h5f.close()    
                 exit()
             last_epoch_time = datetime.now()
