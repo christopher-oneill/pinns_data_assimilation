@@ -471,6 +471,7 @@ def get_filepaths_with_glob(root_path: str, file_regex: str):
 # load the saved mean model on the CPU
 with tf.device('/CPU:0'):
     model_mean = keras.models.load_model(HOMEDIR+'output/mfgwS8m003_output/mfgwS8m003_ep46990_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train),})
+    model_mean.trainable=False
 
 # get the values for the mean_data tensor
 mean_data = mean_cartesian(f_colloc_train)
@@ -565,16 +566,16 @@ else:
 
         while True:
                 # train the model with L-BFGS solver
-            results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=100)
+            results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=333)
             func.assign_new_model_parameters(results.position)
             init_params = tf.dynamic_stitch(func.idx, model_fourier.trainable_variables) # we need to reasign the parameters otherwise we start from the beginning each time
-            epochs = epochs +100
+            epochs = epochs +1000
             L_iter = L_iter+1
             
             # after training, the final optimized parameters are still in results.position
             # so we have to manually put them back to the model
             
-            if np.mod(L_iter,10)==0:
+            if np.mod(L_iter,1)==0:
                 model_fourier.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
                 pred = model_fourier.predict(X_test,batch_size=32)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')

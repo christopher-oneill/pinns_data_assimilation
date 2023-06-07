@@ -73,7 +73,7 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'mfgwS8_fourier9_001'
+job_name = 'mfgwS8_fourier11_002'
 
 # Job mgfw_fourier001
 # 20230523: fourier mode assimilation, fixed cylinder Re=150
@@ -108,7 +108,7 @@ else:
 save_loc = HOMEDIR+'output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
 physics_loss_coefficient = 1.00
-mode_number=8 # the number of the truncated mode to assimilate, note that this is mode 9 in matlab!
+mode_number=11-1 # the number of the truncated mode to assimilate, note that this is mode 9 in matlab!
 
 
 if useGPU:
