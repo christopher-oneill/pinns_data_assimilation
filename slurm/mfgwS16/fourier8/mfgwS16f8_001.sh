@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --account=def-martinuz    
+#SBATCH --account=def-martinuz
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=72000M
+#SBATCH --mem=64000M
 #SBATCH --time=0-23:00
 #SBATCH --mail-user=christopher.mark.oneill@gmail.com
 #SBATCH --mail-type=ALL
-#SBATCH --output=/home/coneill/sync/logs/mfgwS16m001-%A.out
+#SBATCH --output=/home/coneill/sync/logs/mfgwS16f8_001-%A.out
 
 # ---------------------------------------------------------------------
 echo "Current working directory: `pwd`"
@@ -18,7 +18,7 @@ cd $SLURM_TMPDIR
 module load python/3.10
 source /home/coneill/sync/venv/tf1/bin/activate
 
-python /home/coneill/sync/code/pinns_galerkin_viv/training_scripts/mfgwS16/mfgwS16_mean001.py
+python /home/coneill/sync/code/pinns_galerkin_viv/training_scripts/mfgwS16/fourier8/mfgwS16_fourier8_001.py
 
 
 # ---------------------------------------------------------------------
