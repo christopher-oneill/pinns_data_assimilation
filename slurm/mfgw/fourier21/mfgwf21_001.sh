@@ -1,8 +1,7 @@
 #!/bin/bash
 #SBATCH --account=def-martinuz    
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=64000M
-#SBATCH --time=0-23:00
+#SBATCH --mem=72G
 #SBATCH --mail-user=christopher.mark.oneill@gmail.com
 #SBATCH --mail-type=ALL
 #SBATCH --output=/home/coneill/sync/logs/mfgwf21_001-%A.out
