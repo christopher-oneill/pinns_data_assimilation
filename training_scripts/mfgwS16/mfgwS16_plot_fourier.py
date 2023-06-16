@@ -54,11 +54,11 @@ def create_directory_if_not_exists(path):
 
 # script
 
-base_dir = 'C:/projects/pinns_narval/'
+base_dir = 'C:/projects/pinns_beluga/sync/'
 data_dir = base_dir+'data/mazi_fixed_grid_wake/'
-case_prefix = 'mfgwS8_fourier20_'
+case_prefix = 'mfgwS16_fourier9_'
 output_base_dir = base_dir+'output/'
-mode_number=19 # equivalent to 9 in matlab notation 
+mode_number=8 # equivalent to 9 in matlab notation 
 
 training_cases = extract_matching_integers(output_base_dir+case_prefix,'[0-9][0-9][0-9]','_output')
 
@@ -67,15 +67,15 @@ for k in training_cases:
     output_dir = output_base_dir+case_name + '_output/'
 
     meanVelocityFileF = h5py.File(data_dir+'meanVelocity.mat','r')
-    meanVelocityFile = h5py.File(data_dir+'meanVelocityS8.mat','r')
+    meanVelocityFile = h5py.File(data_dir+'meanVelocityS16.mat','r')
     configFileF = h5py.File(data_dir+'configuration.mat','r')
-    configFile = h5py.File(data_dir+'configurationS8.mat','r')
+    configFile = h5py.File(data_dir+'configurationS16.mat','r')
     meanPressureFileF = h5py.File(data_dir+'meanPressure.mat','r')
-    meanPressureFile = h5py.File(data_dir+'meanPressureS8.mat','r')
+    meanPressureFile = h5py.File(data_dir+'meanPressureS16.mat','r')
     reynoldsStressFileF = h5py.File(data_dir+'reynoldsStress.mat','r')    
-    reynoldsStressFile = h5py.File(data_dir+'reynoldsStressS8.mat','r')
+    reynoldsStressFile = h5py.File(data_dir+'reynoldsStressS16.mat','r')
     fourierModeFileF = h5py.File(data_dir+'fourierDataShort.mat','r')
-    fourierModeFile = h5py.File(data_dir+'fourierDataShortS8.mat','r')
+    fourierModeFile = h5py.File(data_dir+'fourierDataShortS16.mat','r')
 
     predfilename,epoch_number = find_highest_numbered_file(output_dir+case_name+'_ep','[0-9]*','_pred.mat')
     print(predfilename)
@@ -113,9 +113,9 @@ for k in training_cases:
     tau_yy_r = np.array(fourierModeFileF['stressModesShortReal'][2,mode_number,:]).transpose()
     tau_yy_i = np.array(fourierModeFileF['stressModesShortImag'][2,mode_number,:]).transpose()
 
-    fs = np.array(configFile['fs'])
-    omega = (1/(fs*fs))*np.array(fourierModeFileF['fShort'][0,mode_number])*2*np.pi
-    
+    omega = np.array(fourierModeFileF['fShort'][0,mode_number])*2*np.pi
+
+
     mxr = np.array(errorFile['mxr'])
     mxi = np.array(errorFile['mxi'])
     myr = np.array(errorFile['myr'])
@@ -670,7 +670,7 @@ for k in training_cases:
     fig13 = plot.figure(13)
     ax = fig13.add_subplot(3,1,1)
     plot.axis('equal')
-    plot.contourf(X_grid,Y_grid,(mxr_grid)/MAX_phi_xr,levels=21)
+    plot.contourf(X_grid,Y_grid,mxr_grid,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
     ax=plot.gca()
@@ -678,7 +678,7 @@ for k in training_cases:
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
     plot.ylabel('y/D')
     fig13.add_subplot(3,1,2)
-    plot.contourf(X_grid,Y_grid,(mxi_grid)/MAX_phi_xi,levels=21)
+    plot.contourf(X_grid,Y_grid,mxi_grid,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.ylabel('y/D')
@@ -687,7 +687,7 @@ for k in training_cases:
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
     plot.axis('equal')
     fig13.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,(myr_grid)/MAX_phi_yr,levels=21)
+    plot.contourf(X_grid,Y_grid,myr_grid,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.ylabel('y/D')
@@ -699,12 +699,11 @@ for k in training_cases:
     if SaveFig:
         plot.savefig(figure_prefix+'_error1.png',dpi=300)
 
- 
 
     fig14 = plot.figure(14)
     fig14.add_subplot(3,1,1)
     plot.axis('equal')
-    plot.contourf(X_grid,Y_grid,(myi_grid)/MAX_phi_yi,levels=21)
+    plot.contourf(X_grid,Y_grid,myi_grid,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
     ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])

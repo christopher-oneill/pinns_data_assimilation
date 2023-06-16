@@ -56,10 +56,11 @@ def create_directory_if_not_exists(path):
 
 base_dir = 'C:/projects/pinns_beluga/sync/'
 data_dir = base_dir+'data/mazi_fixed_grid_wake/'
-case_prefix = 'mfgw_fourier9_'
+case_prefix = 'mfgw_fourier'
 output_base_dir = base_dir+'output/'
-mode_number=8 # equivalent to 9 in matlab notation 
+mode_number=10-1 # equivalent to 9 in matlab notation 
 
+fourier_cases = extract_matching_integers(output_base_dir+case_prefix,'[0-9]+',
 training_cases = extract_matching_integers(output_base_dir+case_prefix,'[0-9][0-9][0-9]','_output')
 
 for k in training_cases:
