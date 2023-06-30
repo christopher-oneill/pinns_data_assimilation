@@ -197,8 +197,8 @@ ns_BC_x = 0.5*d*np.cos(theta)
 ns_BC_y = 0.5*d*np.sin(theta)
 ns_BC_vec = np.hstack((ns_BC_x.reshape(-1,1),ns_BC_y.reshape(-1,1)))
 
-p_BC_x = np.array([MAX_x])
-p_BC_y = np.array([MAX_y])
+p_BC_x = np.array([MAX_x,MAX_x])
+p_BC_y = np.array([MIN_y,MAX_y])
 p_BC_vec = np.hstack((p_BC_x.reshape(-1,1),p_BC_y.reshape(-1,1)))
 
 # the order here must be identical to inside the cost functions
@@ -267,7 +267,7 @@ def BC_pressure(BC_points):
     # knowns
     # unknowns
     p = up[:,5]*MAX_p
-    return tf.reduce_mean(tf.square(p))
+    return tf.square(tf.reduce_mean(p))
 
 def BC_no_slip(BC_points):
     up = model_mean(BC_points)
