@@ -52,156 +52,162 @@ def create_directory_if_not_exists(path):
         os.makedirs(path)
 
 
-# script
+mode_number_array = np.array([8,9,10,11,20,21])
 
-base_dir = 'C:/projects/pinns_beluga/sync/'
-data_dir = base_dir+'data/mazi_fixed_grid_wake/'
-case_prefix = 'mfgw_fourier10_'
-output_base_dir = base_dir+'output/'
-mode_number=10-1 # equivalent to 9 in matlab notation 
+for mn in range(mode_number_array.size):
 
-training_cases = extract_matching_integers(output_base_dir+case_prefix,'[0-9][0-9][0-9]','_output')
+    # script
+    mode_number=mode_number_array[mn]-1 # equivalent to 9 in matlab notation
+    base_dir = 'C:/projects/pinns_beluga/sync/'
+    data_dir = base_dir+'data/mazi_fixed_grid_wake/'
+    case_prefix = 'mfgw_fourier'+str(mode_number+1)+'_'
+    output_base_dir = base_dir+'output/'
+     
 
-for k in training_cases:
-    case_name = case_prefix + "{:03d}".format(k)
-    print(case_name)
-    output_dir = output_base_dir+case_name + '_output/'
+    training_cases = extract_matching_integers(output_base_dir+case_prefix,'[0-9][0-9][0-9]','_output')
 
-    configFile = h5py.File(data_dir+'configuration.mat','r')
-    fourierModeFile = h5py.File(data_dir+'fourierDataShort.mat','r')
+    for k in training_cases:
+        case_name = case_prefix + "{:03d}".format(k)
+        print(case_name)
+        output_dir = output_base_dir+case_name + '_output/'
 
-    errorfilename,epoch_number = find_highest_numbered_file(output_dir+case_name+'_ep','[0-9]*','_error.mat')
-    if errorfilename is None:
-        continue
+        configFile = h5py.File(data_dir+'configuration.mat','r')
+        fourierModeFile = h5py.File(data_dir+'fourierDataShort.mat','r')
 
-    errorFile =  h5py.File(errorfilename,'r')
-    figures_folder = output_dir+'figures/'
-    create_directory_if_not_exists(figures_folder)
-    figure_prefix = figures_folder + case_name+'_ep'+str(epoch_number)
+        errorfilename,epoch_number = find_highest_numbered_file(output_dir+case_name+'_ep','[0-9]*','_error.mat')
+        if errorfilename is None:
+            continue
 
-    SaveFig = True
-    PlotFig = False
+        errorFile =  h5py.File(errorfilename,'r')
+        figures_folder = output_dir+'figures/'
+        create_directory_if_not_exists(figures_folder)
+        figure_prefix = figures_folder + case_name+'_ep'+str(epoch_number)
 
-
-    x = np.array(configFile['X_vec'][0,:])
-    X_grid_temp = np.array(configFile['X_grid'])
-    X_grid =np.reshape(x,X_grid_temp.shape[::-1])
-    y = np.array(configFile['X_vec'][1,:])
-    #Y_grid = np.array(configFile['Y_grid'])[::-1]
-    Y_grid = np.reshape(y,X_grid.shape)
-    d = np.array(configFile['cylinderDiameter'])[0]
-
-    nu_mol = 0.0066667
-    
-    # velocity fourier modes
-    mxr = np.array(errorFile['mxr'])
-    mxi = np.array(errorFile['mxi'])
-    myr = np.array(errorFile['myr'])
-    myi = np.array(errorFile['myi'])
-    massr = np.array(errorFile['massr'])
-    massi = np.array(errorFile['massi'])
+        SaveFig = True
+        PlotFig = False
 
 
-    phi_xr = np.array(fourierModeFile['velocityModesShortReal'][0,mode_number,:]).transpose()
-    phi_xi = np.array(fourierModeFile['velocityModesShortImag'][0,mode_number,:]).transpose()
-    phi_yr = np.array(fourierModeFile['velocityModesShortReal'][1,mode_number,:]).transpose()
-    phi_yi = np.array(fourierModeFile['velocityModesShortImag'][1,mode_number,:]).transpose()
-    
-    print('x.shape: ',x.shape)
-    print('y.shape: ',y.shape)
-    print('X_grid.shape: ',X_grid.shape)
-    print('Y_grid.shape: ',Y_grid.shape)
-    print('d: ',d.shape)
+        x = np.array(configFile['X_vec'][0,:])
+        X_grid_temp = np.array(configFile['X_grid'])
+        X_grid =np.reshape(x,X_grid_temp.shape[::-1])
+        y = np.array(configFile['X_vec'][1,:])
+        #Y_grid = np.array(configFile['Y_grid'])[::-1]
+        Y_grid = np.reshape(y,X_grid.shape)
+        d = np.array(configFile['cylinderDiameter'])[0]
+
+        nu_mol = 0.0066667
+        
+        # velocity fourier modes
+        mxr = np.array(errorFile['mxr'])
+        mxi = np.array(errorFile['mxi'])
+        myr = np.array(errorFile['myr'])
+        myi = np.array(errorFile['myi'])
+        massr = np.array(errorFile['massr'])
+        massi = np.array(errorFile['massi'])
+
+
+        phi_xr = np.array(fourierModeFile['velocityModesShortReal'][0,mode_number,:]).transpose()
+        phi_xi = np.array(fourierModeFile['velocityModesShortImag'][0,mode_number,:]).transpose()
+        phi_yr = np.array(fourierModeFile['velocityModesShortReal'][1,mode_number,:]).transpose()
+        phi_yi = np.array(fourierModeFile['velocityModesShortImag'][1,mode_number,:]).transpose()
+        
+        print('x.shape: ',x.shape)
+        print('y.shape: ',y.shape)
+        print('X_grid.shape: ',X_grid.shape)
+        print('Y_grid.shape: ',Y_grid.shape)
+        print('d: ',d.shape)
+
+
+        if mxr.size!=X_grid.size:
+            print('Skipped case due to size mismatch: ',case_name)
+            continue
+        # fourier coefficients of the fluctuating field
+        mxr_grid = np.reshape(mxr,X_grid.shape)
+        mxi_grid = np.reshape(mxi,X_grid.shape)
+        myr_grid = np.reshape(myr,X_grid.shape)
+        myi_grid = np.reshape(myi,X_grid.shape)
+        massr_grid = np.reshape(massr,X_grid.shape)
+        massi_grid = np.reshape(massi,X_grid.shape)
+
+        # given values / reference values
+        phi_xr_grid = np.reshape(phi_xr,X_grid.shape)
+        phi_xi_grid = np.reshape(phi_xi,X_grid.shape)
+        phi_yr_grid = np.reshape(phi_yr,X_grid.shape)
+        phi_yi_grid = np.reshape(phi_yi,X_grid.shape)
+
+        print(np.mean(mxr_grid/phi_xr_grid))
+
+        x_lim_vec = [0.5,10.0]
+        y_lim_vec = [-2.0,2.0]
+        fig = plot.figure(1)
+        ax = fig.add_subplot(3,1,1)
+        plot.axis('equal')
+        plot.contourf(X_grid,Y_grid,mxr_grid,levels=21)
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        ax=plot.gca()
+        ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
+        ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
+        plot.ylabel('y/D')
+        fig.add_subplot(3,1,2)
+        plot.contourf(X_grid,Y_grid,mxi_grid,levels=21)
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        plot.ylabel('y/D')
+        ax=plot.gca()
+        ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
+        ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
+        plot.axis('equal')
+        fig.add_subplot(3,1,3)
+        plot.contourf(X_grid,Y_grid,myr_grid,levels=21)
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        plot.ylabel('y/D')
+        plot.xlabel('x/D')
+        plot.axis('equal')
+        ax=plot.gca()
+        ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
+        ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
+        if SaveFig:
+            plot.savefig(figure_prefix+'_error1.png',dpi=300)
+
+
+        fig2 = plot.figure(2)
+        fig2.add_subplot(3,1,1)
+        plot.axis('equal')
+        plot.contourf(X_grid,Y_grid,myi_grid,levels=21)
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
+        ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
+        plot.ylabel('y/D')
+        fig2.add_subplot(3,1,2)
+        plot.contourf(X_grid,Y_grid,massr_grid,levels=21)
+        plot.set_cmap('bwr')
+        ax=plot.gca()
+        ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
+        ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
+        plot.colorbar()
+        plot.axis('equal')
+        plot.ylabel('y/D')
+        fig2.add_subplot(3,1,3)
+        plot.contourf(X_grid,Y_grid,massi_grid,levels=21)
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        plot.ylabel('y/D')
+        plot.xlabel('x/D')
+        ax=plot.gca()
+        ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
+        ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
+        plot.axis('equal')
+        if SaveFig:
+            plot.savefig(figure_prefix+'_error2.png',dpi=300)
+
+        if PlotFig:
+            plot.show()
+
+        plot.close('all')
 
 
 
-    # fourier coefficients of the fluctuating field
-    mxr_grid = np.reshape(mxr,X_grid.shape)
-    mxi_grid = np.reshape(mxi,X_grid.shape)
-    myr_grid = np.reshape(myr,X_grid.shape)
-    myi_grid = np.reshape(myi,X_grid.shape)
-    massr_grid = np.reshape(massr,X_grid.shape)
-    massi_grid = np.reshape(massi,X_grid.shape)
-
-    # given values / reference values
-    phi_xr_grid = np.reshape(phi_xr,X_grid.shape)
-    phi_xi_grid = np.reshape(phi_xi,X_grid.shape)
-    phi_yr_grid = np.reshape(phi_yr,X_grid.shape)
-    phi_yi_grid = np.reshape(phi_yi,X_grid.shape)
-
-    print(np.mean(mxr_grid/phi_xr_grid))
-
-    x_lim_vec = [0.5,10.0]
-    y_lim_vec = [-2.0,2.0]
-    fig = plot.figure(1)
-    ax = fig.add_subplot(3,1,1)
-    plot.axis('equal')
-    plot.contourf(X_grid,Y_grid,mxr_grid,levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-    ax=plot.gca()
-    ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
-    ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
-    plot.ylabel('y/D')
-    fig.add_subplot(3,1,2)
-    plot.contourf(X_grid,Y_grid,mxi_grid,levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-    plot.ylabel('y/D')
-    ax=plot.gca()
-    ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
-    ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
-    plot.axis('equal')
-    fig.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,myr_grid,levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-    plot.ylabel('y/D')
-    plot.xlabel('x/D')
-    plot.axis('equal')
-    ax=plot.gca()
-    ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
-    ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
-    if SaveFig:
-        plot.savefig(figure_prefix+'_error1.png',dpi=300)
-
-
-    fig2 = plot.figure(2)
-    fig2.add_subplot(3,1,1)
-    plot.axis('equal')
-    plot.contourf(X_grid,Y_grid,myi_grid,levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-    ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
-    ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
-    plot.ylabel('y/D')
-    fig2.add_subplot(3,1,2)
-    plot.contourf(X_grid,Y_grid,massr_grid,levels=21)
-    plot.set_cmap('bwr')
-    ax=plot.gca()
-    ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
-    ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
-    plot.colorbar()
-    plot.axis('equal')
-    plot.ylabel('y/D')
-    fig2.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,massi_grid,levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-    plot.ylabel('y/D')
-    plot.xlabel('x/D')
-    ax=plot.gca()
-    ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
-    ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
-    plot.axis('equal')
-    if SaveFig:
-        plot.savefig(figure_prefix+'_error2.png',dpi=300)
-
-    if PlotFig:
-        plot.show()
-
-    plot.close('all')
-
-
-
-    
+        

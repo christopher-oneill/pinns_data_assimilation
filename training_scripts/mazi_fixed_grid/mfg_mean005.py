@@ -73,7 +73,7 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'mfg_mean005'
+job_name = 'mfg_mean006'
 
 # Job mgf_mean005
 # mean field assimilation for the fixed cylinder, now on a regular grid, 4 gpu
@@ -194,6 +194,14 @@ uxppuxpp_train = uxppuxpp/MAX_uxppuxpp
 uxppuypp_train = uxppuypp/MAX_uxppuypp
 uyppuypp_train = uyppuypp/MAX_uyppuypp
 
+# boundary condition points
+
+theta = np.linspace(0,2*np.pi,1000)
+ns_bc_x = 0.5*d*np.cos(theta)
+ns_bc_y = 0.5*d*np.sin(theta)
+
+
+
 
 # the order here must be identical to inside the cost functions
 O_train = np.hstack(((ux_train).reshape(-1,1),(uy_train).reshape(-1,1),(uxppuxpp_train).reshape(-1,1),(uxppuypp_train).reshape(-1,1),(uyppuypp_train).reshape(-1,1),)) # training data
@@ -257,9 +265,9 @@ def net_f_cartesian(colloc_tensor):
 
 
 # function wrapper, combine data and physics loss
-def custom_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
+def mean_loss_wrapper(colloc_tensor_f,BC_ns,BC_p): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
     
-    def custom_loss(y_true, y_pred):
+    def mean_loss(y_true, y_pred):
         # this needs to match the order that they are concatinated in the array when setting up the network
         # additionally, the known quantities must be first, unknown quantites second
         data_loss_ux = keras.losses.mean_squared_error(y_true[:,0], y_pred[:,0]) # u 
@@ -273,10 +281,11 @@ def custom_loss_wrapper(colloc_tensor_f): # def custom_loss_wrapper(colloc_tenso
         physical_loss1 = tf.reduce_mean(tf.square(mx))
         physical_loss2 = tf.reduce_mean(tf.square(my))
         physical_loss3 = tf.reduce_mean(tf.square(mass))
+
                       
         return data_loss_ux + data_loss_uy + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp + physics_loss_coefficient*(physical_loss1 + physical_loss2 + physical_loss3) # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
 
-    return custom_loss
+    return mean_loss
 
 
 # create NN
@@ -296,7 +305,7 @@ if useGPU:
             model.add(keras.layers.Dense(dense_nodes, activation='tanh'))
         model.add(keras.layers.Dense(6,activation='linear'))
         model.summary()
-        model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = custom_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
+        model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = mean_loss_wrapper(tf.cast(f_colloc_train,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
 else:
     tf_device_string = '/CPU:0'
 
@@ -357,28 +366,7 @@ start_epochs = epochs
 
 if node_name ==LOCAL_NODE:
     # local node training loop, save every epoch for testing
-
-    from pinns_galerkin_viv.lib.LBFGS_example import function_factory
-    import tensorflow_probability as tfp
-
-    # continue with LBFGS steps
-    func = function_factory(model, custom_loss_wrapper(f_colloc_train), X_train, O_train)
-
-    # convert initial model parameters to a 1D tf.Tensor
-    init_params = tf.dynamic_stitch(func.idx, model.trainable_variables)
-
-    # train the model with L-BFGS solver
-    results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=1000)
-    epochs = epochs +100
-    # after training, the final optimized parameters are still in results.position
-    # so we have to manually put them back to the model
-    func.assign_new_model_parameters(results.position)
-    pred = model.predict(X_train,batch_size=32)
-    h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
-    h5f.create_dataset('pred',data=pred)
-    # save the model:
-    model.save_weights(save_loc+job_name+'_ep'+str(np.uint(epochs)))
-    #model.save(save_loc) 
+    pass
 else:
     shuffle_inds = rng.shuffle(np.arange(0,X_train.shape[1]))
     temp_X_train = X_train[shuffle_inds,:]
