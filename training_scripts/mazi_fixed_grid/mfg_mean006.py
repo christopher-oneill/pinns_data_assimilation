@@ -193,12 +193,12 @@ uyppuypp_train = uyppuypp/MAX_uyppuypp
 # boundary condition points
 
 theta = np.linspace(0,2*np.pi,1000)
-ns_BC_x = 0.5*d*np.cos(theta)
-ns_BC_y = 0.5*d*np.sin(theta)
+ns_BC_x = 0.5*d*np.cos(theta)/MAX_x # we beed to normalize the boundary conditions as well
+ns_BC_y = 0.5*d*np.sin(theta)/MAX_y
 ns_BC_vec = np.hstack((ns_BC_x.reshape(-1,1),ns_BC_y.reshape(-1,1)))
 
-p_BC_x = np.array([MAX_x,MAX_x])
-p_BC_y = np.array([MIN_y,MAX_y])
+p_BC_x = np.array([MAX_x,MAX_x])/MAX_x
+p_BC_y = np.array([MIN_y,MAX_y])/MAX_y
 p_BC_vec = np.hstack((p_BC_x.reshape(-1,1),p_BC_y.reshape(-1,1)))
 
 # the order here must be identical to inside the cost functions
