@@ -54,8 +54,8 @@ def create_directory_if_not_exists(path):
 
 # script
 
-output_base_dir = 'C:/projects/pinns_beluga/sync/output/'
-data_dir = 'C:/projects/pinns_beluga/sync/data/mazi_fixed_grid/'
+output_base_dir = 'C:/projects/pinns_narval/sync/output/'
+data_dir = 'C:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
 case_prefix = 'mfg_mean'
 
 
@@ -137,20 +137,31 @@ for k in training_cases:
 
     # note that the absolute value of the pressure doesnt matter, only grad p and grad2 p, so subtract the mean 
     #p_pred = p_pred-(1/3)*(upup+vpvp)#p_pred - (1/3)*(upup+vpvp)
-
+    cylinder_mask = (np.power(np.power(X_grid,2)+np.power(Y_grid,2),0.5)<(0.5*d))
     ux_grid = np.reshape(ux,X_grid.shape)
+    ux_grid[cylinder_mask] = np.NaN
     uy_grid = np.reshape(uy,X_grid.shape)
+    uy_grid[cylinder_mask] = np.NaN
     p_grid = np.reshape(p,X_grid.shape)
+    p_grid[cylinder_mask] = np.NaN
     ux_pred_grid = np.reshape(ux_pred,X_grid.shape)
+    ux_pred_grid[cylinder_mask] = np.NaN
     uy_pred_grid = np.reshape(uy_pred,X_grid.shape)
+    uy_pred_grid[cylinder_mask] = np.NaN
     p_pred_grid = np.reshape(p_pred,X_grid.shape)
+    p_pred_grid[cylinder_mask] = np.NaN
     upup_grid = np.reshape(upup,X_grid.shape)
+    upup_grid[cylinder_mask] = np.NaN
     upup_pred_grid = np.reshape(upup_pred,X_grid.shape)
+    upup_pred_grid[cylinder_mask] = np.NaN
     upvp_grid = np.reshape(upvp,X_grid.shape)
+    upvp_grid[cylinder_mask] = np.NaN
     upvp_pred_grid = np.reshape(upvp_pred,X_grid.shape)
+    upvp_pred_grid[cylinder_mask] = np.NaN
     vpvp_grid = np.reshape(vpvp,X_grid.shape)
+    vpvp_grid[cylinder_mask] = np.NaN
     vpvp_pred_grid = np.reshape(vpvp_pred,X_grid.shape)
-
+    vpvp_pred_grid[cylinder_mask] = np.NaN
 
 
     f1_levels = np.linspace(-MAX_ux,MAX_ux,21)
@@ -174,7 +185,7 @@ for k in training_cases:
     ax.set_ylim(bottom=-2.0,top=2.0)
     plot.axis('equal')
     fig.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,(ux_grid-ux_pred_grid)/MAX_ux,levels=21)
+    plot.contourf(X_grid,Y_grid,(ux_pred_grid-ux_grid)/MAX_ux,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.ylabel('y/D')
@@ -210,7 +221,7 @@ for k in training_cases:
     ax.set_ylim(bottom=-2.0,top=2.0)
     plot.ylabel('y/D')
     fig2.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,(uy_grid-uy_pred_grid)/MAX_uy,levels=21)
+    plot.contourf(X_grid,Y_grid,(uy_pred_grid-uy_grid)/MAX_uy,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.ylabel('y/D')
@@ -244,7 +255,7 @@ for k in training_cases:
     ax.set_ylim(bottom=-2.0,top=2.0)
     plot.ylabel('y/D')
     fig3.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,(p_grid-p_pred_grid)/MAX_p,21)
+    plot.contourf(X_grid,Y_grid,(p_pred_grid-p_grid)/MAX_p,21)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.axis('equal')
@@ -278,7 +289,7 @@ for k in training_cases:
     ax.set_ylim(bottom=-2.0,top=2.0)
     plot.ylabel('y/D')
     fig4.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,(upup_grid-upup_pred_grid)/MAX_upup,21)
+    plot.contourf(X_grid,Y_grid,(upup_pred_grid-upup_grid)/MAX_upup,21)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.axis('equal')
@@ -312,7 +323,7 @@ for k in training_cases:
     ax.set_ylim(bottom=-2.0,top=2.0)
     plot.ylabel('y/D')
     fig5.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,(upvp_grid-upvp_pred_grid)/MAX_upvp,21)
+    plot.contourf(X_grid,Y_grid,(upvp_pred_grid-upvp_grid)/MAX_upvp,21)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.axis('equal')
@@ -346,7 +357,7 @@ for k in training_cases:
     ax.set_ylim(bottom=-2.0,top=2.0)
     plot.ylabel('y/D')
     fig6.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,(vpvp_grid-vpvp_pred_grid)/MAX_vpvp,21)
+    plot.contourf(X_grid,Y_grid,(vpvp_pred_grid-vpvp_grid)/MAX_vpvp,21)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.axis('equal')
