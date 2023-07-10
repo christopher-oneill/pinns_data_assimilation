@@ -169,15 +169,14 @@ MAX_p= 1 # estimated maximum pressure, we should
 # reduce the collocation points to 25k
 colloc_limits1 = np.array([[-2.0,10.0],[-2.0,2.0]])
 colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-colloc_lhs1 = colloc_sample_lhs1(80000)
-print('colloc_lhs1.shape',colloc_lhs1.shape)
+colloc_lhs1 = colloc_sample_lhs1(40000)
 
-# remove points inside the cylinder
-c1_loc = np.array([0,0],dtype=np.float64)
-cylinder_inds = np.less(np.power(np.power(colloc_lhs1[:,0]-c1_loc[0],2)+np.power(colloc_lhs1[:,1]-c1_loc[1],2),0.5*d),0.5)
-print(cylinder_inds.shape)
-colloc_merged = np.delete(colloc_lhs1,cylinder_inds[0,:],axis=0)
-print('colloc_merged.shape',colloc_merged.shape)
+
+colloc_limits2 = np.array([[-1.0,3.0],[-1.5,1.5]])
+colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
+colloc_lhs2 = colloc_sample_lhs2(40000)
+
+colloc_merged = np.vstack((colloc_lhs1,colloc_lhs2))
 
 f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
 
