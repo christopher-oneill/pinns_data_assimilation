@@ -187,7 +187,7 @@ colloc_merged = np.delete(colloc_merged,cylinder_inds[0,:],axis=0)
 print('colloc_merged.shape',colloc_merged.shape)
 
 f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
-exit()
+
 # normalize the training data:
 x_train = x/MAX_x
 y_train = y/MAX_y
