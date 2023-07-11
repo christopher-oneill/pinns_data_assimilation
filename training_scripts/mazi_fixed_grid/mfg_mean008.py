@@ -73,7 +73,7 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'mfg_mean007'
+job_name = 'mfg_mean008'
 
 # Job mgf_mean005
 # mean field assimilation for the fixed cylinder, now on a regular grid, 4 gpu
@@ -235,7 +235,7 @@ class QresBlock(keras.layers.Layer):
         super().__init__()
         self.units = units
 
-    def build(self, input_shape)
+    def build(self, input_shape):
         w_init = tf.random_normal_initializer()
         self.w1 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True)
         self.w2 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True)
@@ -243,8 +243,8 @@ class QresBlock(keras.layers.Layer):
         self.b1 = tf.Variable(initial_value=b_init(shape=(self.units,),dtype=tf.float64),trainable=True)    
     
     def call(self,inputs):
-        xw1 = tf.matmul(self.w1,inputs)
-        return tf.keras.activations.tanh(tf.multiply(xw1,tf.matmul(self.w2,inputs))+xw1+self.b1)
+        xw1 = tf.matmul(inputs,self.w1)
+        return tf.keras.activations.tanh(tf.multiply(xw1,tf.matmul(inputs,self.w2))+xw1+self.b1)
     
 
 
