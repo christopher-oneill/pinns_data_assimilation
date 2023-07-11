@@ -73,7 +73,7 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'mfg_mean006'
+job_name = 'mfg_mean007'
 
 # Job mgf_mean005
 # mean field assimilation for the fixed cylinder, now on a regular grid, 4 gpu
@@ -178,6 +178,14 @@ colloc_lhs2 = colloc_sample_lhs2(40000)
 
 colloc_merged = np.vstack((colloc_lhs1,colloc_lhs2))
 
+
+# remove points inside the cylinder
+c1_loc = np.array([0,0],dtype=np.float64)
+cylinder_inds = np.less(np.power(np.power(colloc_merged[:,0]-c1_loc[0],2)+np.power(colloc_merged[:,1]-c1_loc[1],2),0.5*d),0.5)
+print(cylinder_inds.shape)
+colloc_merged = np.delete(colloc_merged,cylinder_inds[0,:],axis=0)
+print('colloc_merged.shape',colloc_merged.shape)
+
 f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
 
 # normalize the training data:
@@ -207,6 +215,38 @@ X_train = np.hstack((x_train.reshape(-1,1),y_train.reshape(-1,1)))
 
 print('X_train.shape: ',X_train.shape)
 print('O_train.shape: ',O_train.shape)
+
+  
+class resBlock(keras.layers.Layer):
+    # a simple residual block
+    def __init__(self,units):
+        super().__init__()
+        self.Dense  = keras.layers.Dense(units,activation='tanh')
+        self.Linear = keras.layers.Dense(units,activation='linear')    
+    
+    def call(self,inputs):
+        return tf.keras.activations.tanh(self.Linear(self.Dense(inputs))+inputs)
+    
+class QresBlock(keras.layers.Layer):
+    # quadratic residual block from:
+    # Bu, J., & Karpatne, A. (2021). Quadratic residual networks: A new class of neural networks for solving forward and inverse problems in physics involving pdes. In Proceedings of the 2021 SIAM International Conference on Data Mining (SDM) (pp. 675-683). Society for Industrial and Applied Mathematics.
+
+    def __init__(self,units):
+        super().__init__()
+        self.units = units
+
+    def build(self, input_shape)
+        w_init = tf.random_normal_initializer()
+        self.w1 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True)
+        self.w2 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True)
+        b_init = tf.zeros_initializer()
+        self.b1 = tf.Variable(initial_value=b_init(shape=(self.units,),dtype=tf.float64),trainable=True)    
+    
+    def call(self,inputs):
+        xw1 = tf.matmul(self.w1,inputs)
+        return tf.keras.activations.tanh(tf.multiply(xw1,tf.matmul(self.w2,inputs))+xw1+self.b1)
+    
+
 
 @tf.function
 def net_f_cartesian(colloc_tensor):
@@ -332,7 +372,7 @@ if len(checkpoint_files)>0:
         files_epoch_number[f_indx]=int(checkpoint_files[f_indx][(re_result.start()+2):re_result.end()])
     epochs = np.uint(np.max(files_epoch_number))
     print(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
-    model_mean = keras.models.load_model(HOMEDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec),})
+    model_mean = keras.models.load_model(HOMEDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec),'resBlock':resBlock})
     model_mean.summary()
 else:
     # if not, we train from the beginning
@@ -354,7 +394,7 @@ else:
             model_mean = keras.Sequential()
             model_mean.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
             for i in range(dense_layers-1):
-                model_mean.add(keras.layers.Dense(dense_nodes, activation='tanh'))
+                model_mean.add(QresBlock(dense_nodes))
             model_mean.add(keras.layers.Dense(6,activation='linear'))
             model_mean.summary()
             model_mean.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = mean_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
@@ -365,7 +405,7 @@ else:
             model_mean = keras.Sequential()
             model_mean.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
             for i in range(dense_layers-1):
-                model_mean.add(keras.layers.Dense(dense_nodes, activation='tanh'))
+                model_mean.add(QresBlock(dense_nodes))
             model_mean.add(keras.layers.Dense(6,activation='linear'))
             model_mean.summary()
             model_mean.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = mean_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)

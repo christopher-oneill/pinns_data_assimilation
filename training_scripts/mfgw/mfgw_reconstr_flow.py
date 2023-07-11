@@ -98,6 +98,9 @@ MAX_ux_mean = np.max(ux_mean)
 MAX_uy_mean = np.max(uy_mean)
 MAX_p_mean = 1 # estimated maximum pressure
 
+MAX_u = np.max(np.power(np.power(velocityField[:,:,0],2.0)+np.power(velocityField[:,:,1],2.0),0.5).flatten())
+
+
 reconstructedVelocity = np.zeros([nX,nT,2])
 reconstructedPressure = np.zeros([nX,nT])
 PINNreconstructedVelocity = np.zeros([nX,nT,2])
@@ -210,7 +213,7 @@ vorticityR = gradR_x[:,:,:,0]-gradR_y[:,:,:,1]
 
 x_lim_vec = [0.5,10.0]
 y_lim_vec = [-2.0,2.0]
-f1_levels = np.linspace(-2*MAX_ux_mean,2*MAX_ux_mean,21)
+f1_levels = np.linspace(-MAX_u,MAX_u,21)
 fig = plot.figure(1)
 ax = fig.add_subplot(3,1,1)
 plot.axis('equal')
@@ -231,7 +234,7 @@ ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
 ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
 plot.axis('equal')
 fig.add_subplot(3,1,3)
-plot.contourf(X_grid,Y_grid,(velocityFieldGrid[:,:,100,0]-reconstructedVelocityGrid[:,:,100,0]),levels=21)
+plot.contourf(X_grid,Y_grid,(velocityFieldGrid[:,:,100,0]-reconstructedVelocityGrid[:,:,100,0])/MAX_u,levels=21)
 plot.set_cmap('bwr')
 plot.colorbar()
 plot.ylabel('y/D')
