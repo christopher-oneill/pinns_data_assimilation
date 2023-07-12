@@ -173,6 +173,52 @@ def gradients_fourier(model,colloc_tensor):
 
     return phi_xr, phi_xr_x, phi_xr_y, phi_xr_xx, phi_xr_yy, phi_xi, phi_xi_x, phi_xi_y, phi_xi_xx, phi_xi_yy, phi_yr, phi_yr_x, phi_yr_y, phi_yr_xx, phi_yr_yy, phi_yi, phi_yi_x, phi_yi_y, phi_yi_xx, phi_yi_yy, psi_r, psi_r_x, psi_r_y, psi_i, psi_i_x, psi_i_y 
 
+def gradients_mean_fd(X_grid,Y_grid, ux, uy, p):
+    ux_grid = np.reshape(ux,X_grid.shape)
+    uy_grid = np.reshape(uy,X_grid.shape)
+    p_grid = np.reshape(p,X_grid.shape)
+
+    ux_x = np.gradient(ux_grid,X_grid,axis=0)
+    ux_y = np.gradient(ux_grid,Y_grid,axis=1)
+    ux_xx = np.gradient(ux_x,X_grid,axis=0)
+    ux_yy = np.gradient(ux_y,Y_grid,axis=1)
+
+    uy_x = np.gradient(uy_grid,X_grid,axis=0)
+    uy_y = np.gradient(uy_grid,Y_grid,axis=1)
+    uy_xx = np.gradient(uy_x,X_grid,axis=0)
+    uy_yy = np.gradient(uy_y,Y_grid,axis=1)
+
+    p_x = np.gradient(p_grid,X_grid,axis=0)
+    p_y = np.gradient(p_grid,Y_grid,axis=1)  
+
+    return np.reshape(ux_x,[X_grid.size,1]), np.reshape(ux_y,[X_grid.size,1]), np.reshape(ux_xx,[X_grid.size,1]), np.reshape(ux_yy,[X_grid.size,1]), np.reshape(uy_x,[X_grid.size,1]), np.reshape(uy_y,[X_grid.size,1]), np.reshape(uy_xx,[X_grid.size,1]), np.reshape(uy_yy,[X_grid.size,1]), np.reshape(p_x,[X_grid.size,1]), np.reshape(p_y,[X_grid.size,1])
+
+def gradients_fourier_fd(X_grid, Y_grid, phi_xr, phi_xi, phi_yr, phi_yi, psi_r, psi_i):
+    # for comparison, compute the gradients using standard finite differences
+    phi_x = np.reshape(np.complex64(phi_xr+1j*phi_xi),X_grid.shape)
+    phi_y = np.reshape(np.complex64(phi_yr+1j*phi_yi),X_grid.shape)
+    psi = np.reshape(np.complex64(psi_r+1j*psi_i),X_grid.shape)
+
+    phi_x_x = np.gradient(phi_x,X_grid,axis=0)
+    phi_x_y = np.gradient(phi_x,Y_grid,axis=1)
+    phi_x_xx = np.gradient(phi_x_x,X_grid,axis=0)
+    phi_x_yy = np.gradient(phi_x_y,Y_grid,axis=1)
+
+    phi_y_x = np.gradient(phi_y,X_grid,axis=0)
+    phi_y_y = np.gradient(phi_y,Y_grid,axis=1)
+    phi_y_xx = np.gradient(phi_y_x,X_grid,axis=0)
+    phi_y_yy = np.gradient(phi_y_y,Y_grid,axis=1)
+
+    psi_x = np.gradient(psi,X_grid,axis=0)
+    psi_y = np.gradient(psi,Y_grid,axis=1)
+
+    return np.reshape(phi_x,[X_grid.size,1]), np.reshape(phi_x_x,[X_grid.size,1]), np.reshape(phi_x_y,[X_grid.size,1]), np.reshape(phi_x_xx,[X_grid.size,1]), np.reshape(phi_x_yy,[X_grid.size,1]), np.reshape(phi_y,[X_grid.size,1]), np.reshape(phi_y_x,[X_grid.size,1]), np.reshape(phi_y_y,[X_grid.size,1]), np.reshape(phi_y_xx,[X_grid.size,1]), np.reshape(phi_y_yy,[X_grid.size,1]), np.reshape(psi_r,[X_grid.size,1]), np.reshape(psi_x,[X_grid.size,1]), np.reshape(psi_y,[X_grid.size,1])
+
+def galerkin_projection_fd():
+
+    return 1
+
+
 def galerkin_projection(ux, ux_x, ux_y, ux_xx, ux_yy, uy, uy_x, uy_y, uy_xx, uy_yy, p, p_x, p_y, phi_xr, phi_xr_x, phi_xr_y, phi_xr_xx, phi_xr_yy, phi_xi, phi_xi_x, phi_xi_y, phi_xi_xx, phi_xi_yy, phi_yr, phi_yr_x, phi_yr_y, phi_yr_xx, phi_yr_yy, phi_yi, phi_yi_x, phi_yi_y, phi_yi_xx, phi_yi_yy, psi_r, psi_r_x, psi_r_y, psi_i, psi_i_x, psi_i_y):
     nx = phi_xr.shape[0]
     nk = phi_xr.shape[1]
