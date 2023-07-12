@@ -236,15 +236,15 @@ class QresBlock(keras.layers.Layer):
         self.units = units
 
     def build(self, input_shape):
-        w_init = tf.random_normal_initializer()
-        self.w1 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True)
-        self.w2 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True)
-        b_init = tf.zeros_initializer()
-        self.b1 = tf.Variable(initial_value=b_init(shape=(self.units,),dtype=tf.float64),trainable=True)    
+        self.w_init = tf.random_normal_initializer()
+        self.w1 = tf.Variable(initial_value=self.w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True,name='w1')
+        self.w2 = tf.Variable(initial_value=self.w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True,name='w2')
+        self.b_init = tf.zeros_initializer()
+        self.b1 = tf.Variable(initial_value=self.b_init(shape=(self.units,),dtype=tf.float64),trainable=True,name='b1')    
     
     def call(self,inputs):
-        xw1 = tf.matmul(inputs,self.w1)
-        return tf.keras.activations.tanh(tf.multiply(xw1,tf.matmul(inputs,self.w2))+xw1+self.b1)
+        self.xw1 = tf.matmul(inputs,self.w1)
+        return tf.keras.activations.tanh(tf.multiply(self.xw1,tf.matmul(inputs,self.w2))+self.xw1+self.b1)
     
 
 
@@ -372,7 +372,7 @@ if len(checkpoint_files)>0:
         files_epoch_number[f_indx]=int(checkpoint_files[f_indx][(re_result.start()+2):re_result.end()])
     epochs = np.uint(np.max(files_epoch_number))
     print(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
-    model_mean = keras.models.load_model(HOMEDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec),'resBlock':resBlock})
+    model_mean = keras.models.load_model(HOMEDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec),'QresBlock':QresBlock})
     model_mean.summary()
 else:
     # if not, we train from the beginning
@@ -441,16 +441,18 @@ if node_name ==LOCAL_NODE:
 
         while True:
                 # train the model with L-BFGS solver
-            results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=333)
+            results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=1)
             func.assign_new_model_parameters(results.position)
             init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables) # we need to reasign the parameters otherwise we start from the beginning each time
-            epochs = epochs +1000
+            epochs = epochs +10
             L_iter = L_iter+1
             
             # after training, the final optimized parameters are still in results.position
             # so we have to manually put them back to the model
             
             if np.mod(L_iter,1)==0:
+                for i, w in enumerate(model_mean.weights): print(i, w.name)
+
                 model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
                 pred = model_mean.predict(X_train,batch_size=32)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
@@ -508,9 +510,6 @@ else:
             # so we have to manually put them back to the model
             
             if np.mod(L_iter,1)==0:
-                if os.path.isFile(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5'):
-                    # delete file if the epoch file exists
-                    os.remove(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
                 model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
                 pred = model_mean.predict(X_train,batch_size=32)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
@@ -529,9 +528,6 @@ else:
                 # if there is not enough time to complete the next epoch, exit
                 print("Remaining time is insufficient for another epoch, exiting...")
                 # save the last epoch before exiting
-                if os.path.isFile(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5'):
-                    # delete file if the epoch file exists
-                    os.remove(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
                 model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
                 pred = model_mean.predict(X_train,batch_size=32)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
