@@ -120,7 +120,7 @@ else:
 
 # read the data
 
-base_dir = SLURM_TMPDIR+'/data/mazi_fixed/'
+base_dir = HOMEDIR+'/data/mazi_fixed/'
 meanVelocityFile = h5py.File(base_dir+'meanField.mat','r')
 configFile = h5py.File(base_dir+'configuration.mat','r')
 reynoldsStressFile = h5py.File(base_dir+'reynoldsStresses.mat','r')
