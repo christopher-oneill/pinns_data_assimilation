@@ -167,8 +167,8 @@ for k in range(len(fourier_mode_numbers)):
     psi_r_pred = np.array(fourier_mode_structs[k]['pred'][:,10])*MAX_psi
     psi_i_pred = np.array(fourier_mode_structs[k]['pred'][:,11])*MAX_psi
     
-    mode_velocity_x = np.real(np.matmul(np.reshape(phi_xr_pred+1j*phi_xi_pred,[phi_xr_pred.size,1]),phase_vector))
-    mode_velocity_y = np.real(np.matmul(np.reshape(phi_yr_pred+1j*phi_yi_pred,[phi_yr_pred.size,1]),phase_vector))
+    mode_velocity_x = 2.0*np.real(np.matmul(np.reshape(phi_xr_pred+1j*phi_xi_pred,[phi_xr_pred.size,1]),phase_vector))
+    mode_velocity_y = 2.0*np.real(np.matmul(np.reshape(phi_yr_pred+1j*phi_yi_pred,[phi_yr_pred.size,1]),phase_vector))
     mode_pressure = np.real(np.matmul(np.reshape(psi_r_pred+1j*psi_i_pred,[phi_xr_pred.size,1]),phase_vector))
 
 
@@ -177,8 +177,8 @@ for k in range(len(fourier_mode_numbers)):
     PINNreconstructedVelocity[:,:,1] = PINNreconstructedVelocity[:,:,1] + mode_velocity_y
     PINNreconstructedPressure = PINNreconstructedPressure + mode_pressure
 
-for k in range(1,21):
-    mode_number = k-1
+for k in range(len(fourier_mode_numbers)):
+    mode_number = fourier_mode_numbers[k]-1
     omega = (1/(fs*fs))*np.array(fourierModeFile['fShort'][0,mode_number])*2*np.pi
     phase_vector = np.exp(1j*omega*time)
 
@@ -200,7 +200,7 @@ for k in range(1,21):
 
 velocityFieldGrid = np.reshape(velocityField,[np.shape(X_grid)[0],np.shape(X_grid)[1],nT,2])
 reconstructedVelocityGrid = np.reshape(reconstructedVelocity,[np.shape(X_grid)[0],np.shape(X_grid)[1],nT,2])
-
+reconstructedVelocityGridPINN = np.reshape(PINNreconstructedVelocity,[np.shape(X_grid)[0],np.shape(X_grid)[1],nT,2])
  
 grad_x = np.gradient(velocityFieldGrid,X_grid[:,0],axis=0)
 grad_y = np.gradient(velocityFieldGrid,Y_grid[0,:],axis=1)
@@ -232,7 +232,7 @@ for sn in range(snap_inds.size):
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
     plot.ylabel('y/D')
     fig.add_subplot(3,1,2)
-    plot.contourf(X_grid,Y_grid,reconstructedVelocityGrid[:,:,snap_inds[sn],0],levels=f1_levels)
+    plot.contourf(X_grid,Y_grid,reconstructedVelocityGridPINN[:,:,snap_inds[sn],0],levels=f1_levels)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.ylabel('y/D')
@@ -241,7 +241,7 @@ for sn in range(snap_inds.size):
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
     plot.axis('equal')
     fig.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,(velocityFieldGrid[:,:,snap_inds[sn],0]-reconstructedVelocityGrid[:,:,snap_inds[sn],0])/MAX_u,levels=21)
+    plot.contourf(X_grid,Y_grid,(velocityFieldGrid[:,:,snap_inds[sn],0]-reconstructedVelocityGridPINN[:,:,snap_inds[sn],0])/MAX_u,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.ylabel('y/D')
@@ -264,7 +264,7 @@ for sn in range(snap_inds.size):
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
     plot.ylabel('y/D')
     fig2.add_subplot(3,1,2)
-    plot.contourf(X_grid,Y_grid,reconstructedVelocityGrid[:,:,snap_inds[sn],1],levels=f1_levels)
+    plot.contourf(X_grid,Y_grid,reconstructedVelocityGridPINN[:,:,snap_inds[sn],1],levels=f1_levels)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.ylabel('y/D')
@@ -273,7 +273,7 @@ for sn in range(snap_inds.size):
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
     plot.axis('equal')
     fig2.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,(velocityFieldGrid[:,:,snap_inds[sn],1]-reconstructedVelocityGrid[:,:,snap_inds[sn],1])/MAX_u,levels=21)
+    plot.contourf(X_grid,Y_grid,(velocityFieldGrid[:,:,snap_inds[sn],1]-reconstructedVelocityGridPINN[:,:,snap_inds[sn],1])/MAX_u,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.ylabel('y/D')
@@ -285,18 +285,22 @@ for sn in range(snap_inds.size):
     plot.savefig(figure_prefix+'_uy_sn'+str(snap_inds[sn])+'.png',dpi=300)
     plot.close()
 
-    fig3 = plot.figure(3)
-    ax = fig3.add_subplot(3,1,1)
+
+    x_lim_vec = [0.5,10.0]
+    y_lim_vec = [-2.0,2.0]
+    f1_levels = np.linspace(-MAX_u,MAX_u,21)
+    fig = plot.figure(1)
+    ax = fig.add_subplot(3,1,1)
     plot.axis('equal')
-    plot.contourf(X_grid,Y_grid,velocityFieldGrid[:,:,snap_inds[sn],1],levels=f1_levels)
+    plot.contourf(X_grid,Y_grid,reconstructedVelocityGrid[:,:,snap_inds[sn],0],levels=f1_levels)
     plot.set_cmap('bwr')
     plot.colorbar()
     ax=plot.gca()
     ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
     plot.ylabel('y/D')
-    fig3.add_subplot(3,1,2)
-    plot.contourf(X_grid,Y_grid,reconstructedVelocityGrid[:,:,snap_inds[sn],1],levels=f1_levels)
+    fig.add_subplot(3,1,2)
+    plot.contourf(X_grid,Y_grid,reconstructedVelocityGridPINN[:,:,snap_inds[sn],0],levels=f1_levels)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.ylabel('y/D')
@@ -304,8 +308,8 @@ for sn in range(snap_inds.size):
     ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
     plot.axis('equal')
-    fig3.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,(velocityFieldGrid[:,:,snap_inds[sn],1]-reconstructedVelocityGrid[:,:,snap_inds[sn],1])/MAX_u,levels=21)
+    fig.add_subplot(3,1,3)
+    plot.contourf(X_grid,Y_grid,(reconstructedVelocityGrid[:,:,snap_inds[sn],0]-reconstructedVelocityGridPINN[:,:,snap_inds[sn],0])/MAX_u,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.ylabel('y/D')
@@ -314,4 +318,37 @@ for sn in range(snap_inds.size):
     ax=plot.gca()
     ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
     ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
-    plot.savefig(figure_prefix+'_vor_sn'+str(snap_inds[sn])+'.png',dpi=300)
+    plot.savefig(figure_prefix+'_LOM_ux_sn'+str(snap_inds[sn])+'.png',dpi=300)
+    plot.close()
+
+    fig2 = plot.figure(2)
+    ax = fig2.add_subplot(3,1,1)
+    plot.axis('equal')
+    plot.contourf(X_grid,Y_grid,reconstructedVelocityGrid[:,:,snap_inds[sn],1],levels=f1_levels)
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    ax=plot.gca()
+    ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
+    ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
+    plot.ylabel('y/D')
+    fig2.add_subplot(3,1,2)
+    plot.contourf(X_grid,Y_grid,reconstructedVelocityGridPINN[:,:,snap_inds[sn],1],levels=f1_levels)
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.ylabel('y/D')
+    ax=plot.gca()
+    ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
+    ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
+    plot.axis('equal')
+    fig2.add_subplot(3,1,3)
+    plot.contourf(X_grid,Y_grid,(reconstructedVelocityGrid[:,:,snap_inds[sn],1]-reconstructedVelocityGridPINN[:,:,snap_inds[sn],1])/MAX_u,levels=21)
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.ylabel('y/D')
+    plot.xlabel('x/D')
+    plot.axis('equal')
+    ax=plot.gca()
+    ax.set_xlim(left=x_lim_vec[0],right=x_lim_vec[1])
+    ax.set_ylim(bottom=y_lim_vec[0],top=y_lim_vec[1])
+    plot.savefig(figure_prefix+'_LOM_uy_sn'+str(snap_inds[sn])+'.png',dpi=300)
+    plot.close()

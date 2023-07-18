@@ -354,6 +354,7 @@ for k in training_cases:
     if SaveFig:
         plot.savefig(figure_prefix+'_mean_vpvp.png',dpi=300)
 
+  
 
     if PlotFig:
         plot.show()

@@ -104,7 +104,7 @@ else:
 # set the paths
 save_loc = HOMEDIR+'output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
-physics_loss_coefficient = 1.0
+physics_loss_coefficient = 2.0
 # set number of cores to compute on 
 tf.config.threading.set_intra_op_parallelism_threads(16)
 tf.config.threading.set_inter_op_parallelism_threads(16)
@@ -177,7 +177,7 @@ MAX_p= 1 # estimated maximum pressure, we should
 # reduce the collocation points to 25k
 colloc_limits1 = np.array([[-2.0,10.0],[-2.0,2.0]])
 colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-colloc_lhs1 = colloc_sample_lhs1(40000)
+colloc_lhs1 = colloc_sample_lhs1(80000)
 
 
 colloc_limits2 = np.array([[-1.0,3.0],[-1.5,1.5]])

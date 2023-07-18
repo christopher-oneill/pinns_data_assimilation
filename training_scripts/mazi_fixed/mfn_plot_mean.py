@@ -55,8 +55,9 @@ def create_directory_if_not_exists(path):
 # script
 
 output_base_dir = 'C:/projects/pinns_narval/sync/output/'
-data_dir = 'C:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
-case_prefix = 'mfg_mean'
+data_dir = 'C:/projects/pinns_narval/sync/data/mazi_fixed/'
+data_dir_grid = 'C:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
+case_prefix = 'mf_new_mean'
 
 
 
@@ -68,10 +69,11 @@ for k in training_cases:
     output_dir = output_base_dir+case_name + '_output/'
 
 
-    meanVelocityFile = h5py.File(data_dir+'meanVelocity.mat','r')
+    meanVelocityFile = h5py.File(data_dir+'meanField.mat','r')
     configFile = h5py.File(data_dir+'configuration.mat','r')
     meanPressureFile = h5py.File(data_dir+'meanPressure.mat','r')
-    reynoldsStressFile = h5py.File(data_dir+'reynoldsStress.mat','r')
+    reynoldsStressFile = h5py.File(data_dir+'reynoldsStresses.mat','r')
+    configFileGrid = h5py.File(data_dir_grid+'configuration.mat')
 
     predfilename,epoch_number = find_highest_numbered_file(output_dir+case_name+'_ep','[0-9]*','_pred.mat')
     predFile =  h5py.File(predfilename,'r')
@@ -83,19 +85,23 @@ for k in training_cases:
     SaveFig = True
     PlotFig = False
 
-    ux = np.array(meanVelocityFile['meanVelocity'][0,:]).transpose()
-    uy = np.array(meanVelocityFile['meanVelocity'][1,:]).transpose()
+    ux = np.array(meanVelocityFile['meanField'][0,:]).transpose()
+    ux = ux[:,0]
+    uy = np.array(meanVelocityFile['meanField'][1,:]).transpose()
+    uy = uy[:,0]
     p = np.array(meanPressureFile['meanPressure']).transpose()
     p = p[:,0]
-    upup = np.array(reynoldsStressFile['reynoldsStress'][0,:]).transpose()
-    upvp = np.array(reynoldsStressFile['reynoldsStress'][1,:]).transpose()
-    vpvp = np.array(reynoldsStressFile['reynoldsStress'][2,:]).transpose()
-
-    x = np.array(configFile['X_vec'][0,:])
-    X_grid = np.array(configFile['X_grid'])
-    y = np.array(configFile['X_vec'][1,:])
-    Y_grid = np.array(configFile['Y_grid'])
+    upup = np.array(reynoldsStressFile['reynoldsStresses'][0,:]).transpose()
+    upvp = np.array(reynoldsStressFile['reynoldsStresses'][1,:]).transpose()
+    vpvp = np.array(reynoldsStressFile['reynoldsStresses'][2,:]).transpose()
+    print(configFile.keys())
+    x = np.array(configFile['X'][0,:])
+    X_grid = np.array(configFileGrid['X_grid'])
+    y = np.array(configFile['X'][1,:])
+    Y_grid = np.array(configFileGrid['Y_grid'])
     d = np.array(configFile['cylinderDiameter'])[0]
+    x_vec_grid = np.array(configFileGrid['X_vec'][0,:])
+    y_vec_grid = np.array(configFileGrid['X_vec'][1,:])
 
     MAX_ux = np.max(ux)
     MAX_uy = np.max(uy)
@@ -113,7 +119,6 @@ for k in training_cases:
     upvp_pred = np.array(predFile['pred'][:,3])*MAX_upvp
     vpvp_pred = np.array(predFile['pred'][:,4])*MAX_vpvp
     # compute the estimated reynolds stress
-
 
     #upvp_pred = -np.multiply(np.reshape(nu_pred+nu_mol,[nu_pred.shape[0],1]),dudy+dvdx)
 
@@ -137,32 +142,48 @@ for k in training_cases:
 
     # note that the absolute value of the pressure doesnt matter, only grad p and grad2 p, so subtract the mean 
     #p_pred = p_pred-(1/3)*(upup+vpvp)#p_pred - (1/3)*(upup+vpvp)
-    cylinder_mask = (np.power(np.power(X_grid,2)+np.power(Y_grid,2),0.5)<(0.5*d))
-    ux_grid = np.reshape(ux,X_grid.shape)
+    cylinder_mask = np.power(np.power(X_grid,2.0)+np.power(Y_grid,2.0),0.5)<0.5*d
+    ux_grid = sp.interpolate.griddata((x,y),ux,(X_grid,Y_grid),method='cubic')
     ux_grid[cylinder_mask] = np.NaN
-    uy_grid = np.reshape(uy,X_grid.shape)
-    uy_grid[cylinder_mask] = np.NaN
-    p_grid = np.reshape(p,X_grid.shape)
-    p_grid[cylinder_mask] = np.NaN
-    ux_pred_grid = np.reshape(ux_pred,X_grid.shape)
+    ux_pred_grid = sp.interpolate.griddata((x,y),ux_pred,(X_grid,Y_grid),method='cubic')
     ux_pred_grid[cylinder_mask] = np.NaN
-    uy_pred_grid = np.reshape(uy_pred,X_grid.shape)
-    uy_pred_grid[cylinder_mask] = np.NaN
-    p_pred_grid = np.reshape(p_pred,X_grid.shape)
-    p_pred_grid[cylinder_mask] = np.NaN
-    upup_grid = np.reshape(upup,X_grid.shape)
-    upup_grid[cylinder_mask] = np.NaN
-    upup_pred_grid = np.reshape(upup_pred,X_grid.shape)
-    upup_pred_grid[cylinder_mask] = np.NaN
-    upvp_grid = np.reshape(upvp,X_grid.shape)
-    upvp_grid[cylinder_mask] = np.NaN
-    upvp_pred_grid = np.reshape(upvp_pred,X_grid.shape)
-    upvp_pred_grid[cylinder_mask] = np.NaN
-    vpvp_grid = np.reshape(vpvp,X_grid.shape)
-    vpvp_grid[cylinder_mask] = np.NaN
-    vpvp_pred_grid = np.reshape(vpvp_pred,X_grid.shape)
-    vpvp_pred_grid[cylinder_mask] = np.NaN
+    ux_err_grid = sp.interpolate.griddata((x,y),ux_pred-ux,(X_grid,Y_grid),method='cubic')
+    ux_err_grid[cylinder_mask] = np.NaN
 
+    uy_grid = sp.interpolate.griddata((x,y),uy,(X_grid,Y_grid),method='cubic')
+    uy_grid[cylinder_mask] = np.NaN
+    uy_pred_grid = sp.interpolate.griddata((x,y),uy_pred,(X_grid,Y_grid),method='cubic')
+    uy_pred_grid[cylinder_mask] = np.NaN
+    uy_err_grid = sp.interpolate.griddata((x,y),uy_pred-uy,(X_grid,Y_grid),method='cubic')
+    uy_err_grid[cylinder_mask] = np.NaN
+
+    p_grid = sp.interpolate.griddata((x,y),p,(X_grid,Y_grid),method='cubic')
+    p_grid[cylinder_mask] = np.NaN
+    p_pred_grid = sp.interpolate.griddata((x,y),p_pred,(X_grid,Y_grid),method='cubic')
+    p_pred_grid[cylinder_mask] = np.NaN
+    p_err_grid = sp.interpolate.griddata((x,y),p_pred-p,(X_grid,Y_grid),method='cubic')
+    p_err_grid[cylinder_mask] = np.NaN
+
+    upup_grid = sp.interpolate.griddata((x,y),upup,(X_grid,Y_grid),method='cubic')
+    upup_grid[cylinder_mask] = np.NaN
+    upup_pred_grid = sp.interpolate.griddata((x,y),upup_pred,(X_grid,Y_grid),method='cubic')
+    upup_pred_grid[cylinder_mask] = np.NaN
+    upup_err_grid = sp.interpolate.griddata((x,y),upup_pred-upup,(X_grid,Y_grid),method='cubic')
+    upup_err_grid[cylinder_mask] = np.NaN
+
+    upvp_grid = sp.interpolate.griddata((x,y),upvp,(X_grid,Y_grid),method='cubic')
+    upvp_grid[cylinder_mask] = np.NaN
+    upvp_pred_grid = sp.interpolate.griddata((x,y),upvp_pred,(X_grid,Y_grid),method='cubic')
+    upvp_pred_grid[cylinder_mask] = np.NaN
+    upvp_err_grid = sp.interpolate.griddata((x,y),upvp_pred-upvp,(X_grid,Y_grid),method='cubic')
+    upvp_err_grid[cylinder_mask] = np.NaN
+
+    vpvp_grid = sp.interpolate.griddata((x,y),vpvp,(X_grid,Y_grid),method='cubic')
+    vpvp_grid[cylinder_mask] = np.NaN
+    vpvp_pred_grid = sp.interpolate.griddata((x,y),vpvp_pred,(X_grid,Y_grid),method='cubic')
+    vpvp_pred_grid[cylinder_mask] = np.NaN
+    vpvp_err_grid = sp.interpolate.griddata((x,y),vpvp_pred-vpvp,(X_grid,Y_grid),method='cubic')
+    vpvp_err_grid[cylinder_mask] = np.NaN
 
     f1_levels = np.linspace(-MAX_ux,MAX_ux,21)
     fig = plot.figure(1)
@@ -185,7 +206,7 @@ for k in training_cases:
     ax.set_ylim(bottom=-2.0,top=2.0)
     plot.axis('equal')
     fig.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,(ux_pred_grid-ux_grid)/MAX_ux,levels=21)
+    plot.contourf(X_grid,Y_grid,ux_err_grid/MAX_ux,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.ylabel('y/D')
@@ -221,7 +242,7 @@ for k in training_cases:
     ax.set_ylim(bottom=-2.0,top=2.0)
     plot.ylabel('y/D')
     fig2.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,(uy_pred_grid-uy_grid)/MAX_uy,levels=21)
+    plot.contourf(X_grid,Y_grid,uy_err_grid/MAX_uy,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.ylabel('y/D')
@@ -255,7 +276,7 @@ for k in training_cases:
     ax.set_ylim(bottom=-2.0,top=2.0)
     plot.ylabel('y/D')
     fig3.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,(p_pred_grid-p_grid)/MAX_p,21)
+    plot.contourf(X_grid,Y_grid,p_err_grid/MAX_p,21)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.axis('equal')
@@ -289,7 +310,7 @@ for k in training_cases:
     ax.set_ylim(bottom=-2.0,top=2.0)
     plot.ylabel('y/D')
     fig4.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,(upup_pred_grid-upup_grid)/MAX_upup,21)
+    plot.contourf(X_grid,Y_grid,upup_err_grid/MAX_upup,21)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.axis('equal')
@@ -323,7 +344,7 @@ for k in training_cases:
     ax.set_ylim(bottom=-2.0,top=2.0)
     plot.ylabel('y/D')
     fig5.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,(upvp_pred_grid-upvp_grid)/MAX_upvp,21)
+    plot.contourf(X_grid,Y_grid,upvp_err_grid/MAX_upvp,21)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.axis('equal')
@@ -357,7 +378,7 @@ for k in training_cases:
     ax.set_ylim(bottom=-2.0,top=2.0)
     plot.ylabel('y/D')
     fig6.add_subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,(vpvp_pred_grid-vpvp_grid)/MAX_vpvp,21)
+    plot.contourf(X_grid,Y_grid,vpvp_err_grid/MAX_vpvp,21)
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.axis('equal')
@@ -375,15 +396,13 @@ for k in training_cases:
     print(errorfilename)
     if os.path.isfile(errorfilename):
         errorFile =  h5py.File(errorfilename,'r')
-        print(errorFile.keys())
-        mx = np.array(errorFile['mxr'])
-        my =  np.array(errorFile['myr'])
-        mass = np.array(errorFile['massr'])
+        mx = np.array(errorFile['mxr_grid'])
+        my =  np.array(errorFile['myr_grid'])
+        mass = np.array(errorFile['massr_grid'])
 
         
 
         MAX_u = np.nanmax(np.power(np.power(ux.flatten(),2)+np.power(uy.flatten(),2),0.5))
-        print(MAX_u)
 
         mx_grid = mx.reshape(X_grid.shape)
         mx_grid[cylinder_mask]=np.NaN
@@ -392,12 +411,18 @@ for k in training_cases:
         mass_grid = mass.reshape(X_grid.shape)
         mass_grid[cylinder_mask]=np.NaN
 
-        mx_b,mx_t = np.nanpercentile(mx/MAX_u,[1,99])
-        levels_mx = np.linspace(mx_b,mx_t,21)
-        my_b,my_t = np.nanpercentile(my/MAX_u,[1,99])
-        levels_my = np.linspace(my_b,my_t,21)
-        mass_b,mass_t = np.nanpercentile(mass/MAX_u,[1,99])
-        levels_mass = np.linspace(mass_b,mass_t,21)
+        mx_b,mx_t = np.nanpercentile(mx,[1,99])
+        levels_mx = np.linspace(mx_b,mx_t,21)/MAX_u
+        mx_grid[mx_grid>mx_t] = mx_t
+        mx_grid[mx_grid<mx_b] = mx_b
+        my_b,my_t = np.nanpercentile(my,[1,99])
+        my_grid[my_grid>my_t] = my_t
+        my_grid[my_grid<my_b] = my_b
+        levels_my = np.linspace(my_b,my_t,21)/MAX_u
+        mass_b,mass_t = np.nanpercentile(mass,[1,99])
+        mass_grid[mass_grid>mass_t] = mass_t
+        mass_grid[mass_grid<mass_b] = mass_b
+        levels_mass = np.linspace(mass_b,mass_t,21)/MAX_u
         fig7 = plot.figure(7)
         ax = fig7.add_subplot(3,1,1)
         plot.axis('equal')
