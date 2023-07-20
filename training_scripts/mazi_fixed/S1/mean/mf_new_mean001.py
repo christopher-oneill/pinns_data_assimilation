@@ -174,27 +174,31 @@ print('min_y: ',MIN_y)
 
 MAX_p= 1 # estimated maximum pressure, we should 
 
-# reduce the collocation points to 25k
-colloc_limits1 = np.array([[-2.0,10.0],[-2.0,2.0]])
-colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-colloc_lhs1 = colloc_sample_lhs1(80000)
+def colloc_points():
+    # reduce the collocation points to 25k
+    colloc_limits1 = np.array([[-2.0,10.0],[-2.0,2.0]])
+    colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
+    colloc_lhs1 = colloc_sample_lhs1(80000)
 
 
-colloc_limits2 = np.array([[-1.0,3.0],[-1.5,1.5]])
-colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
-colloc_lhs2 = colloc_sample_lhs2(40000)
+    colloc_limits2 = np.array([[-1.0,3.0],[-1.5,1.5]])
+    colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
+    colloc_lhs2 = colloc_sample_lhs2(40000)
 
-colloc_merged = np.vstack((colloc_lhs1,colloc_lhs2))
+    colloc_merged = np.vstack((colloc_lhs1,colloc_lhs2))
 
 
-# remove points inside the cylinder
-c1_loc = np.array([0,0],dtype=np.float64)
-cylinder_inds = np.less(np.power(np.power(colloc_merged[:,0]-c1_loc[0],2)+np.power(colloc_merged[:,1]-c1_loc[1],2),0.5*d),0.5)
-print(cylinder_inds.shape)
-colloc_merged = np.delete(colloc_merged,cylinder_inds[0,:],axis=0)
-print('colloc_merged.shape',colloc_merged.shape)
+    # remove points inside the cylinder
+    c1_loc = np.array([0,0],dtype=np.float64)
+    cylinder_inds = np.less(np.power(np.power(colloc_merged[:,0]-c1_loc[0],2)+np.power(colloc_merged[:,1]-c1_loc[1],2),0.5*d),0.5)
+    print(cylinder_inds.shape)
+    colloc_merged = np.delete(colloc_merged,cylinder_inds[0,:],axis=0)
+    print('colloc_merged.shape',colloc_merged.shape)
 
-f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
+    f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
+    return f_colloc_train
+
+f_colloc_train = colloc_points()
 
 # normalize the training data:
 x_train = x/MAX_x
@@ -445,11 +449,14 @@ if node_name ==LOCAL_NODE:
         from pinns_galerkin_viv.lib.LBFGS_example import function_factory
         import tensorflow_probability as tfp
 
-        func = function_factory(model_mean, mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec), X_train, O_train)
-        init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables)
         L_iter = 0
 
         while True:
+            # randomly select new collocation points every LGFBS step
+            f_colloc_train = colloc_points()
+            func = function_factory(model_mean, mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec), X_train, O_train)
+            init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables)
+        
                 # train the model with L-BFGS solver
             results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=1)
             func.assign_new_model_parameters(results.position)
@@ -513,12 +520,14 @@ else:
         from pinns_galerkin_viv.lib.LBFGS_example import function_factory
         import tensorflow_probability as tfp
 
-        func = function_factory(model_mean, mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec), X_train, O_train)
-        init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables)
         L_iter = 0
 
         while True:
-                # train the model with L-BFGS solver
+            # randomize the collocation points each LGFBS step
+            f_colloc_train = colloc_points()
+            func = function_factory(model_mean, mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec), X_train, O_train)
+            init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables)
+            # train the model with L-BFGS solver
             results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=333)
             func.assign_new_model_parameters(results.position)
             init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables) # we need to reasign the parameters otherwise we start from the beginning each time
