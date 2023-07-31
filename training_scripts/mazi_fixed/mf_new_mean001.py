@@ -73,7 +73,7 @@ node_name = platform.node()
 PLOT = False
 
 
-job_name = 'mfg_mean007'
+job_name = 'mf_new_mean001'
 
 # Job mgf_mean005
 # mean field assimilation for the fixed cylinder, now on a regular grid, 4 gpu
@@ -100,11 +100,12 @@ else:
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     sys.path.append(HOMEDIR+'code/')
     
+from lib.downsample import compute_downsample_inds
 
 # set the paths
 save_loc = HOMEDIR+'output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
-physics_loss_coefficient = 1.0
+physics_loss_coefficient = 2.0
 # set number of cores to compute on 
 tf.config.threading.set_intra_op_parallelism_threads(16)
 tf.config.threading.set_inter_op_parallelism_threads(16)
@@ -119,28 +120,36 @@ else:
 
 
 # read the data
-base_dir = HOMEDIR+'data/mazi_fixed_grid/'
-meanVelocityFile = h5py.File(base_dir+'meanVelocity.mat','r')
+
+base_dir = HOMEDIR+'/data/mazi_fixed/'
+meanVelocityFile = h5py.File(base_dir+'meanField.mat','r')
 configFile = h5py.File(base_dir+'configuration.mat','r')
-reynoldsStressFile = h5py.File(base_dir+'reynoldsStress.mat','r')
+reynoldsStressFile = h5py.File(base_dir+'reynoldsStresses.mat','r')
 
 
-ux = np.array(meanVelocityFile['meanVelocity'][0,:]).transpose()
-uy = np.array(meanVelocityFile['meanVelocity'][1,:]).transpose()
-
-uxppuxpp = np.array(reynoldsStressFile['reynoldsStress'][0,:]).transpose()
-uxppuypp = np.array(reynoldsStressFile['reynoldsStress'][1,:]).transpose()
-uyppuypp = np.array(reynoldsStressFile['reynoldsStress'][2,:]).transpose()
+grid_dir = HOMEDIR+'data/mazi_fixed_grid/'
+configFileGrid = h5py.File(grid_dir+'configuration.mat','r')
 
 
-print(configFile['X_vec'].shape)
-x = np.array(configFile['X_vec'][0,:])
-y = np.array(configFile['X_vec'][1,:])
+ux = np.array(meanVelocityFile['meanField'][0,:]).transpose()
+uy = np.array(meanVelocityFile['meanField'][1,:]).transpose()
+
+uxppuxpp = np.array(reynoldsStressFile['reynoldsStresses'][0,:]).transpose()
+uxppuypp = np.array(reynoldsStressFile['reynoldsStresses'][1,:]).transpose()
+uyppuypp = np.array(reynoldsStressFile['reynoldsStresses'][2,:]).transpose()
+
+print(configFile.keys())
+print(configFile['X'].shape)
+x = np.array(configFile['X'][0,:])
+y = np.array(configFile['X'][1,:])
 d = np.array(configFile['cylinderDiameter'])
 print('u.shape: ',ux.shape)
 print('x.shape: ',x.shape)
 print('y.shape: ',y.shape)
 print('d: ',d.shape)
+x_vec_grid = np.array(configFileGrid['X_vec'][0,:])
+y_vec_grid = np.array(configFileGrid['X_vec'][1,:])
+
 
 nu_mol = 0.0066667
 
@@ -166,27 +175,31 @@ print('min_y: ',MIN_y)
 
 MAX_p= 1 # estimated maximum pressure, we should 
 
-# reduce the collocation points to 25k
-colloc_limits1 = np.array([[-2.0,10.0],[-2.0,2.0]])
-colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-colloc_lhs1 = colloc_sample_lhs1(40000)
+def colloc_points():
+    # reduce the collocation points to 25k
+    colloc_limits1 = np.array([[-2.0,10.0],[-2.0,2.0]])
+    colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
+    colloc_lhs1 = colloc_sample_lhs1(80000)
 
 
-colloc_limits2 = np.array([[-1.0,3.0],[-1.5,1.5]])
-colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
-colloc_lhs2 = colloc_sample_lhs2(40000)
+    colloc_limits2 = np.array([[-1.0,3.0],[-1.5,1.5]])
+    colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
+    colloc_lhs2 = colloc_sample_lhs2(40000)
 
-colloc_merged = np.vstack((colloc_lhs1,colloc_lhs2))
+    colloc_merged = np.vstack((colloc_lhs1,colloc_lhs2))
 
 
-# remove points inside the cylinder
-c1_loc = np.array([0,0],dtype=np.float64)
-cylinder_inds = np.less(np.power(np.power(colloc_merged[:,0]-c1_loc[0],2)+np.power(colloc_merged[:,1]-c1_loc[1],2),0.5*d),0.5)
-print(cylinder_inds.shape)
-colloc_merged = np.delete(colloc_merged,cylinder_inds[0,:],axis=0)
-print('colloc_merged.shape',colloc_merged.shape)
+    # remove points inside the cylinder
+    c1_loc = np.array([0,0],dtype=np.float64)
+    cylinder_inds = np.less(np.power(np.power(colloc_merged[:,0]-c1_loc[0],2)+np.power(colloc_merged[:,1]-c1_loc[1],2),0.5*d),0.5)
+    print(cylinder_inds.shape)
+    colloc_merged = np.delete(colloc_merged,cylinder_inds[0,:],axis=0)
+    print('colloc_merged.shape',colloc_merged.shape)
 
-f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
+    f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
+    return f_colloc_train
+
+f_colloc_train = colloc_points()
 
 # normalize the training data:
 x_train = x/MAX_x
@@ -213,10 +226,12 @@ O_train = np.hstack(((ux_train).reshape(-1,1),(uy_train).reshape(-1,1),(uxppuxpp
 # note that the order here needs to be the same as the split inside the network!
 X_train = np.hstack((x_train.reshape(-1,1),y_train.reshape(-1,1)))
 
+X_train_grid = np.hstack((x_vec_grid.reshape(-1,1)/MAX_x,y_vec_grid.reshape(-1,1)/MAX_y))
+
 print('X_train.shape: ',X_train.shape)
 print('O_train.shape: ',O_train.shape)
 
-
+  
 class resBlock(keras.layers.Layer):
     # a simple residual block
     def __init__(self,units):
@@ -227,7 +242,25 @@ class resBlock(keras.layers.Layer):
     def call(self,inputs):
         return tf.keras.activations.tanh(self.Linear(self.Dense(inputs))+inputs)
     
+class QresBlock(keras.layers.Layer):
+    # quadratic residual block from:
+    # Bu, J., & Karpatne, A. (2021). Quadratic residual networks: A new class of neural networks for solving forward and inverse problems in physics involving pdes. In Proceedings of the 2021 SIAM International Conference on Data Mining (SDM) (pp. 675-683). Society for Industrial and Applied Mathematics.
 
+    def __init__(self,units):
+        super().__init__()
+        self.units = units
+
+    def build(self, input_shape):
+        self.w_init = tf.random_normal_initializer()
+        self.w1 = tf.Variable(initial_value=self.w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True,name='w1')
+        self.w2 = tf.Variable(initial_value=self.w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True,name='w2')
+        self.b_init = tf.zeros_initializer()
+        self.b1 = tf.Variable(initial_value=self.b_init(shape=(self.units,),dtype=tf.float64),trainable=True,name='b1')    
+    
+    def call(self,inputs):
+        self.xw1 = tf.matmul(inputs,self.w1)
+        return tf.keras.activations.tanh(tf.multiply(self.xw1,tf.matmul(inputs,self.w2))+self.xw1+self.b1)
+    
 
 
 @tf.function
@@ -354,7 +387,7 @@ if len(checkpoint_files)>0:
         files_epoch_number[f_indx]=int(checkpoint_files[f_indx][(re_result.start()+2):re_result.end()])
     epochs = np.uint(np.max(files_epoch_number))
     print(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
-    model_mean = keras.models.load_model(HOMEDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec),'resBlock':resBlock})
+    model_mean = keras.models.load_model(HOMEDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec),'QresBlock':QresBlock})
     model_mean.summary()
 else:
     # if not, we train from the beginning
@@ -376,7 +409,7 @@ else:
             model_mean = keras.Sequential()
             model_mean.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
             for i in range(dense_layers-1):
-                model_mean.add(resBlock(dense_nodes))
+                model_mean.add(QresBlock(dense_nodes))
             model_mean.add(keras.layers.Dense(6,activation='linear'))
             model_mean.summary()
             model_mean.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = mean_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
@@ -387,7 +420,7 @@ else:
             model_mean = keras.Sequential()
             model_mean.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
             for i in range(dense_layers-1):
-                model_mean.add(resBlock(dense_nodes))
+                model_mean.add(QresBlock(dense_nodes))
             model_mean.add(keras.layers.Dense(6,activation='linear'))
             model_mean.summary()
             model_mean.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = mean_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
@@ -417,16 +450,19 @@ if node_name ==LOCAL_NODE:
         from pinns_galerkin_viv.lib.LBFGS_example import function_factory
         import tensorflow_probability as tfp
 
-        func = function_factory(model_mean, mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec), X_train, O_train)
-        init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables)
         L_iter = 0
 
         while True:
+            # randomly select new collocation points every LGFBS step
+            f_colloc_train = colloc_points()
+            func = function_factory(model_mean, mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec), X_train, O_train)
+            init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables)
+        
                 # train the model with L-BFGS solver
-            results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=333)
+            results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=1)
             func.assign_new_model_parameters(results.position)
             init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables) # we need to reasign the parameters otherwise we start from the beginning each time
-            epochs = epochs +1000
+            epochs = epochs +10
             L_iter = L_iter+1
             
             # after training, the final optimized parameters are still in results.position
@@ -435,14 +471,20 @@ if node_name ==LOCAL_NODE:
             if np.mod(L_iter,1)==0:
                 model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
                 pred = model_mean.predict(X_train,batch_size=32)
+                pred_grid = model_mean.predict(X_train_grid,batch_size=32)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
                 h5f.create_dataset('pred',data=pred)
+                h5f.create_dataset('pred_grid',data=pred_grid)
                 h5f.close()
                 t_mx,t_my,t_mass = net_f_cartesian(X_train)
+                t_mx_grid,t_my_grid,t_mass_grid = net_f_cartesian(X_train_grid)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
                 h5f.create_dataset('mxr',data=t_mx)
                 h5f.create_dataset('myr',data=t_my)
                 h5f.create_dataset('massr',data=t_mass)
+                h5f.create_dataset('mxr_grid',data=t_mx_grid)
+                h5f.create_dataset('myr_grid',data=t_my_grid)
+                h5f.create_dataset('massr_grid',data=t_mass_grid)
                 h5f.close()
 
             # check if we should exit
@@ -453,14 +495,19 @@ if node_name ==LOCAL_NODE:
                 # save the last epoch before exiting
                 model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
                 pred = model_mean.predict(X_train,batch_size=32)
+                pred_grid = model_mean.predict(X_train_grid,batch_size=32)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
                 h5f.create_dataset('pred',data=pred)
                 h5f.close()
                 t_mx,t_my,t_mass = net_f_cartesian(X_train)
+                t_mx_grid,t_my_grid,t_mass_grid = net_f_cartesian(X_train_grid)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
                 h5f.create_dataset('mxr',data=t_mx)
                 h5f.create_dataset('myr',data=t_my)
                 h5f.create_dataset('massr',data=t_mass)
+                h5f.create_dataset('mxr_grid',data=t_mx_grid)
+                h5f.create_dataset('myr_grid',data=t_my_grid)
+                h5f.create_dataset('massr_grid',data=t_mass_grid)
                 h5f.close()
                 exit()
             last_epoch_time = datetime.now()
@@ -474,12 +521,14 @@ else:
         from pinns_galerkin_viv.lib.LBFGS_example import function_factory
         import tensorflow_probability as tfp
 
-        func = function_factory(model_mean, mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec), X_train, O_train)
-        init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables)
         L_iter = 0
 
         while True:
-                # train the model with L-BFGS solver
+            # randomize the collocation points each LGFBS step
+            f_colloc_train = colloc_points()
+            func = function_factory(model_mean, mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec), X_train, O_train)
+            init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables)
+            # train the model with L-BFGS solver
             results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=333)
             func.assign_new_model_parameters(results.position)
             init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables) # we need to reasign the parameters otherwise we start from the beginning each time
@@ -492,14 +541,20 @@ else:
             if np.mod(L_iter,1)==0:
                 model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
                 pred = model_mean.predict(X_train,batch_size=32)
+                pred_grid = model_mean.predict(X_train_grid,batch_size=32)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
                 h5f.create_dataset('pred',data=pred)
+                h5f.create_dataset('pred_grid',data=pred_grid)
                 h5f.close()
                 t_mx,t_my,t_mass = net_f_cartesian(X_train)
+                t_mx_grid,t_my_grid,t_mass_grid = net_f_cartesian(X_train_grid)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
                 h5f.create_dataset('mxr',data=t_mx)
                 h5f.create_dataset('myr',data=t_my)
                 h5f.create_dataset('massr',data=t_mass)
+                h5f.create_dataset('mxr_grid',data=t_mx_grid)
+                h5f.create_dataset('myr_grid',data=t_my_grid)
+                h5f.create_dataset('massr_grid',data=t_mass_grid)
                 h5f.close()
 
             # check if we should exit
@@ -510,14 +565,20 @@ else:
                 # save the last epoch before exiting
                 model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
                 pred = model_mean.predict(X_train,batch_size=32)
+                pred_grid = model_mean.predict(X_train_grid,batch_size=32)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
                 h5f.create_dataset('pred',data=pred)
+                h5f.create_dataset('pred_grid',data=pred_grid)
                 h5f.close()
                 t_mx,t_my,t_mass = net_f_cartesian(X_train)
+                t_mx_grid,t_my_grid,t_mass_grid = net_f_cartesian(X_train_grid)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
                 h5f.create_dataset('mxr',data=t_mx)
                 h5f.create_dataset('myr',data=t_my)
                 h5f.create_dataset('massr',data=t_mass)
+                h5f.create_dataset('mxr_grid',data=t_mx_grid)
+                h5f.create_dataset('myr_grid',data=t_my_grid)
+                h5f.create_dataset('massr_grid',data=t_mass_grid)
                 h5f.close()
                 exit()
             last_epoch_time = datetime.now()

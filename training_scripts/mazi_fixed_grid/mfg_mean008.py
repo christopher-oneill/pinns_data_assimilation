@@ -72,7 +72,6 @@ node_name = platform.node()
 
 PLOT = False
 
-
 job_name = 'mfg_mean008'
 
 # Job mgf_mean005

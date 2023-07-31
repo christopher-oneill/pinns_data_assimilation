@@ -4,6 +4,9 @@ import matplotlib.pyplot as plot
 import scipy as sp
 import os
 import re
+import sys
+sys.path.append('C:/projects/pinns_local/code/')
+from pinns_galerkin_viv.lib.downsample import compute_downsample_inds
 
 # functions
 def find_highest_numbered_file(path_prefix, number_pattern, suffix):
@@ -52,20 +55,27 @@ def create_directory_if_not_exists(path):
         os.makedirs(path)
 
 
+
+
 # script
 
 output_base_dir = 'C:/projects/pinns_beluga/sync/output/'
 data_dir = 'C:/projects/pinns_beluga/sync/data/mazi_fixed_grid/'
-case_prefix = 'mfg_mean'
+case_prefix = 'mfg_new_mean'
+supersample_factor = 8
 
-
-
-training_cases = extract_matching_integers(output_base_dir+case_prefix,'[0-9][0-9][0-9]','_output')
+if supersample_factor>1:
+    training_cases = extract_matching_integers(output_base_dir+case_prefix,'[0-9][0-9][0-9]','_S'+str(supersample_factor)+'_output')
+else:
+    training_cases = extract_matching_integers(output_base_dir+case_prefix,'[0-9][0-9][0-9]','_output')
 
 for k in training_cases:
     case_name = case_prefix + "{:03d}".format(k)
     print('This case is: ', case_name)
-    output_dir = output_base_dir+case_name + '_output/'
+    if supersample_factor>1:
+        output_dir = output_base_dir+case_name + '_S'+str(supersample_factor)+'_output/'
+    else:
+        output_dir = output_base_dir+case_name + '_output/'
 
 
     meanVelocityFile = h5py.File(data_dir+'meanVelocity.mat','r')
@@ -73,7 +83,10 @@ for k in training_cases:
     meanPressureFile = h5py.File(data_dir+'meanPressure.mat','r')
     reynoldsStressFile = h5py.File(data_dir+'reynoldsStress.mat','r')
 
-    predfilename,epoch_number = find_highest_numbered_file(output_dir+case_name+'_ep','[0-9]*','_pred.mat')
+    if supersample_factor>1:
+        predfilename,epoch_number = find_highest_numbered_file(output_dir+case_name+'_S'+str(supersample_factor)+'_ep','[0-9]*','_pred.mat')
+    else:
+        predfilename,epoch_number = find_highest_numbered_file(output_dir+case_name+'_ep','[0-9]*','_pred.mat')
     predFile =  h5py.File(predfilename,'r')
 
     figures_folder = output_dir+'figures/'
@@ -96,6 +109,18 @@ for k in training_cases:
     y = np.array(configFile['X_vec'][1,:])
     Y_grid = np.array(configFile['Y_grid'])
     d = np.array(configFile['cylinderDiameter'])[0]
+
+    if supersample_factor>1:
+        n_x = X_grid.shape[0]
+        n_y = X_grid.shape[1]
+        linear_downsample_inds = compute_downsample_inds(supersample_factor,n_x,n_y)
+
+        x_downsample = x[linear_downsample_inds]
+        y_downsample = y[linear_downsample_inds]
+        valid_inds = np.power(np.power(x_downsample,2.0)+np.power(y_downsample,2.0),0.5)>0.5*d
+        x_downsample = x_downsample[valid_inds]
+        y_downsample = y_downsample[valid_inds]
+
 
     MAX_ux = np.max(ux)
     MAX_uy = np.max(uy)
@@ -175,6 +200,9 @@ for k in training_cases:
     ax.set_xlim(left=-2.0,right=10.0)
     ax.set_ylim(bottom=-2.0,top=2.0)
     plot.ylabel('y/D')
+    if supersample_factor>1:
+        dots = plot.scatter(x_downsample,y_downsample,0.1,color='black')
+
     fig.add_subplot(3,1,2)
     plot.contourf(X_grid,Y_grid,ux_pred_grid,levels=f1_levels)
     plot.set_cmap('bwr')
@@ -208,6 +236,8 @@ for k in training_cases:
     ax.set_xlim(left=-2.0,right=10.0)
     ax.set_ylim(bottom=-2.0,top=2.0)
     plot.ylabel('y/D')
+    if supersample_factor>1:
+        dots = plot.scatter(x_downsample,y_downsample,0.1,color='black')
     fig2.add_subplot(3,1,2)
     plot.contourf(X_grid,Y_grid,uy_pred_grid,levels=f2_levels)
     plot.set_cmap('bwr')
@@ -279,6 +309,8 @@ for k in training_cases:
     ax=plot.gca()
     ax.set_xlim(left=-2.0,right=10.0)
     ax.set_ylim(bottom=-2.0,top=2.0)
+    if supersample_factor>1:
+        dots = plot.scatter(x_downsample,y_downsample,0.1,color='black')
     fig4.add_subplot(3,1,2)
     plot.contourf(X_grid,Y_grid,upup_pred_grid,f4_levels)
     plot.set_cmap('bwr')
@@ -313,6 +345,8 @@ for k in training_cases:
     ax=plot.gca()
     ax.set_xlim(left=-2.0,right=10.0)
     ax.set_ylim(bottom=-2.0,top=2.0)
+    if supersample_factor>1:
+        dots = plot.scatter(x_downsample,y_downsample,0.1,color='black')
     fig5.add_subplot(3,1,2)
     plot.contourf(X_grid,Y_grid,upvp_pred_grid,f5_levels)
     plot.set_cmap('bwr')
@@ -347,6 +381,8 @@ for k in training_cases:
     ax=plot.gca()
     ax.set_xlim(left=-2.0,right=10.0)
     ax.set_ylim(bottom=-2.0,top=2.0)
+    if supersample_factor>1:
+        dots = plot.scatter(x_downsample,y_downsample,0.1,color='black')
     fig6.add_subplot(3,1,2)
     plot.contourf(X_grid,Y_grid,vpvp_pred_grid,f6_levels)
     plot.set_cmap('bwr')
