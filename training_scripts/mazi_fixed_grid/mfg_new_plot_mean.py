@@ -59,10 +59,10 @@ def create_directory_if_not_exists(path):
 
 # script
 
-output_base_dir = 'C:/projects/pinns_beluga/sync/output/'
-data_dir = 'C:/projects/pinns_beluga/sync/data/mazi_fixed_grid/'
+output_base_dir = 'C:/projects/pinns_narval/sync/output/'
+data_dir = 'C:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
 case_prefix = 'mfg_new_mean'
-supersample_factor = 8
+supersample_factor = 1
 
 if supersample_factor>1:
     training_cases = extract_matching_integers(output_base_dir+case_prefix,'[0-9][0-9][0-9]','_S'+str(supersample_factor)+'_output')
