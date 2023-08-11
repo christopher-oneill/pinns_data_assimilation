@@ -141,6 +141,20 @@ y = np.array(configFile['X_vec'][1,:])
 y_test = y
 d = np.array(configFile['cylinderDiameter'])
 
+# note that we need to get these before we downsample, otherwise we will have inconsistent 
+# normalization depending on the supersampling factor which causes chaos elswhere
+MAX_x = max(x.flatten())
+MAX_y = max(y.flatten())
+MAX_ux = max(ux.flatten())
+MAX_uy = max(uy.flatten())
+MIN_x = min(x.flatten())
+MIN_y = min(y.flatten())
+MIN_ux = min(ux.flatten())
+MIN_uy = min(uy.flatten())
+MAX_uxppuxpp = max(uxppuxpp.flatten())
+MAX_uxppuypp = max(uxppuypp.flatten())
+MAX_uyppuypp = max(uyppuypp.flatten())
+
 # if we are downsampling and then upsampling, downsample the source data
 if supersample_factor>1:
     n_x = np.array(configFile['x_grid']).size
@@ -160,20 +174,6 @@ print('y.shape: ',y.shape)
 print('d: ',d.shape)
 
 nu_mol = 0.0066667
-
-MAX_x = max(x.flatten())
-MAX_y = max(y.flatten())
-MAX_ux = max(ux.flatten())
-MAX_uy = max(uy.flatten())
-MIN_x = min(x.flatten())
-MIN_y = min(y.flatten())
-MIN_ux = min(ux.flatten())
-MIN_uy = min(uy.flatten())
-MAX_uxppuxpp = max(uxppuxpp.flatten())
-MAX_uxppuypp = max(uxppuypp.flatten())
-MAX_uyppuypp = max(uyppuypp.flatten())
-
-
 print('max_x: ',MAX_x)
 print('min_x: ',MIN_x)
 print('max_y: ',MAX_y)

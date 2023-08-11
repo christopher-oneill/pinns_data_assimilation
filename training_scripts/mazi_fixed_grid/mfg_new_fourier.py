@@ -75,10 +75,9 @@ PLOT = False
 
 assert len(sys.argv)==4
 
-job_number = int(sys.argv[1])
+mode_number = int(sys.argv[1])
 supersample_factor = int(sys.argv[2])
-mode_number = int(sys.argv[3])
-
+job_number = int(sys.argv[3])
 
 job_name = 'mfgf{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
@@ -167,6 +166,31 @@ y = np.array(configFile['X_vec'][1,:])
 y_test = y
 d = np.array(configFile['cylinderDiameter'])
 
+MAX_x = np.max(x.flatten())
+MAX_y = np.max(y.flatten())
+MAX_ux = np.max(ux.flatten())
+MAX_uy = np.max(uy.flatten())
+MIN_x = np.min(x.flatten())
+MIN_y = np.min(y.flatten())
+MIN_ux = np.min(ux.flatten())
+MIN_uy = np.min(uy.flatten())
+MAX_uxppuxpp = np.max(uxppuxpp.flatten())
+MAX_uxppuypp = np.max(uxppuypp.flatten())
+MAX_uyppuypp = np.max(uyppuypp.flatten())
+
+
+MAX_phi_xr = np.max(phi_xr.flatten())
+MAX_phi_xi = np.max(phi_xi.flatten())
+MAX_phi_yr = np.max(phi_yr.flatten())
+MAX_phi_yi = np.max(phi_yi.flatten())
+
+MAX_tau_xx_r = np.max(tau_xx_r.flatten())
+MAX_tau_xx_i = np.max(tau_xx_i.flatten())
+MAX_tau_xy_r = np.max(tau_xy_r.flatten())
+MAX_tau_xy_i = np.max(tau_xy_i.flatten())
+MAX_tau_yy_r = np.max(tau_yy_r.flatten())
+MAX_tau_yy_i = np.max(tau_yy_i.flatten())
+
 # if we are downsampling and then upsampling, downsample the source data
 if supersample_factor>1:
     n_x = np.array(configFile['x_grid']).size
@@ -194,30 +218,7 @@ if supersample_factor>1:
 
 nu_mol = 0.0066667
 
-MAX_x = np.max(x.flatten())
-MAX_y = np.max(y.flatten())
-MAX_ux = np.max(ux.flatten())
-MAX_uy = np.max(uy.flatten())
-MIN_x = np.min(x.flatten())
-MIN_y = np.min(y.flatten())
-MIN_ux = np.min(ux.flatten())
-MIN_uy = np.min(uy.flatten())
-MAX_uxppuxpp = np.max(uxppuxpp.flatten())
-MAX_uxppuypp = np.max(uxppuypp.flatten())
-MAX_uyppuypp = np.max(uyppuypp.flatten())
 
-
-MAX_phi_xr = np.max(phi_xr.flatten())
-MAX_phi_xi = np.max(phi_xi.flatten())
-MAX_phi_yr = np.max(phi_yr.flatten())
-MAX_phi_yi = np.max(phi_yi.flatten())
-
-MAX_tau_xx_r = np.max(tau_xx_r.flatten())
-MAX_tau_xx_i = np.max(tau_xx_i.flatten())
-MAX_tau_xy_r = np.max(tau_xy_r.flatten())
-MAX_tau_xy_i = np.max(tau_xy_i.flatten())
-MAX_tau_yy_r = np.max(tau_yy_r.flatten())
-MAX_tau_yy_i = np.max(tau_yy_i.flatten())
 
 print('max_x: ',MAX_x)
 print('min_x: ',MIN_x)
@@ -606,7 +607,10 @@ def get_filepaths_with_glob(root_path: str, file_regex: str):
 
 # load the saved mean model
 with tf.device('/CPU:0'):
-    model_mean = keras.models.load_model(HOMEDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec),'QresBlock':QresBlock})
+    if (supersample_factor == 1):
+        model_mean = keras.models.load_model(HOMEDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec),'QresBlock':QresBlock})
+    elif (supersample_factor == 8):
+        model_mean = keras.models.load_model(HOMEDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec),'QresBlock':QresBlock})
     model_mean.trainable=False
 
 # get the values for the mean_data tensor
