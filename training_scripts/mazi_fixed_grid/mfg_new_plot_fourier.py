@@ -6,57 +6,15 @@ import os
 import re
 import sys
 
-# functions
-def find_highest_numbered_file(path_prefix, number_pattern, suffix):
-    # Get the directory path and file prefix
-    directory, file_prefix = os.path.split(path_prefix)
-    
-    # Compile the regular expression pattern
-    pattern = re.compile(f'{file_prefix}({number_pattern}){suffix}')
-    
-    # Initialize variables to track the highest number and file path
-    highest_number = 0
-    highest_file_path = None
-    
-    # Iterate over the files in the directory
-    for file in os.listdir(directory):
-        match = pattern.match(file)
-        if match:
-            file_number = int(match.group(1))
-            if file_number > highest_number:
-                highest_number = file_number
-                highest_file_path = os.path.join(directory, file)
-    
-    return highest_file_path, highest_number
 
-def extract_matching_integers(prefix, number_pattern, suffix):
-    # Get the directory path and file name prefix
-    directory, file_prefix = os.path.split(prefix)
-    
-    # Compile the regular expression pattern
-    pattern = re.compile(f'{file_prefix}({number_pattern}){suffix}')
-    
-    # Initialize a NumPy array to store the matching integers
-    matching_integers = np.array([], dtype=int)
-    
-    # Iterate over the files in the directory
 
-    for file in os.listdir(directory):
-        match = pattern.match(file)
-        if match:
-            matching_integers = np.append(matching_integers, int(match.group(1)))
-    
-    return matching_integers
-
-def create_directory_if_not_exists(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-mode_number_array = np.array([1])
+mode_number_array = np.array([0,1,2,3,4])
 supersample_factor_list = [1]
 
 sys.path.append('C:/projects/pinns_local/code/')
 from pinns_galerkin_viv.lib.downsample import compute_downsample_inds
+
+from pinns_galerkin_viv.lib import file_util
 
 for mn in range(mode_number_array.size):
     
@@ -71,7 +29,7 @@ for mn in range(mode_number_array.size):
         output_base_dir = base_dir+'output/'
 
 
-        training_cases = extract_matching_integers(output_base_dir+case_prefix,'[0-9][0-9][0-9]','_output')
+        training_cases = file_util.extract_matching_integers(output_base_dir+case_prefix,'[0-9][0-9][0-9]','_output')
 
         for k in training_cases:
             case_name = case_prefix + "{:03d}".format(k)
@@ -84,11 +42,11 @@ for mn in range(mode_number_array.size):
             reynoldsStressFile = h5py.File(data_dir+'reynoldsStress.mat','r')
             fourierModeFile = h5py.File(data_dir+'fourierDataShortWindow.mat','r')
 
-            predfilename,epoch_number = find_highest_numbered_file(output_dir+case_name+'_ep','[0-9]*','_pred.mat')
+            predfilename,epoch_number = file_util.find_highest_numbered_file(output_dir+case_name+'_ep','[0-9]*','_pred.mat')
 
             predFile =  h5py.File(predfilename,'r')
             figures_folder = output_dir+'figures/'
-            create_directory_if_not_exists(figures_folder)
+            file_util.create_directory_if_not_exists(figures_folder)
             figure_prefix = figures_folder + case_name+'_ep'+str(epoch_number)
 
             SaveFig = True
@@ -688,7 +646,7 @@ for mn in range(mode_number_array.size):
             else:
                 errorFile =  h5py.File(errorfilename,'r')
                 figures_folder = output_dir+'figures/'
-                create_directory_if_not_exists(figures_folder)
+                file_util.create_directory_if_not_exists(figures_folder)
                 figure_prefix = figures_folder + case_name+'_ep'+str(epoch_number)
 
                 SaveFig = True

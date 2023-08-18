@@ -71,8 +71,12 @@ node_name = platform.node()
 
 PLOT = False
 
+assert len(sys.argv)==3
 
-job_name = 'riches_uStar7_50_mean005'
+job_number = int(sys.argv[1])
+supersample_factor = int(sys.argv[2])s
+
+job_name = 'mfg_new_mean{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 # mean field assimilation for the VIV case, 1GPU
 # no poisson equation
@@ -83,27 +87,30 @@ LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
     import matplotlib.pyplot as plot
     useGPU=False    
-    SLURM_TMPDIR='C:/projects/pinns_local/'
-    HOMEDIR = 'C:/projects/pinns_local/'
+    SLURM_TMPDIR='C:/projects/pinns_beluga/sync/'
+    HOMEDIR = 'C:/projects/pinns_beluga/sync/'
     sys.path.append('C:/projects/pinns_local/code/')
 else:
     # parameters for running on compute canada
-    
-    job_duration = timedelta(hours=16,minutes=30)
+    job_duration = timedelta(hours=108,minutes=0)
     end_time = start_time+job_duration
-    print("This job is: ",job_name)
-    useGPU=True
+    
+    useGPU=False
     HOMEDIR = '/home/coneill/sync/'
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
-    
+    sys.path.append(HOMEDIR+'code/')
+
+from pinns_galerkin_viv.lib.downsample import compute_downsample_inds
+
+print("This job is: ",job_name)  
 
 # set the paths
-save_loc = HOMEDIR+'/output/'+job_name+'_output/'
+save_loc = HOMEDIR+'output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
 physics_loss_coefficient = 1.0
 # set number of cores to compute on 
-tf.config.threading.set_intra_op_parallelism_threads(12)
-tf.config.threading.set_inter_op_parallelism_threads(12)
+tf.config.threading.set_intra_op_parallelism_threads(16)
+tf.config.threading.set_inter_op_parallelism_threads(16)
 
 # limit the gpu memory
 

@@ -100,6 +100,13 @@ for m in range(len(supersample_factor_list)):
         upvp = np.array(reynoldsStressFile['reynoldsStress'][1,:]).transpose()
         vpvp = np.array(reynoldsStressFile['reynoldsStress'][2,:]).transpose()
 
+        MAX_ux = np.max(ux)
+        MAX_uy = np.max(uy)
+        MAX_upup = np.max(upup)
+        MAX_upvp = np.max(upvp) # estimated maximum of nut # THIS VALUE is internally multiplied with 0.001 (mm and m)
+        MAX_vpvp = np.max(vpvp)
+        MAX_p= 1 # estimated maximum pressure
+
         x = np.array(configFile['X_vec'][0,:])
         X_grid = np.array(configFile['X_grid'])
         y = np.array(configFile['X_vec'][1,:])
@@ -117,37 +124,18 @@ for m in range(len(supersample_factor_list)):
             x_downsample = x_downsample[valid_inds]
             y_downsample = y_downsample[valid_inds]
 
-            rMAX_ux = np.max(ux[linear_downsample_inds])
-            rMAX_uy = np.max(uy[linear_downsample_inds])
-            rMAX_upup = np.max(upup[linear_downsample_inds])
-            rMAX_upvp = np.max(upvp[linear_downsample_inds]) # estimated maximum of nut # THIS VALUE is internally multiplied with 0.001 (mm and m)
-            rMAX_vpvp = np.max(vpvp[linear_downsample_inds])
-            rMAX_p= 1 # estimated maximum pressure
-        else:
-            rMAX_ux = np.max(ux)
-            rMAX_uy = np.max(uy)
-            rMAX_upup = np.max(upup)
-            rMAX_upvp = np.max(upvp) # estimated maximum of nut # THIS VALUE is internally multiplied with 0.001 (mm and m)
-            rMAX_vpvp = np.max(vpvp)
-            rMAX_p= 1 # estimated maximum pressure
-
         nu_mol = 0.0066667
-        ux_pred = np.array(predFile['pred'][:,0])*rMAX_ux
-        uy_pred = np.array(predFile['pred'][:,1])*rMAX_uy
-        p_pred = np.array(predFile['pred'][:,5])*rMAX_p 
+        ux_pred = np.array(predFile['pred'][:,0])*MAX_ux
+        uy_pred = np.array(predFile['pred'][:,1])*MAX_uy
+        p_pred = np.array(predFile['pred'][:,5])*MAX_p 
         #nu_pred =  np.power(np.array(predFile['pred'][:,3]),2)*MAX_nut
-        upup_pred = np.array(predFile['pred'][:,2])*rMAX_upup
-        upvp_pred = np.array(predFile['pred'][:,3])*rMAX_upvp
-        vpvp_pred = np.array(predFile['pred'][:,4])*rMAX_vpvp
+        upup_pred = np.array(predFile['pred'][:,2])*MAX_upup
+        upvp_pred = np.array(predFile['pred'][:,3])*MAX_upvp
+        vpvp_pred = np.array(predFile['pred'][:,4])*MAX_vpvp
         # compute the estimated reynolds stress
 
 
-        MAX_ux = np.max(ux)
-        MAX_uy = np.max(uy)
-        MAX_upup = np.max(upup)
-        MAX_upvp = np.max(upvp) # estimated maximum of nut # THIS VALUE is internally multiplied with 0.001 (mm and m)
-        MAX_vpvp = np.max(vpvp)
-        MAX_p= 1 # estimated maximum pressure
+
 
         #upvp_pred = -np.multiply(np.reshape(nu_pred+nu_mol,[nu_pred.shape[0],1]),dudy+dvdx)
 
