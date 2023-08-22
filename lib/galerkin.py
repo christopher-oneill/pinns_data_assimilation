@@ -42,7 +42,7 @@ def galerkin_projection(nu,ux,ux_x,ux_y,ux_xx,ux_yy,uy,uy_x,uy_y,uy_xx,uy_yy,p,p
     Qklm = np.zeros([nx,nk,nk,nk],np.double)
 
     for k in range(nk):
-        Fk[:,k] = -phi_x[:,k]*(2*ux*ux_x+ux*uy_y+uy*ux_y)- phi_y[:,k]*ux*uy_x+uy*ux_x+2*uy*uy_y - phi_x[:,k]*p_x - phi_y[:,k]*p_y + nu*phi_x[:,k]*(ux_xx+ux_yy)+phi_y[:,k]*(uy_xx+uy_yy)
+        Fk[:,k] = -phi_x[:,k]*(2*ux*ux_x+ux*uy_y+uy*ux_y)- phi_y[:,k]*(ux*uy_x+uy*ux_x+2*uy*uy_y) - phi_x[:,k]*p_x - phi_y[:,k]*p_y + nu*(phi_x[:,k]*(ux_xx+ux_yy)+phi_y[:,k]*(uy_xx+uy_yy))
 
         for l in range(nk):
             Lkl[:,k,l] = (-phi_x[:,k]*(phi_x[:,l]*ux_x+phi_y[:,l]*ux_y) - phi_y[:,k]*(phi_x[:,l]*uy_x+phi_y[:,l]*uy_y)

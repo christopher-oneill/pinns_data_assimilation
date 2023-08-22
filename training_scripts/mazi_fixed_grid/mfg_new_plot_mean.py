@@ -116,7 +116,7 @@ for m in range(len(supersample_factor_list)):
         if supersample_factor>1:
             n_x = X_grid.shape[0]
             n_y = X_grid.shape[1]
-            linear_downsample_inds = compute_downsample_inds(supersample_factor,n_x,n_y)
+            linear_downsample_inds,n_x_d,n_y_d = compute_downsample_inds(supersample_factor,n_x,n_y)
 
             x_downsample = x[linear_downsample_inds]
             y_downsample = y[linear_downsample_inds]

@@ -87,7 +87,7 @@ for mn in range(mode_number_array.size):
             if supersample_factor>1:
                 n_x = X_grid.shape[0]
                 n_y = X_grid.shape[1]
-                linear_downsample_inds = compute_downsample_inds(supersample_factor,n_x,n_y)
+                linear_downsample_inds, n_d_x, n_d_y = compute_downsample_inds(supersample_factor,n_x,n_y)
 
                 x_downsample = x[linear_downsample_inds]
                 y_downsample = y[linear_downsample_inds]
@@ -640,7 +640,7 @@ for mn in range(mode_number_array.size):
 
             plot.close('all')
 
-            errorfilename,epoch_number = find_highest_numbered_file(output_dir+case_name+'_ep','[0-9]*','_error.mat')
+            errorfilename,epoch_number = file_util.find_highest_numbered_file(output_dir+case_name+'_ep','[0-9]*','_error.mat')
             if errorfilename is None:
                 continue
             else:
