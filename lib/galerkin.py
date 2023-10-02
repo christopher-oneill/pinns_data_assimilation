@@ -33,7 +33,7 @@ def galerkin_gradients(X,Y,ux,uy,p,phi_x,phi_y,psi):
     return ux_x,ux_y,ux_xx,ux_yy,uy_x,uy_y,uy_xx,uy_yy,p_x,p_y,phi_x_x,phi_x_y,phi_x_xx,phi_x_yy,phi_y_x,phi_y_y,phi_y_xx,phi_y_yy,psi_x,psi_y
 
 
-def galerkin_projection(nu,ux,ux_x,ux_y,ux_xx,ux_yy,uy,uy_x,uy_y,uy_xx,uy_yy,p,p_x,p_y,phi_x,phi_x_x,phi_x_y,phi_x_xx,phi_x_yy,phi_y,phi_y_x,phi_y_y,phi_y_xx,phi_y_yy,psi,psi_x,psi_y):
+def galerkin_projection(nu,ux,ux_x,ux_y,ux_xx,ux_yy,uy,uy_x,uy_y,uy_xx,uy_yy,phi_x,phi_x_x,phi_x_y,phi_x_xx,phi_x_yy,phi_y,phi_y_x,phi_y_y,phi_y_xx,phi_y_yy):
     nx = phi_x.shape[0]
     nk = phi_x.shape[1]
 
@@ -42,12 +42,70 @@ def galerkin_projection(nu,ux,ux_x,ux_y,ux_xx,ux_yy,uy,uy_x,uy_y,uy_xx,uy_yy,p,p
     Qklm = np.zeros([nx,nk,nk,nk],np.double)
 
     for k in range(nk):
-        Fk[:,k] = -phi_x[:,k]*(2*ux*ux_x+ux*uy_y+uy*ux_y)- phi_y[:,k]*(ux*uy_x+uy*ux_x+2*uy*uy_y) - phi_x[:,k]*p_x - phi_y[:,k]*p_y + nu*(phi_x[:,k]*(ux_xx+ux_yy)+phi_y[:,k]*(uy_xx+uy_yy))
+        Fk[:,k] = -phi_x[:,k]*(2*ux*ux_x+ux*uy_y+uy*ux_y)- phi_y[:,k]*(ux*uy_x+uy*ux_x+2*uy*uy_y) + nu*(phi_x[:,k]*(ux_xx+ux_yy)+phi_y[:,k]*(uy_xx+uy_yy))
 
         for l in range(nk):
             Lkl[:,k,l] = (-phi_x[:,k]*(phi_x[:,l]*ux_x+phi_y[:,l]*ux_y) - phi_y[:,k]*(phi_x[:,l]*uy_x+phi_y[:,l]*uy_y)
                           -phi_x[:,k]*(ux*phi_x_x[:,l]+uy*phi_x_y[:,l]) - phi_y[:,k]*(ux*phi_y_x[:,l]+uy*phi_y_y[:,l])
-                          -phi_x[:,k]*psi_x[:,l]-phi_y[:,k]*psi_y[:,l]
+                          +nu*(phi_x[:,k]*(phi_x_xx[:,l]+phi_x_yy[:,l])+phi_y[:,k]*(phi_y_xx[:,l]+phi_y_yy[:,l])))
+            for m in range(nk):
+                Qklm[:,k,l,m] = -phi_x[:,k]*(phi_x[:,l]*phi_x_x[:,m] + phi_y[:,l]*phi_x_y[:,m]) -phi_y[:,k]*(phi_x[:,l]*phi_y_x[:,m] + phi_y[:,l]*phi_y_y[:,m])
+
+    return Fk, Lkl, Qklm
+
+def galerkin_noack(phi_x,phi_x_x,phi_x_y,phi_x_xx,phi_x_yy,phi_y,phi_y_x,phi_y_y,phi_y_xx,phi_y_yy):
+    nx = phi_x.shape[0]
+    ny = phi_x.shape[1]
+    n_modes = phi_x.shape[2]-1
+
+
+    # following noack's notation for the viscous and convective terms
+    D_ij  = np.zeros([nx,ny,n_modes+1,n_modes+1])
+    C_ijk  = np.zeros([nx,ny,n_modes+1,n_modes+1,n_modes+1])
+
+    for i in range(0,n_modes+1):
+        for j in range(0,n_modes+1):
+            # <phi_i,nabla^2 phi_j>
+            D_ij[:,:,i,j] = phi_x[:,:,i]*(phi_x_xx[:,:,j]+phi_x_yy[:,:,j])+phi_y[:,:,i]*(phi_y_xx[:,:,j]+phi_y_yy[:,:,j])
+            for k in range(0,n_modes+1):
+               # <phi_i, (phi_j dot nabla)phi_k>
+                C_ijk[:,:,i,j,k] = phi_x[:,:,i]*(phi_x[:,:,j]*phi_x_x[:,:,k]+phi_y[:,:,j]*phi_x_y[:,:,k]) + phi_y[:,:,i]*(phi_x[:,:,j]*phi_y_x[:,:,k]+phi_y[:,:,j]*phi_y_y[:,:,k])
+    
+    return D_ij, C_ijk
+
+def two_term_to_three_term(nu,D_ij,C_ijk):
+    nx = D_ij.shape[0]
+    ny = D_ij.shape[1]
+    n_modes = D_ij.shape[2]-1
+
+    # convert this to galerkin system notation
+    F_k = np.zeros([nx,ny,n_modes])
+    L_kl = np.zeros([nx,ny,n_modes,n_modes])
+    Q_klm = np.zeros([nx,ny,n_modes,n_modes,n_modes])
+    for k in range(n_modes):
+        F_k[:,:,k] = nu*D_ij[:,:,k+1,0]
+        for l in range(n_modes):
+            L_kl[:,:,k,l] = -C_ijk[:,:,k+1,l+1,0] - C_ijk[:,:,k+1,0,l+1] + nu*D_ij[:,:,k+1,l+1] 
+            for m in range(n_modes):
+                Q_klm[:,:,k,l,m] = - C_ijk[:,:,k+1,l+1,m+1]
+
+    return F_k, L_kl, Q_klm
+
+def galerkin_projection_partial_pressure(nu,ux,ux_x,ux_y,ux_xx,ux_yy,uy,uy_x,uy_y,uy_xx,uy_yy,p,p_x,p_y,phi_x,phi_x_x,phi_x_y,phi_x_xx,phi_x_yy,phi_y,phi_y_x,phi_y_y,phi_y_xx,phi_y_yy,psi,psi_x,psi_y):
+    nx = phi_x.shape[0]
+    nk = phi_x.shape[1]
+
+    Fk =  np.zeros([nx,nk],dtype=np.double)
+    Lkl = np.zeros([nx,nk,nk],dtype=np.double)
+    Qklm = np.zeros([nx,nk,nk,nk],np.double)
+
+    for k in range(nk):
+        Fk[:,k] = -phi_x[:,k]*(2*ux*ux_x+ux*uy_y+uy*ux_y)- phi_y[:,k]*(ux*uy_x+uy*ux_x+2*uy*uy_y) - 0*phi_x[:,k]*p_x - 0*phi_y[:,k]*p_y + nu*(phi_x[:,k]*(ux_xx+ux_yy)+phi_y[:,k]*(uy_xx+uy_yy))
+
+        for l in range(nk):
+            Lkl[:,k,l] = (-phi_x[:,k]*(phi_x[:,l]*ux_x+phi_y[:,l]*ux_y) - phi_y[:,k]*(phi_x[:,l]*uy_x+phi_y[:,l]*uy_y)
+                          -phi_x[:,k]*(ux*phi_x_x[:,l]+uy*phi_x_y[:,l]) - phi_y[:,k]*(ux*phi_y_x[:,l]+uy*phi_y_y[:,l])
+                          -0*phi_x[:,k]*psi_x[:,l]-0*phi_y[:,k]*psi_y[:,l]
                           +nu*(phi_x[:,k]*(phi_x_xx[:,l]+phi_x_yy[:,l])+phi_y[:,k]*(phi_y_xx[:,l]+phi_y_yy[:,l])))
             for m in range(nk):
                 Qklm[:,k,l,m] = -phi_x[:,k]*(phi_x[:,l]*phi_x_x[:,m] + phi_y[:,l]*phi_x_y[:,m]) -phi_y[:,k]*(phi_x[:,l]*phi_y_x[:,m] + phi_y[:,l]*phi_y_y[:,m])
@@ -88,7 +146,7 @@ def galerkin_projection_complex(ux, ux_x, ux_y, ux_xx, ux_yy, uy, uy_x, uy_y, uy
 
             Lkl[:,k,l] = (-phi_k_x*(phi_l_x*np.cdouble(ux_x)+phi_l_y*np.cdouble(ux_y)) -phi_k_y*(phi_l_x*np.cdouble(uy_x)+phi_l_y*np.cdouble(uy_y))
                           -phi_k_x*(np.cdouble(ux)*phi_l_x_x+np.cdouble(uy)*phi_l_x_y)-phi_k_y*(np.cdouble(ux)*phi_l_y_x+np.cdouble(uy)*phi_l_y_y)
-                          -phi_k_x*psi_l_x-phi_k_y*psi_l_y
+                          -0*phi_k_x*psi_l_x-phi_k_y*0*psi_l_y
                           +np.cdouble(nu_mol)*(phi_k_x*(phi_l_x_xx+phi_l_x_yy)+phi_k_y*(phi_l_y_xx+phi_l_y_yy)))
     
             for m in range(nk):
