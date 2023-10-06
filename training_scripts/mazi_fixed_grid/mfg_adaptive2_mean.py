@@ -79,7 +79,7 @@ job_number = int(sys.argv[1])
 supersample_factor = int(sys.argv[2])
 
 
-job_name = 'mfg_adaptive_mean{:03d}_S{:d}'.format(job_number,supersample_factor)
+job_name = 'mfg_adaptive2_mean{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
