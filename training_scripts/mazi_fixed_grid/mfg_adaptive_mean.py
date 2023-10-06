@@ -91,7 +91,7 @@ if node_name==LOCAL_NODE:
     sys.path.append('C:/projects/pinns_local/code/')
 else:
     # parameters for running on compute canada
-    job_duration = timedelta(hours=23,minutes=0)
+    job_duration = timedelta(hours=71,minutes=0)
     end_time = start_time+job_duration
     
     useGPU=False

@@ -2,7 +2,7 @@
 #SBATCH --account=def-martinuz    
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=72G
-#SBATCH --time=0-23:30
+#SBATCH --time=2-23:30
 #SBATCH --mail-user=christopher.mark.oneill@gmail.com
 #SBATCH --mail-type=ALL
 #SBATCH --output=/home/coneill/sync/logs/mfg_ad2_S1_m001-%A.out
