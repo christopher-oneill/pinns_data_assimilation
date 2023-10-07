@@ -85,7 +85,7 @@ job_name = 'mfg_dft{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
     import matplotlib.pyplot as plot
-    job_duration = timedelta(hours=22,minutes=30)
+    job_duration = timedelta(hours=71,minutes=0)
     end_time = start_time+job_duration
     useGPU=False    
     SLURM_TMPDIR='C:/projects/pinns_narval/sync/'
