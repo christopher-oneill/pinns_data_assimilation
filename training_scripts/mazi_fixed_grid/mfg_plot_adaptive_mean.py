@@ -61,7 +61,7 @@ def create_directory_if_not_exists(path):
 
 output_base_dir = 'C:/projects/pinns_narval/sync/output/'
 data_dir = 'C:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
-case_prefix = 'mfg_adaptive_mean'
+case_prefix = 'mfg_adaptive2_mean'
 
 supersample_factor_list = [1]
 
