@@ -94,7 +94,7 @@ if node_name==LOCAL_NODE:
     # set number of cores to compute on 
 else:
     # parameters for running on compute canada
-    job_duration = timedelta(hours=23,minutes=0)
+    job_duration = timedelta(hours=71,minutes=0)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
     useGPU=False

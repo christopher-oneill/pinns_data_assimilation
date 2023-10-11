@@ -763,7 +763,7 @@ else:
         os.mkdir(HOMEDIR+'output/'+job_name+'_output/')
 
     # create the fourier model
-    fourier_nodes = 100
+    fourier_nodes = 300
     fourier_layers = 10
     if useGPU:
         tf_device_string = ['GPU:0']
@@ -779,7 +779,7 @@ else:
                 model_fourier.add(keras.layers.Dense(fourier_nodes,activation='tanh'))
             model_fourier.add(keras.layers.Dense(12,activation='linear'))
             model_fourier.summary()
-            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train)),jit_compile=False) 
+            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.001), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train)),jit_compile=False) 
     else:
         with tf.device('/CPU:0'):
             model_fourier = keras.Sequential()
@@ -788,7 +788,7 @@ else:
                 model_fourier.add(keras.layers.Dense(fourier_nodes,activation='tanh'))
             model_fourier.add(keras.layers.Dense(12,activation='linear'))
             model_fourier.summary()
-            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train)),jit_compile=False) 
+            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.001), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train)),jit_compile=False) 
 
 # set the training call back
 fourier_checkpoint_callback = keras.callbacks.ModelCheckpoint(
