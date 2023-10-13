@@ -437,9 +437,9 @@ def BC_no_slip(BC_points):
 def BC_pressure_complex(BC_points):
     up = model_fourier(BC_points)
     # unknowns, pressure fourier modes
-    psi_r = up[:,10]*MAX_psi
-    psi_i = up[:,11]*MAX_psi
-    return tf.square(tf.reduce_mean(psi_r)+tf.reduce_mean(psi_i))
+    psi_r = tf.square(up[:,10]*MAX_psi)
+    psi_i = tf.square(up[:,11]*MAX_psi)
+    return tf.square(psi_r[1]-psi_r[0])+tf.square(psi_i[1]-psi_i[0]) # square and then subtract 
 
 @tf.function
 def BC_no_slip_complex(BC_points):
