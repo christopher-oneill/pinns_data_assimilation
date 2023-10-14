@@ -423,9 +423,7 @@ start_epochs = epochs
 
 
 if node_name ==LOCAL_NODE:
-    job_duration = timedelta(hours=22,minutes=30)
-    end_time = start_time+job_duration
-    LBFGS_steps=333
+     LBFGS_steps=333
     LBFGS_epoch = 1000   
 else:
     LBFGS_steps=333
@@ -462,7 +460,7 @@ if True:
         # after training, the final optimized parameters are still in results.position
         # so we have to manually put them back to the model
             
-        if np.mod(L_iter,1)==0:
+        if np.mod(L_iter,10)==0:
             model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
             pred = model_mean.predict(X_test,batch_size=32)
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
