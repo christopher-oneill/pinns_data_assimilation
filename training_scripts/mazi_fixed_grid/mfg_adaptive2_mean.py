@@ -73,7 +73,7 @@ node_name = platform.node()
 PLOT = False
 
 
-assert len(sys.argv)==3
+assert len(sys.argv)==5
 
 job_number = int(sys.argv[1])
 supersample_factor = int(sys.argv[2])
