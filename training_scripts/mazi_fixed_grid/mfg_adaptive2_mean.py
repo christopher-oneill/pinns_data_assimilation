@@ -73,12 +73,13 @@ node_name = platform.node()
 PLOT = False
 
 
-assert len(sys.argv)==5
+assert len(sys.argv)==6
 
 job_number = int(sys.argv[1])
 supersample_factor = int(sys.argv[2])
 dense_layers = int(sys.argv[3])
 dense_nodes = int(sys.argv[4])
+duration_hours = int(sys.argv[5])
 
 
 job_name = 'mfg_adaptive2_mean{:03d}_S{:d}_L{:d}N{:d}'.format(job_number,supersample_factor,dense_layers,dense_nodes)
@@ -93,7 +94,7 @@ if node_name==LOCAL_NODE:
     sys.path.append('C:/projects/pinns_local/code/')
 else:
     # parameters for running on compute canada
-    job_duration = timedelta(hours=71,minutes=0)
+    job_duration = timedelta(hours=duration_hours,minutes=0)
     end_time = start_time+job_duration
     
     useGPU=False
