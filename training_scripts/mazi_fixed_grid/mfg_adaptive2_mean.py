@@ -77,9 +77,11 @@ assert len(sys.argv)==3
 
 job_number = int(sys.argv[1])
 supersample_factor = int(sys.argv[2])
+dense_layers = int(sys.argv[4])
+dense_nodes = int(sys.argv[5])
 
 
-job_name = 'mfg_adaptive2_mean{:03d}_S{:d}'.format(job_number,supersample_factor)
+job_name = 'mfg_adaptive2_mean{:03d}_S{:d}_L{:d}N{:d}'.format(job_number,supersample_factor,dense_layers,dense_nodes)
 
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -421,8 +423,6 @@ else:
         os.mkdir(HOMEDIR+'/output/'+job_name+'_output/')
 
     # create NN
-    dense_nodes = 50
-    dense_layers = 10
     if useGPU:
         tf_device_string = ['GPU:0']
         for ngpu in range(1,len(physical_devices)):
