@@ -77,8 +77,8 @@ assert len(sys.argv)==5
 
 job_number = int(sys.argv[1])
 supersample_factor = int(sys.argv[2])
-dense_layers = int(sys.argv[4])
-dense_nodes = int(sys.argv[5])
+dense_layers = int(sys.argv[3])
+dense_nodes = int(sys.argv[4])
 
 
 job_name = 'mfg_adaptive2_mean{:03d}_S{:d}_L{:d}N{:d}'.format(job_number,supersample_factor,dense_layers,dense_nodes)
