@@ -18,10 +18,10 @@ output_base_dir = 'C:/projects/pinns_narval/sync/output/'
 data_dir = 'C:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
 case_prefix = 'mfg_vdnn_mean'
 
-supersample_factor_list = [1]
+supersample_factor_list = [16]
 
-node_list = [25,50,75,100]
-layer_list = [2,4,6,8,10]
+node_list = [100]
+layer_list = [10]
 
 for node_index in range(len(node_list)):
     nodes = node_list[node_index]

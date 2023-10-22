@@ -84,6 +84,9 @@ job_time = int(sys.argv[5])
 
 job_name = 'mfg_vdnn_mean{:03d}_S{:d}_L{:d}N{:d}'.format(job_number,supersample_factor,nlayers,nnodes)
 
+job_duration = timedelta(hours=job_time,minutes=0)
+end_time = start_time+job_duration
+
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
@@ -91,14 +94,15 @@ if node_name==LOCAL_NODE:
     useGPU=False    
     SLURM_TMPDIR='C:/projects/pinns_beluga/sync/'
     HOMEDIR = 'C:/projects/pinns_beluga/sync/'
+    PROJECTDIR=HOMEDIR
     sys.path.append('C:/projects/pinns_local/code/')
 else:
     # parameters for running on compute canada
-    job_duration = timedelta(hours=job_time,minutes=0)
-    end_time = start_time+job_duration
+    
     
     useGPU=False
     HOMEDIR = '/home/coneill/sync/'
+    PROJECTDIR = '/home/coneill/projects/def-martinuz/coneill/'
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     sys.path.append(HOMEDIR+'code/')
 
@@ -107,7 +111,7 @@ from pinns_galerkin_viv.lib.downsample import compute_downsample_inds
 print("This job is: ",job_name)  
 
 # set the paths
-save_loc = HOMEDIR+'output/'+job_name+'_output/'
+save_loc = PROJECTDIR+'output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
 physics_loss_coefficient = 1.0
 # set number of cores to compute on 
@@ -188,14 +192,14 @@ MAX_p= 1 # estimated maximum pressure, we should
 
 def colloc_points():
     # reduce the collocation points to 25k
-    colloc_limits1 = np.array([[-2.0,10.0],[-2.0,2.0]])
+    colloc_limits1 = np.array([[-6.0,10.0],[-2.0,2.0]])
     colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-    colloc_lhs1 = colloc_sample_lhs1(80000)
+    colloc_lhs1 = colloc_sample_lhs1(20000)
 
 
     colloc_limits2 = np.array([[-1.0,3.0],[-1.5,1.5]])
     colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
-    colloc_lhs2 = colloc_sample_lhs2(40000)
+    colloc_lhs2 = colloc_sample_lhs2(10000)
 
     colloc_merged = np.vstack((colloc_lhs1,colloc_lhs2))
 
@@ -231,6 +235,10 @@ ns_BC_vec = np.hstack((ns_BC_x.reshape(-1,1),ns_BC_y.reshape(-1,1)))
 p_BC_x = np.array([MAX_x,MAX_x])/MAX_x
 p_BC_y = np.array([MIN_y,MAX_y])/MAX_y
 p_BC_vec = np.hstack((p_BC_x.reshape(-1,1),p_BC_y.reshape(-1,1)))
+
+inlet_BC_x = -6.0*np.ones([500,1])/MAX_x
+inlet_BC_y = np.linspace(MIN_y,MAX_y,500)/MAX_y
+inlet_BC_vec = np.hstack((inlet_BC_x.reshape(-1,1),inlet_BC_y.reshape(-1,1)))
 
 # the order here must be identical to inside the cost functions
 O_train = np.hstack(((ux_train).reshape(-1,1),(uy_train).reshape(-1,1),(uxppuxpp_train).reshape(-1,1),(uxppuypp_train).reshape(-1,1),(uyppuypp_train).reshape(-1,1),)) # training data
@@ -303,6 +311,7 @@ def BC_pressure(BC_points):
     p = up[:,5]*MAX_p
     return tf.square(tf.reduce_mean(p))
 
+@tf.function
 def BC_no_slip(BC_points):
     up = model_mean(BC_points)
     # knowns
@@ -313,9 +322,19 @@ def BC_no_slip(BC_points):
     uyppuypp = up[:,4]*MAX_uyppuypp
     return tf.reduce_mean(tf.square(ux)+tf.square(uy)+tf.square(uxppuxpp)+tf.square(uxppuypp)+tf.square(uyppuypp))
 
+@tf.function
+def BC_inlet(BC_points):
+    up = model_mean(BC_points)
+    ux = up[:,0]*MAX_ux
+    uy = up[:,1]*MAX_uy
+    uxppuxpp = up[:,2]*MAX_uxppuxpp
+    uxppuypp = up[:,3]*MAX_uxppuypp
+    uyppuypp = up[:,4]*MAX_uyppuypp
+    p = up[:,5]*MAX_p
+    return tf.reduce_mean(tf.square(ux-1.0)+tf.square(uy)+tf.square(uxppuxpp)+tf.square(uxppuypp)+tf.square(uyppuypp)) # note there is no point where the pressure is close to zero, so we neglect it in the mean field model
 
 # function wrapper, combine data and physics loss
-def mean_loss_wrapper(colloc_tensor_f,BC_ns,BC_p): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
+def mean_loss_wrapper(colloc_tensor_f,BC_ns,BC_p,BC_inlet_pts): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
     
     def mean_loss(y_true, y_pred):
         # this needs to match the order that they are concatinated in the array when setting up the network
@@ -335,7 +354,8 @@ def mean_loss_wrapper(colloc_tensor_f,BC_ns,BC_p): # def custom_loss_wrapper(col
 
             BC_pressure_loss = BC_pressure(BC_p)
             BC_no_slip_loss = BC_no_slip(BC_ns)
-            return  data_loss + physics_loss_coefficient*(physical_loss1 + physical_loss2 + physical_loss3 + BC_pressure_loss + BC_no_slip_loss) # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
+            BC_inlet_loss = BC_inlet(BC_inlet_pts)
+            return  data_loss + physics_loss_coefficient*(physical_loss1 + physical_loss2 + physical_loss3 + BC_pressure_loss + BC_no_slip_loss + BC_inlet_loss) # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
         else:
             return data_loss
 
@@ -360,7 +380,7 @@ rng = np.random.default_rng()
 
 # job_name = 'RS3_CC0001_23h'
 # we need to check if there are already checkpoints for this job
-checkpoint_files = get_filepaths_with_glob(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep*_model.h5')
+checkpoint_files = get_filepaths_with_glob(PROJECTDIR+'output/'+job_name+'_output/',job_name+'_ep*_model.h5')
 if len(checkpoint_files)>0:
     files_epoch_number = np.zeros([len(checkpoint_files),1],dtype=np.uint)
     # if there are checkpoints, train based on the most recent checkpoint
@@ -368,14 +388,14 @@ if len(checkpoint_files)>0:
         re_result = re.search("ep[0-9]*",checkpoint_files[f_indx])
         files_epoch_number[f_indx]=int(checkpoint_files[f_indx][(re_result.start()+2):re_result.end()])
     epochs = np.uint(np.max(files_epoch_number))
-    print(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
-    model_mean = keras.models.load_model(HOMEDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec)})
+    print(PROJECTDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
+    model_mean = keras.models.load_model(PROJECTDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec,inlet_BC_vec)})
     model_mean.summary()
 else:
     # if not, we train from the beginning
     epochs = 0
-    if (not os.path.isdir(HOMEDIR+'output/'+job_name+'_output/')):
-        os.mkdir(HOMEDIR+'/output/'+job_name+'_output/')
+    if (not os.path.isdir(PROJECTDIR+'output/'+job_name+'_output/')):
+        os.mkdir(PROJECTDIR+'/output/'+job_name+'_output/')
 
     # create NN
     dense_nodes = nnodes
@@ -394,7 +414,7 @@ else:
                 model_mean.add(keras.layers.Dense(dense_nodes, activation='tanh'))
             model_mean.add(keras.layers.Dense(6,activation='linear'))
             model_mean.summary()
-            model_mean.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = mean_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
+            model_mean.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = mean_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train),tf.cast(inlet_BC_vec,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
     else:
         tf_device_string = '/CPU:0'
 
@@ -405,7 +425,7 @@ else:
                 model_mean.add(keras.layers.Dense(dense_nodes, activation='tanh'))
             model_mean.add(keras.layers.Dense(6,activation='linear'))
             model_mean.summary()
-            model_mean.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = mean_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
+            model_mean.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = mean_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train),tf.cast(inlet_BC_vec,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
 
 
 
@@ -440,14 +460,14 @@ if True:
 
     L_iter = 0
     f_colloc_train = colloc_points()
-    func = function_factory(model_mean, mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec), X_train, O_train)
+    func = function_factory(model_mean, mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec,inlet_BC_vec), X_train, O_train)
     init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables)
             
     while True:
         if physics_loss_coefficient!=0:
         # randomly select new collocation points every LGFBS step
             f_colloc_train = colloc_points()
-            func = function_factory(model_mean, mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec), X_train, O_train)
+            func = function_factory(model_mean, mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec,inlet_BC_vec), X_train, O_train)
             init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables)
             
         # train the model with L-BFGS solver
@@ -460,7 +480,7 @@ if True:
         # after training, the final optimized parameters are still in results.position
         # so we have to manually put them back to the model
             
-        if np.mod(L_iter,10)==0:
+        if np.mod(L_iter,1)==0:
             model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
             pred = model_mean.predict(X_test,batch_size=32)
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')

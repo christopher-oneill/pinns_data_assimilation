@@ -73,11 +73,12 @@ node_name = platform.node()
 PLOT = False
 
 
-assert len(sys.argv)==4
+assert len(sys.argv)==5
 
 mode_number = int(sys.argv[1])
 supersample_factor = int(sys.argv[2])
 job_number = int(sys.argv[3])
+job_hours = int(sys.argv[4])
 
 job_name = 'mfg_dft{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
@@ -85,20 +86,23 @@ job_name = 'mfg_dft{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
     import matplotlib.pyplot as plot
-    job_duration = timedelta(hours=71,minutes=0)
+    job_duration = timedelta(hours=job_hours,minutes=0)
     end_time = start_time+job_duration
     useGPU=False    
     SLURM_TMPDIR='C:/projects/pinns_narval/sync/'
+    
     HOMEDIR = 'C:/projects/pinns_narval/sync/'
+    PROJECTDIR = HOMEDIR
     sys.path.append('C:/projects/pinns_local/code/')
     # set number of cores to compute on 
 else:
     # parameters for running on compute canada
-    job_duration = timedelta(hours=71,minutes=0)
+    job_duration = timedelta(hours=job_hours,minutes=0)
     end_time = start_time+job_duration
     print("This job is: ",job_name)
     useGPU=False
     HOMEDIR = '/home/coneill/sync/'
+    PROJECTDIR = '/home/coneill/projects/def-martinuz/coneill/'
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     sys.path.append(HOMEDIR+'code/')
     # set number of cores to compute on 
@@ -109,7 +113,7 @@ tf.config.threading.set_inter_op_parallelism_threads(16)
     
 
 # set the paths
-save_loc = HOMEDIR+'output/'+job_name+'_output/'
+save_loc = PROJECTDIR+'output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
 physics_loss_coefficient = 1.0
 
@@ -230,7 +234,7 @@ MAX_psi= 0.1 # chosen based on abs(max(psi))
 
 def colloc_points():
     # reduce the collocation points to 25k
-    colloc_limits1 = np.array([[-2.0,10.0],[-2.0,2.0]])
+    colloc_limits1 = np.array([[-6.0,10.0],[-2.0,2.0]])
     colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
     colloc_lhs1 = colloc_sample_lhs1(20000)
 
@@ -292,6 +296,10 @@ ns_BC_vec = np.hstack((ns_BC_x.reshape(-1,1),ns_BC_y.reshape(-1,1)))
 p_BC_x = np.array([MAX_x,MAX_x])/MAX_x
 p_BC_y = np.array([MIN_y,MAX_y])/MAX_y
 p_BC_vec = np.hstack((p_BC_x.reshape(-1,1),p_BC_y.reshape(-1,1)))
+
+inlet_BC_x = -6.0*np.ones([500,1])/MAX_x
+inlet_BC_y = np.linspace(MIN_y,MAX_y,500)/MAX_y
+inlet_BC_vec = np.hstack((inlet_BC_x.reshape(-1,1),inlet_BC_y.reshape(-1,1)))
 
 print('X_train.shape: ',X_train.shape)
 print('O_train.shape: ',O_train.shape)
@@ -459,6 +467,28 @@ def BC_no_slip_complex(BC_points):
     tau_yy_i = up[:,9]*MAX_tau_yy_i
     return tf.reduce_mean(tf.square(phi_xr)+tf.square(phi_xi)+tf.square(phi_yr)+tf.square(phi_yi)+tf.square(tau_xx_r)+tf.square(tau_xx_i)+tf.square(tau_xy_r)+tf.square(tau_xy_i)+tf.square(tau_yy_r)+tf.square(tau_yy_i))
 
+@tf.function
+def BC_inlet(BC_points):
+    up = model_fourier(BC_points)
+    # velocity fourier coefficients
+    phi_xr = up[:,0]*MAX_phi_xr
+    phi_xi = up[:,1]*MAX_phi_xi
+    phi_yr = up[:,2]*MAX_phi_yr
+    phi_yi = up[:,3]*MAX_phi_yi
+
+    # fourier coefficients of the fluctuating field
+    tau_xx_r = up[:,4]*MAX_tau_xx_r
+    tau_xx_i = up[:,5]*MAX_tau_xx_i
+    tau_xy_r = up[:,6]*MAX_tau_xy_r
+    tau_xy_i = up[:,7]*MAX_tau_xy_i
+    tau_yy_r = up[:,8]*MAX_tau_yy_r
+    tau_yy_i = up[:,9]*MAX_tau_yy_i
+
+    psi_r = up[:,10]*MAX_psi
+    psi_i = up[:,11]*MAX_psi
+    return tf.reduce_mean(tf.square(phi_xr)+tf.square(phi_xi)+tf.square(phi_yr)+tf.square(phi_yi)+tf.square(tau_xx_r)+tf.square(tau_xx_i)+tf.square(tau_xy_r)+tf.square(tau_xy_i)+tf.square(tau_yy_r)+tf.square(tau_yy_i)+tf.square(psi_r)+tf.square(psi_i)) # note there is no point where the pressure is close to zero, so we neglect it in the mean field model
+
+
 # fourier NN functions
 @tf.function
 def net_f_fourier_cartesian(colloc_tensor, mean_grads):
@@ -556,7 +586,7 @@ def net_f_fourier_cartesian(colloc_tensor, mean_grads):
 
 
 # function wrapper, combine data and physics loss
-def fourier_loss_wrapper(colloc_tensor_f,colloc_grads,ns_BC_points,p_BC_points): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
+def fourier_loss_wrapper(colloc_tensor_f,colloc_grads,ns_BC_points,p_BC_points,inlet_BC_points): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
     
     def custom_loss(y_true, y_pred):
         # this needs to match the order that they are concatinated in the array when setting up the network
@@ -585,7 +615,8 @@ def fourier_loss_wrapper(colloc_tensor_f,colloc_grads,ns_BC_points,p_BC_points):
 
             BC_pressure_loss = BC_pressure_complex(p_BC_points)
             BC_no_slip_loss = BC_no_slip_complex(ns_BC_points)
-            return data_loss + physics_loss_coefficient*(loss_mxr + loss_mxi + loss_myr+loss_myi+loss_massr+loss_massi+ BC_pressure_loss + BC_no_slip_loss) 
+            BC_inlet_loss = BC_inlet(inlet_BC_points)
+            return data_loss + physics_loss_coefficient*(loss_mxr + loss_mxi + loss_myr + loss_myi + loss_massr + loss_massi + BC_pressure_loss + BC_no_slip_loss + BC_inlet_loss) 
         else:
             return data_loss
 
@@ -608,9 +639,9 @@ def get_filepaths_with_glob(root_path: str, file_regex: str):
 # load the saved mean model
 with tf.device('/CPU:0'):
     if (supersample_factor == 1):
-        model_mean = keras.models.load_model(HOMEDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec),'QresBlock':QresBlock})
+        model_mean = keras.models.load_model(PROJECTDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec),'QresBlock':QresBlock})
     elif (supersample_factor == 8):
-        model_mean = keras.models.load_model(HOMEDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec),'QresBlock':QresBlock})
+        model_mean = keras.models.load_model(PROJECTDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec),'QresBlock':QresBlock})
     model_mean.trainable=False
 
 # get the values for the mean_data tensor
@@ -625,7 +656,7 @@ mean_data_test_grid = mean_cartesian(X_test)
 def get_filepaths_with_glob(root_path: str, file_regex: str):
     return glob.glob(os.path.join(root_path, file_regex))
 # we need to check if there are already checkpoints for this job
-checkpoint_files = get_filepaths_with_glob(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep*_model.h5')
+checkpoint_files = get_filepaths_with_glob(PROJECTDIR+'output/'+job_name+'_output/',job_name+'_ep*_model.h5')
 if len(checkpoint_files)>0:
     files_epoch_number = np.zeros([len(checkpoint_files),1],dtype=np.uint)
     # if there are checkpoints, train based on the most recent checkpoint
@@ -633,14 +664,14 @@ if len(checkpoint_files)>0:
         re_result = re.search("ep[0-9]*",checkpoint_files[f_indx])
         files_epoch_number[f_indx]=int(checkpoint_files[f_indx][(re_result.start()+2):re_result.end()])
     epochs = np.uint(np.max(files_epoch_number))
-    print(HOMEDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
-    model_fourier = keras.models.load_model(HOMEDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'custom_loss':fourier_loss_wrapper(f_colloc_train,mean_data,ns_BC_vec,p_BC_vec)})
+    print(PROJECTDIR+'output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
+    model_fourier = keras.models.load_model(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'custom_loss':fourier_loss_wrapper(f_colloc_train,mean_data,ns_BC_vec,p_BC_vec,inlet_BC_vec)})
     model_fourier.summary()
 else:
     # if not, we train from the beginning
     epochs = 0
-    if (not os.path.isdir(HOMEDIR+'output/'+job_name+'_output/')):
-        os.mkdir(HOMEDIR+'output/'+job_name+'_output/')
+    if (not os.path.isdir(PROJECTDIR+'output/'+job_name+'_output/')):
+        os.mkdir(PROJECTDIR+'output/'+job_name+'_output/')
 
     # create the fourier model
     fourier_nodes = 75
@@ -659,7 +690,7 @@ else:
                 model_fourier.add(keras.layers.Dense(fourier_nodes,activation='tanh'))
             model_fourier.add(keras.layers.Dense(12,activation='linear'))
             model_fourier.summary()
-            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train)),jit_compile=False) 
+            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train),tf.cast(inlet_BC_vec,dtype_train)),jit_compile=False) 
     else:
         with tf.device('/CPU:0'):
             model_fourier = keras.Sequential()
@@ -668,7 +699,7 @@ else:
                 model_fourier.add(keras.layers.Dense(fourier_nodes,activation='tanh'))
             model_fourier.add(keras.layers.Dense(12,activation='linear'))
             model_fourier.summary()
-            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train)),jit_compile=False) 
+            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train),tf.cast(inlet_BC_vec,dtype_train)),jit_compile=False) 
 
 # set the training call back
 fourier_checkpoint_callback = keras.callbacks.ModelCheckpoint(
@@ -709,7 +740,7 @@ if True:
     import tensorflow_probability as tfp
 
     L_iter = 0
-    func = function_factory(model_fourier, fourier_loss_wrapper(f_colloc_train,mean_data,ns_BC_vec,p_BC_vec), X_train, F_train)
+    func = function_factory(model_fourier, fourier_loss_wrapper(f_colloc_train,mean_data,ns_BC_vec,p_BC_vec,inlet_BC_vec), X_train, F_train)
     init_params = tf.dynamic_stitch(func.idx, model_fourier.trainable_variables)
 
     while True:
@@ -719,7 +750,7 @@ if True:
             # get the values for the mean_data tensor
             
             mean_data = mean_cartesian(f_colloc_train)
-            func = function_factory(model_fourier, fourier_loss_wrapper(f_colloc_train,mean_data,ns_BC_vec,p_BC_vec), X_train, F_train)
+            func = function_factory(model_fourier, fourier_loss_wrapper(f_colloc_train,mean_data,ns_BC_vec,p_BC_vec,inlet_BC_vec), X_train, F_train)
             init_params = tf.dynamic_stitch(func.idx, model_fourier.trainable_variables)
            
         # train the model with L-BFGS solver
