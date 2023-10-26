@@ -25,7 +25,7 @@ for mn in range(mode_number_array.size):
 
         base_dir = 'C:/projects/pinns_narval/sync/'
         data_dir = base_dir+'data/mazi_fixed_grid/'
-        case_prefix = 'mfg_dft'+str(mode_number)+'_S'+str(supersample_factor)+'_j'
+        case_prefix = 'mfg_femb_dft'+str(mode_number)+'_S'+str(supersample_factor)+'_j'
         output_base_dir = base_dir+'output/'
 
 
