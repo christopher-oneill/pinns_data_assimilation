@@ -144,9 +144,16 @@ uyppuypp = np.array(reynoldsStressFile['reynoldsStress'][2,:]).transpose()
 print(configFile['X_vec'].shape)
 x = np.array(configFile['X_vec'][0,:])
 x_test = x
+
 y = np.array(configFile['X_vec'][1,:])
 y_test = y
+
 d = np.array(configFile['cylinderDiameter'])
+
+# create additional points for the extrapolated region in front of the cylinder
+x_large = np.linspace(-6,10,500)
+y_large = np.linspace(-2.0,2.0,200)
+x_grid_large, y_grid_large = np.meshgrid(x_large,y_large)
 
 # note that we need to get these before we downsample, otherwise we will have inconsistent 
 # normalization depending on the supersampling factor which causes chaos elswhere
@@ -245,6 +252,7 @@ O_train = np.hstack(((ux_train).reshape(-1,1),(uy_train).reshape(-1,1),(uxppuxpp
 # note that the order here needs to be the same as the split inside the network!
 X_train = np.hstack((x_train.reshape(-1,1),y_train.reshape(-1,1)))
 X_test = np.hstack((x_test.reshape(-1,1)/MAX_x,y_test.reshape(-1,1)/MAX_y))
+X_large = np.hstack((x_grid_large.reshape(-1,1)/MAX_x,y_grid_large.reshape(-1,1)/MAX_y))
 
 print('X_train.shape: ',X_train.shape)
 print('X_train.shape: ',X_test.shape)
@@ -480,12 +488,17 @@ if True:
         # after training, the final optimized parameters are still in results.position
         # so we have to manually put them back to the model
             
-        if np.mod(L_iter,1)==0:
+        if np.mod(L_iter,10)==0:
             model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
             pred = model_mean.predict(X_test,batch_size=32)
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
             h5f.create_dataset('pred',data=pred)
             h5f.close()
+            pred = model_mean.predict(X_large,batch_size=32)
+            h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred_large.mat','w')
+            h5f.create_dataset('pred',data=pred)
+            h5f.close()
+
             if physics_loss_coefficient!=0:
                 t_mx,t_my,t_mass = net_f_cartesian(X_test)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
