@@ -518,6 +518,10 @@ if True:
             h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
             h5f.create_dataset('pred',data=pred)
             h5f.close()
+            pred = model_mean.predict(X_large,batch_size=32)
+            h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred_large.mat','w')
+            h5f.create_dataset('pred',data=pred)
+            h5f.close()
             if physics_loss_coefficient!=0:
                 t_mx,t_my,t_mass = net_f_cartesian(X_test)
                 h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
