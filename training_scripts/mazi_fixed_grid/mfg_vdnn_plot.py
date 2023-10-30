@@ -18,9 +18,9 @@ output_base_dir = 'C:/projects/pinns_narval/sync/output/'
 data_dir = 'C:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
 case_prefix = 'mfg_vdnn_mean'
 
-supersample_factor_list = [16]
+supersample_factor_list = [8,16,32]
 
-node_list = [100]
+node_list = [100,200]
 layer_list = [10]
 
 for node_index in range(len(node_list)):
@@ -174,7 +174,9 @@ for node_index in range(len(node_list)):
                 ax.set_ylim(bottom=-2.0,top=2.0)
                 plot.axis('equal')
                 fig.add_subplot(3,1,3)
-                plot.contourf(X_grid,Y_grid,(ux_pred_grid-ux_grid)/MAX_ux,levels=21)
+                max_f1_err = np.nanmax(np.abs(ux_pred_grid-ux_grid))/MAX_ux
+                f1_err_levels = np.linspace(-max_f1_err,max_f1_err,21)
+                plot.contourf(X_grid,Y_grid,(ux_pred_grid-ux_grid)/MAX_ux,levels=f1_err_levels)
                 plot.set_cmap('bwr')
                 plot.colorbar()
                 plot.ylabel('y/D')
@@ -212,7 +214,9 @@ for node_index in range(len(node_list)):
                 ax.set_ylim(bottom=-2.0,top=2.0)
                 plot.ylabel('y/D')
                 fig2.add_subplot(3,1,3)
-                plot.contourf(X_grid,Y_grid,(uy_pred_grid-uy_grid)/MAX_uy,levels=21)
+                max_f2_err = np.nanmax(np.abs(uy_pred_grid-uy_grid))/MAX_uy
+                f2_err_levels = np.linspace(-max_f2_err,max_f2_err,21)
+                plot.contourf(X_grid,Y_grid,(uy_pred_grid-uy_grid)/MAX_uy,levels=f2_err_levels)
                 plot.set_cmap('bwr')
                 plot.colorbar()
                 plot.ylabel('y/D')
@@ -246,7 +250,9 @@ for node_index in range(len(node_list)):
                 ax.set_ylim(bottom=-2.0,top=2.0)
                 plot.ylabel('y/D')
                 fig3.add_subplot(3,1,3)
-                plot.contourf(X_grid,Y_grid,(p_pred_grid-p_grid)/MAX_p,21)
+                max_f3_err = np.nanmax(np.abs(p_pred_grid-p_grid))/MAX_p
+                f3_err_levels = np.linspace(-max_f3_err,max_f3_err,21)
+                plot.contourf(X_grid,Y_grid,(p_pred_grid-p_grid)/MAX_p,f3_err_levels)
                 plot.set_cmap('bwr')
                 plot.colorbar()
                 plot.axis('equal')
@@ -282,7 +288,9 @@ for node_index in range(len(node_list)):
                 ax.set_ylim(bottom=-2.0,top=2.0)
                 plot.ylabel('y/D')
                 fig4.add_subplot(3,1,3)
-                plot.contourf(X_grid,Y_grid,(upup_pred_grid-upup_grid)/MAX_upup,21)
+                max_f4_err = np.nanmax(np.abs(upup_pred_grid-upup_grid))/MAX_upup
+                f4_err_levels = np.linspace(-max_f4_err,max_f4_err,21)
+                plot.contourf(X_grid,Y_grid,(upup_pred_grid-upup_grid)/MAX_upup,f4_err_levels)
                 plot.set_cmap('bwr')
                 plot.colorbar()
                 plot.axis('equal')
@@ -318,7 +326,9 @@ for node_index in range(len(node_list)):
                 ax.set_ylim(bottom=-2.0,top=2.0)
                 plot.ylabel('y/D')
                 fig5.add_subplot(3,1,3)
-                plot.contourf(X_grid,Y_grid,(upvp_pred_grid-upvp_grid)/MAX_upvp,21)
+                max_f5_err = np.nanmax(np.abs(upvp_pred_grid-upvp_grid))/MAX_upvp
+                f5_err_levels = np.linspace(-max_f5_err,max_f5_err,21)
+                plot.contourf(X_grid,Y_grid,(upvp_pred_grid-upvp_grid)/MAX_upvp,f5_err_levels)
                 plot.set_cmap('bwr')
                 plot.colorbar()
                 plot.axis('equal')
@@ -354,7 +364,9 @@ for node_index in range(len(node_list)):
                 ax.set_ylim(bottom=-2.0,top=2.0)
                 plot.ylabel('y/D')
                 fig6.add_subplot(3,1,3)
-                plot.contourf(X_grid,Y_grid,(vpvp_pred_grid-vpvp_grid)/MAX_vpvp,21)
+                max_f6_err = np.nanmax(np.abs(vpvp_pred_grid-vpvp_grid))/MAX_vpvp
+                f6_err_levels = np.linspace(-max_f6_err,max_f6_err,21)
+                plot.contourf(X_grid,Y_grid,(vpvp_pred_grid-vpvp_grid)/MAX_vpvp,f6_err_levels)
                 plot.set_cmap('bwr')
                 plot.colorbar()
                 plot.axis('equal')

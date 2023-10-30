@@ -699,7 +699,7 @@ else:
                 model_fourier.add(ResidualLayer(fourier_nodes))
             model_fourier.add(keras.layers.Dense(12,activation='linear'))
             model_fourier.summary()
-            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train),tf.cast(inlet_BC_vec,dtype_train)),jit_compile=False) 
+            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.0001), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train),tf.cast(inlet_BC_vec,dtype_train)),jit_compile=False) 
     else:
         with tf.device('/CPU:0'):
             model_fourier = keras.Sequential()
@@ -709,7 +709,7 @@ else:
                 model_fourier.add(ResidualLayer(fourier_nodes))
             model_fourier.add(keras.layers.Dense(12,activation='linear'))
             model_fourier.summary()
-            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train),tf.cast(inlet_BC_vec,dtype_train)),jit_compile=False) 
+            model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=0.0001), loss = fourier_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train),tf.cast(inlet_BC_vec,dtype_train)),jit_compile=False) 
 
 # set the training call back
 fourier_checkpoint_callback = keras.callbacks.ModelCheckpoint(
@@ -753,7 +753,7 @@ if True:
     func = function_factory(model_fourier, fourier_loss_wrapper(f_colloc_train,mean_data,ns_BC_vec,p_BC_vec,inlet_BC_vec), X_train, F_train)
     init_params = tf.dynamic_stitch(func.idx, model_fourier.trainable_variables)
 
-    while True:
+    while False:
         if physics_loss_coefficient!=0:
             # each L iter, we randomize the colocation points for robustness
             f_colloc_train = colloc_points()

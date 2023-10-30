@@ -331,7 +331,7 @@ def BC_inlet(BC_points):
     uxppuypp = up[:,3]*MAX_uxppuypp
     uyppuypp = up[:,4]*MAX_uyppuypp
     p = up[:,5]*MAX_p
-    return tf.reduce_mean(tf.square(ux-1.0)+tf.square(uy)+tf.square(uxppuxpp)+tf.square(uxppuypp)+tf.square(uyppuypp)) # note there is no point where the pressure is close to zero, so we neglect it in the mean field model
+    return tf.reduce_sum(tf.square(ux-1.0)+tf.square(uy)+tf.square(uxppuxpp)+tf.square(uxppuypp)+tf.square(uyppuypp)) # note there is no point where the pressure is close to zero, so we neglect it in the mean field model
 
 # function wrapper, combine data and physics loss
 def mean_loss_wrapper(colloc_tensor_f,BC_ns,BC_p,BC_inlet_pts): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
@@ -355,7 +355,7 @@ def mean_loss_wrapper(colloc_tensor_f,BC_ns,BC_p,BC_inlet_pts): # def custom_los
             BC_pressure_loss = BC_pressure(BC_p)
             BC_no_slip_loss = BC_no_slip(BC_ns)
             BC_inlet_loss = BC_inlet(BC_inlet_pts)
-            return  data_loss + physics_loss_coefficient*(physical_loss1 + physical_loss2 + physical_loss3 + BC_pressure_loss + BC_no_slip_loss + BC_inlet_loss) # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
+            return  data_loss + physics_loss_coefficient*(physical_loss1 + physical_loss2 + physical_loss3 + BC_pressure_loss + BC_no_slip_loss + 5.0*BC_inlet_loss) # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
         else:
             return data_loss
 
