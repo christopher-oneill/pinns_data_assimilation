@@ -8,7 +8,7 @@ import sys
 
 
 
-mode_number_array = np.array([0,1,2,3,4,5])
+mode_number_array = np.array([5])
 supersample_factor_list = [1]
 
 sys.path.append('C:/projects/pinns_local/code/')

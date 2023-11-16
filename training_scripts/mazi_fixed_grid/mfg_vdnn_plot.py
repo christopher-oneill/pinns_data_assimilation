@@ -18,7 +18,7 @@ output_base_dir = 'C:/projects/pinns_narval/sync/output/'
 data_dir = 'C:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
 case_prefix = 'mfg_vdnn_mean'
 
-supersample_factor_list = [8,16,32]
+supersample_factor_list = [16,32]
 
 node_list = [100,200]
 layer_list = [10]
@@ -76,6 +76,8 @@ for node_index in range(len(node_list)):
                 y = np.array(configFile['X_vec'][1,:])
                 Y_grid = np.array(configFile['Y_grid'])
                 d = np.array(configFile['cylinderDiameter'])[0]
+                MAX_x = max(x.flatten())
+                MAX_y = max(y.flatten())
 
                 if supersample_factor>1:
                     n_x = X_grid.shape[0]
@@ -380,7 +382,7 @@ for node_index in range(len(node_list)):
 
 
                 # check if the error file exists, if so plot
-                errorfilename = output_dir+case_name+'_ep'+str(epoch_number)+'_error.mat'
+                errorfilename = output_dir+case_name+'_S'+str(supersample_factor)+'_L'+str(layers)+'N'+str(nodes)+'_ep'+str(epoch_number)+'_error.mat'
                 print(errorfilename)
                 if os.path.isfile(errorfilename):
                     errorFile =  h5py.File(errorfilename,'r')
@@ -439,6 +441,141 @@ for node_index in range(len(node_list)):
                     if SaveFig:
                         plot.savefig(figure_prefix+'_error.png',dpi=300)
 
+
+# check if the error file exists, if so plot
+                largefilename = output_dir+case_name+'_S'+str(supersample_factor)+'_L'+str(layers)+'N'+str(nodes)+'_ep'+str(epoch_number)+'_pred_large.mat'
+                print(largefilename)
+                if os.path.isfile(largefilename):
+                    plot.close('all')
+                    largeFile =  h5py.File(largefilename,'r')
+                    print(largeFile.keys())
+                    ux_pred = np.array(largeFile['pred'][:,0])*MAX_ux
+                    uy_pred = np.array(largeFile['pred'][:,1])*MAX_uy
+                    p_pred = np.array(largeFile['pred'][:,5])*MAX_p 
+                    #nu_pred =  np.power(np.array(predFile['pred'][:,3]),2)*MAX_nut
+                    upup_pred = np.array(largeFile['pred'][:,2])*MAX_upup
+                    upvp_pred = np.array(largeFile['pred'][:,3])*MAX_upvp
+                    vpvp_pred = np.array(largeFile['pred'][:,4])*MAX_vpvp
+
+                    x_large = np.linspace(-6,10,500)
+                    y_large = np.linspace(-2.0,2.0,200)
+                    X_grid, Y_grid = np.meshgrid(x_large,y_large)
+                    #X_large = np.hstack((x_grid_large.reshape(-1,1)/MAX_x,y_grid_large.reshape(-1,1)/MAX_y))
+
+                    print('ux.shape: ',ux.shape)
+                    print('uy.shape: ',uy.shape)
+                    print('p.shape: ',p.shape)
+                    print('upvp.shape: ',upvp.shape)
+
+
+                    print('x.shape: ',x.shape)
+                    print('y.shape: ',y.shape)
+                    print('X_grid.shape: ',X_grid.shape)
+                    print('Y_grid.shape: ',Y_grid.shape)
+                    print('d: ',d.shape)
+
+                    print('ux_pred.shape: ',ux_pred.shape)
+                    print('uy_pred.shape: ',uy_pred.shape)
+                    print('p_pred.shape: ',p_pred.shape)
+                    #print('nu_pred.shape: ',nu_pred.shape)
+                    print('upvp_pred.shape: ',upvp_pred.shape)
+
+                    # note that the absolute value of the pressure doesnt matter, only grad p and grad2 p, so subtract the mean 
+                    #p_pred = p_pred-(1/3)*(upup+vpvp)#p_pred - (1/3)*(upup+vpvp)
+                    cylinder_mask = (np.power(np.power(X_grid,2)+np.power(Y_grid,2),0.5)<(0.5*d))
+                    ux_pred_grid = np.reshape(ux_pred,X_grid.shape)
+                    ux_pred_grid[cylinder_mask] = np.NaN
+                    uy_pred_grid = np.reshape(uy_pred,X_grid.shape)
+                    uy_pred_grid[cylinder_mask] = np.NaN
+                    p_pred_grid = np.reshape(p_pred,X_grid.shape)
+                    p_pred_grid[cylinder_mask] = np.NaN
+                    upup_pred_grid = np.reshape(upup_pred,X_grid.shape)
+                    upup_pred_grid[cylinder_mask] = np.NaN
+                    upvp_pred_grid = np.reshape(upvp_pred,X_grid.shape)
+                    upvp_pred_grid[cylinder_mask] = np.NaN
+                    vpvp_pred_grid = np.reshape(vpvp_pred,X_grid.shape)
+                    vpvp_pred_grid[cylinder_mask] = np.NaN
+
+
+                    f1s1_levels = np.linspace(-MAX_ux,MAX_ux,21)
+                    fig = plot.figure(1)
+                    ax = fig.add_subplot(3,1,1)
+                    plot.axis('equal')
+                    plot.contourf(X_grid,Y_grid,ux_pred_grid,levels=f1s1_levels)
+                    plot.set_cmap('bwr')
+                    plot.colorbar()
+                    ax=plot.gca()
+                    ax.set_xlim(left=-6.0,right=10.0)
+                    ax.set_ylim(bottom=-2.0,top=2.0)
+                    plot.ylabel('y/D')
+                    if supersample_factor>1:
+                        dots = plot.scatter(x_downsample,y_downsample,0.1,color='black')
+
+                    f1s2_levels = np.linspace(-MAX_uy,MAX_uy,21)
+                    fig.add_subplot(3,1,2)
+                    plot.contourf(X_grid,Y_grid,uy_pred_grid,levels=f1s2_levels)
+                    plot.set_cmap('bwr')
+                    plot.colorbar()
+                    plot.ylabel('y/D')
+                    ax=plot.gca()
+                    ax.set_xlim(left=-6.0,right=10.0)
+                    ax.set_ylim(bottom=-2.0,top=2.0)
+                    plot.axis('equal')
+                    fig.add_subplot(3,1,3)
+
+                    f1s3_levels = np.linspace(-MAX_p,MAX_p,21)
+                    plot.contourf(X_grid,Y_grid,p_pred_grid,levels=f1s3_levels)
+                    plot.set_cmap('bwr')
+                    plot.colorbar()
+                    plot.ylabel('y/D')
+                    plot.xlabel('x/D')
+                    plot.axis('equal')
+                    ax=plot.gca()
+                    ax.set_xlim(left=-6.0,right=10.0)
+                    ax.set_ylim(bottom=-2.0,top=2.0)
+                    if SaveFig:
+                        plot.savefig(figure_prefix+'_mean_large1.png',dpi=300)
+
+                    f2s1_levels = np.linspace(-MAX_upup,MAX_upup,21)
+                    fig2 = plot.figure(2)
+                    fig2.add_subplot(3,1,1)
+                    plot.axis('equal')
+                    plot.contourf(X_grid,Y_grid,upup_pred_grid,levels=f2s1_levels)
+                    plot.set_cmap('bwr')
+                    plot.colorbar()
+                    ax=plot.gca()
+                    ax.set_xlim(left=-6.0,right=10.0)
+                    ax.set_ylim(bottom=-2.0,top=2.0)
+                    plot.ylabel('y/D')
+                    if supersample_factor>1:
+                        dots = plot.scatter(x_downsample,y_downsample,0.1,color='black')
+                    f2s2_levels = np.linspace(-MAX_upvp,MAX_upvp,21)
+                    fig2.add_subplot(3,1,2)
+                    plot.contourf(X_grid,Y_grid,upvp_pred_grid,levels=f2s2_levels)
+                    plot.set_cmap('bwr')
+                    ax=plot.gca()
+                    ax.set_xlim(left=-6.0,right=10.0)
+                    ax.set_ylim(bottom=-2.0,top=2.0)
+                    plot.colorbar()
+                    plot.axis('equal')
+                    ax=plot.gca()
+                    ax.set_xlim(left=-6.0,right=10.0)
+                    ax.set_ylim(bottom=-2.0,top=2.0)
+                    plot.ylabel('y/D')
+                    f1s3_levels = np.linspace(-MAX_p,MAX_p,21)
+                    fig2.add_subplot(3,1,3)
+                    f2s3_levels = np.linspace(-MAX_vpvp,MAX_vpvp,21)
+                    plot.contourf(X_grid,Y_grid,vpvp_pred_grid,levels=f2s3_levels)
+                    plot.set_cmap('bwr')
+                    plot.colorbar()
+                    plot.ylabel('y/D')
+                    plot.xlabel('x/D')
+                    ax=plot.gca()
+                    ax.set_xlim(left=-6.0,right=10.0)
+                    ax.set_ylim(bottom=-2.0,top=2.0)
+                    plot.axis('equal')
+                    if SaveFig:
+                        plot.savefig(figure_prefix+'_mean_large2.png',dpi=300)
 
                 if PlotFig:
                     plot.show()

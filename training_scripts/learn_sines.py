@@ -3,6 +3,7 @@
 import tensorflow as tf
 import tensorflow.keras as keras
 import tensorflow_probability as tfp
+keras.backend.set_floatx('float64')
 
 import numpy as np
 
@@ -15,14 +16,16 @@ from pinns_galerkin_viv.lib.LBFGS_example import function_factory
 from pinns_galerkin_viv.lib.layers import ResidualLayer
 from pinns_galerkin_viv.lib.layers import FourierResidualLayer32
 
-
+from pinns_galerkin_viv.lib.layers import TruncatedFourierProductBlock64
 
 
 
 x = np.linspace(-1,1,1000,dtype=np.float64)
 y = np.sin(10*np.pi*x,dtype=np.float64)
 
-x_train = x/5.0
+MAX_y = np.max(y)
+
+x_train = x
 
 
 def network_loss(y_true,y_pred):
@@ -30,10 +33,10 @@ def network_loss(y_true,y_pred):
     return data_loss
 
 
-if True:
+if False:
     with tf.device('/CPU:0'):
         model_sines = keras.Sequential()
-        model_sines.add(keras.layers.Dense(1, activation='linear', input_shape=(1,)))
+        model_sines.add(keras.layers.Dense(10, activation='linear', input_shape=(1,)))
         model_sines.add(keras.layers.Dense(10,activation='tanh'))
         model_sines.add(keras.layers.Dense(10,activation='tanh'))
         model_sines.add(keras.layers.Dense(10,activation='tanh'))
@@ -46,7 +49,7 @@ if True:
 if False: 
     with tf.device('/CPU:0'):
         model_sines = keras.Sequential()
-        model_sines.add(keras.layers.Dense(1,activation='linear',input_shape=(1,)))
+        model_sines.add(keras.layers.Dense(10,activation='linear',input_shape=(1,)))
         model_sines.add(ResidualLayer(10))
         model_sines.add(ResidualLayer(10))
         model_sines.add(keras.layers.Dense(1,activation='linear'))
@@ -56,11 +59,23 @@ if False:
 if False: 
     with tf.device('/CPU:0'):
         model_sines = keras.Sequential()
-        model_sines.add(keras.layers.Dense(1,activation='linear',input_shape=(1,),))
+        model_sines.add(keras.layers.Dense(10,activation='linear',input_shape=(1,),))
         model_sines.add(FourierResidualLayer32(10))
+        model_sines.add(ResidualLayer(10))
         model_sines.add(keras.layers.Dense(1,activation='linear'))
         model_sines.summary()
         model_sines.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01),loss=network_loss,jit_compile=False) 
+
+if True: 
+    with tf.device('/CPU:0'):
+        model_sines = keras.Sequential()
+        model_sines.add(keras.layers.Dense(20,activation='linear',input_shape=(1,),))
+        model_sines.add(TruncatedFourierProductBlock64(10))
+        model_sines.add(ResidualLayer(20))
+        model_sines.add(keras.layers.Dense(1,activation='linear'))
+        model_sines.summary()
+        model_sines.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01),loss=network_loss,jit_compile=False) 
+
 
 shuffle_inds = np.array(range(x_train.shape[0])).transpose()
 shuffle_inds = np.random.shuffle(shuffle_inds)
@@ -68,8 +83,8 @@ shuffle_inds = np.random.shuffle(shuffle_inds)
 x_train_shuffle = (x_train[shuffle_inds]).transpose()
 y_train_shuffle = (y[shuffle_inds]).transpose()
 
-LBFGS_steps =4*3333
-LBFGS_epochs = 4*10000
+LBFGS_steps =1000
+LBFGS_epochs = 3*LBFGS_steps
 
 epochs = 0
 
@@ -107,11 +122,11 @@ print(x.shape)
 print(pred.shape)
 
 plot.figure(1)
+plot.subplot(2,1,1)
 plot.scatter(x,y)
 plot.scatter(x,pred[:,0])
 plot.legend(['raw','NN'])
-
-plot.figure(2)
+plot.subplot(2,1,2)
 plot.scatter(x,err)
 plot.ylabel('NN-raw')
 

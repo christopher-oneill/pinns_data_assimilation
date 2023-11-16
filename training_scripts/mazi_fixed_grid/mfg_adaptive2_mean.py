@@ -1,45 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Fri May  6 10:59:20 2022
-
-@author: saldern
-
-Moritz S. PIV data
-
-Assimilate the teta velocity based on 2D Velocity data
-This case includes more equations, we try to find nut and ut simultaneous
-
-we need to apply a boundary condition for ut
-add pressure to the system
-
-same as _8 but with gradient in eddy viscosity
-
-this case has a hole line of training data in theta at x/max_x=0.5
-and ut = 0 at r/max_r = 1 and x/max_x<0.3
-
-FINAL CASE FOR JFM
-
-# this case is the final one used for the PINN paper
-# during second revision we realized that the units of the length are in mm not in m
-# this is not problamatic, since the error cancels out in almost every term! (since the eq. are multiplied with r (also in mm))
-# the viscous terms have two spatial derivatives (so two time the error multiplied with r yields only one error left of factor 
-10-3) this in turn means that the PINN estimates an viscosity which is 10^3 larger! This in turn corresponds to using
-the length in the correct unit (meters) and choosing a MAX_nu of 10^3 larger.
--> when using this code keep in mind that the resulting eddy viscosity is 10^3 too large
-
--> alternatively run the code again, case rev2_2 with meters
-
-we decided to stick with this case here and update the MAX_nut stated in the manuscript (otherwise we would have to change to figures/results)
-
-(however, if equations are not multiplied with r than training will be more difficult (as the mm do not cancel out)
-So this case should not be copied without correcting it so meters.)
-
-13.10.22 This case is still the final one used for POF
-(To check that everythin is correct I compute the same solution with length in m and MAX_nut = 0.00001 in swirl_pinn_POF_rev2_3.py)
-
-
-"""
 
 
 import numpy as np
