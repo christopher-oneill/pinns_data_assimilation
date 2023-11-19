@@ -21,7 +21,7 @@ from pinns_galerkin_viv.lib.layers import TruncatedFourierProductBlock64
 
 
 x = np.linspace(-1,1,1000,dtype=np.float64)
-y = np.sin(10*np.pi*x,dtype=np.float64)
+y = np.sin(5*2*np.pi*x,dtype=np.float64)
 
 MAX_y = np.max(y)
 

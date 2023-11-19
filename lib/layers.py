@@ -70,10 +70,10 @@ class FourierResidualLayer32(keras.layers.Layer):
 class ResidualLayer(keras.layers.Layer):
     # Chris O'Neill, University of Calgary 2023
     # a simple residual block
-    def __init__(self,units):
+    def __init__(self,units,activation='tanh'):
         super().__init__()
         self.units = units
-        self.Dense  = keras.layers.Dense(self.units,activation='tanh')
+        self.Dense  = keras.layers.Dense(self.units,activation=activation)
     
       
     def call(self,inputs):
@@ -236,3 +236,43 @@ class QuarticFourierProductBlock64(keras.layers.Layer):
         
         return tf.concat((tf.matmul(self.combinations,self.wo),tf.zeros((tf.shape(inputs)[0],tf.shape(inputs)[-1]-self.units,),dtype=tf.float64)),1)+inputs    
 
+# a more classical fourier embedding layer, passes through the input
+class FourierEmbeddingLayer(keras.layers.Layer):
+    # Chris O'Neill, University of Calgary 2023
+    # number of layer weights is factorial with width! so be careful picking too wide a network
+    def __init__(self,frequency_vector):
+        super().__init__()
+        self.frequency_vector = tf.reshape(frequency_vector,(1,1,tf.shape(frequency_vector)[0]))
+        self.nfreq = tf.shape(self.frequency_vector)[2]
+          
+    def call(self,inputs):
+        inp_shape = tf.shape(inputs)
+        inp_prod = tf.reshape(tf.multiply(tf.reshape(inputs,(inp_shape[0],inp_shape[-1],1)),self.frequency_vector),(inp_shape[0],inp_shape[-1]*self.nfreq))
+        return tf.concat((inputs,tf.cos(2.0*np.pi*inp_prod),tf.sin(2.0*np.pi*inp_prod)),axis=1)
+    
+
+
+class AdjustableFourierTransformLayer(keras.layers.Layer):
+    # Chris O'Neill, University of Calgary 2023
+    def __init__(self,units):
+        super().__init__()
+        self.units = units
+
+    def __init__(self,nfreq,max_freq):
+        super().__init__()
+        self.nfreq = nfreq
+        self.max_freq = max_freq
+        self.df = tf.cast(max_freq/(nfreq-1),tf.float64)
+
+    def build(self, input_shape):
+        self.w_init = tf.random_normal_initializer()
+        self.b1 = tf.reshape(tf.convert_to_tensor(np.linspace(0,self.max_freq,self.nfreq),dtype=tf.float64),(1,self.nfreq)) # frequency bin centers
+        self.w1 = tf.Variable(initial_value=self.w_init(shape=(1,self.nfreq,),dtype=tf.float64),trainable=True,name='w1') # frequency adjustment weight
+        
+    
+    def call(self,inputs):
+        inp_shape = tf.shape(inputs)
+        freq_vector = self.b1+tf.multiply(self.df,keras.activations.sigmoid(self.w1))
+        inp_prod = tf.reshape(tf.multiply(tf.reshape(inputs,(inp_shape[0],inp_shape[-1],1)),freq_vector),(inp_shape[0],inp_shape[-1]*self.nfreq))
+        return tf.concat((inputs,tf.cos(2.0*np.pi*inp_prod),tf.sin(2.0*np.pi*inp_prod)),axis=1)
+    
