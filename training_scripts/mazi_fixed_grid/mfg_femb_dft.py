@@ -49,7 +49,7 @@ arg_nodes = int(sys.argv[4])
 arg_layers = int(sys.argv[5])
 job_hours = int(sys.argv[6])
 
-job_name = 'mfg_femb_dft{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
+job_name = 'mfg_femb2_dft{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
 
 
@@ -67,7 +67,7 @@ def save_custom(epochs):
     h5f.create_dataset('pred_grid',data=pred_grid)
     h5f.close()
     if model_fourier.ScalingParameters.physics_loss_coefficient!=0:
-        mxr_grid,mxi_grid,myr_grid,myi_grid,massr_grid,massi_grid = net_f_fourier_cartesian_batch(model_fourier,X_test,mean_data_test_grid,1024)
+        mxr_grid,mxi_grid,myr_grid,myi_grid,massr_grid,massi_grid = FANS_cartesian(model_fourier,X_test,mean_data_test_grid,1024)
         h5f.create_dataset('mxr_grid',data=mxr_grid)
         h5f.create_dataset('mxi_grid',data=mxi_grid)
         h5f.create_dataset('myr_grid',data=myr_grid)
@@ -574,6 +574,7 @@ L_iter = 0
 func = function_factory(model_fourier, FANS_loss_wrapper(model_fourier,f_colloc_train,mean_data,ns_BC_vec,p_BC_vec,inlet_BC_vec), X_train, F_train)
 init_params = tf.dynamic_stitch(func.idx, model_fourier.trainable_variables)
 
+model_fourier.ScalingParameters.batch_size = f_colloc_train.shape[0]
 if BACKPROP_flag==False:
     while True:
         if model_fourier.ScalingParameters.physics_loss_coefficient!=0:
