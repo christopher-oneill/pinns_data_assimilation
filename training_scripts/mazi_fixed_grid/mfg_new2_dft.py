@@ -422,6 +422,7 @@ with tf.device('/CPU:0'):
 
 # append the scaling parameters to the model
 model_mean.ScalingParameters = ScalingParameters
+model_mean.ScalingParameters.MAX_y = np.max(y.ravel()) # this needs to be used since the old models used a different spatial normalization
 
 # get the values for the mean_data tensor
 mean_data = predict_RANS_reynolds_stress_cartesian(model_mean,f_colloc_train)
