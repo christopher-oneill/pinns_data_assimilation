@@ -13,7 +13,7 @@ L-BFGS optimizer example
 
 import numpy as np 
 import tensorflow as tf
-import tensorflow_probability as tfp
+
 
 
 def function_factory(model, loss, train_x, train_y):
