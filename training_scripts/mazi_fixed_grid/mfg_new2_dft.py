@@ -448,7 +448,7 @@ if len(checkpoint_files)>0:
 else:
     # if not, we train from the beginning
     epochs = 0
-    ScalingParameters.physics_loss_coefficient = 0.0
+    ScalingParameters.physics_loss_coefficient = 1.0
     if (not os.path.isdir(PROJECTDIR+'output/'+job_name+'_output/')):
         os.mkdir(PROJECTDIR+'output/'+job_name+'_output/')
 
