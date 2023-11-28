@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd /home/coneill/sync/code/pinns_galerkin_viv/slurm/mazi_fixed_grid/new2_dft/
+cd /home/coneill/sync/code/pinns_data_assimilation/slurm/mazi_fixed_grid/new2_dft/
 
 sbatch S1/dft0_S1_j001.sh
 sbatch S1/dft0_S1_j002.sh

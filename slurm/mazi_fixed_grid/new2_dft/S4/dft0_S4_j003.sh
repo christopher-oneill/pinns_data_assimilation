@@ -5,7 +5,7 @@
 #SBATCH --time=0-23:30
 #SBATCH --mail-user=christopher.mark.oneill@gmail.com
 #SBATCH --mail-type=ALL
-#SBATCH --output=/home/coneill/sync/logs/new2_dft/S1/new2_dft0_S4_j003-%A.out
+#SBATCH --output=/home/coneill/sync/logs/new2_dft/S4/new2_dft0_S4_j003-%A.out
 
 # ---------------------------------------------------------------------
 echo "Current working directory: `pwd`"
