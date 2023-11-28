@@ -3,12 +3,7 @@
 cd /home/coneill/sync/
 
 
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/vdnn/S32/mfg_vdnn_S32_m005_L10N100.sh
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/vdnn/S32/mfg_vdnn_S32_m006_L10N100.sh
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/vdnn/S32/mfg_vdnn_S32_m007_L10N100.sh
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/vdnn/S32/mfg_vdnn_S32_m008_L10N100.sh
-
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/vdnn/S32/mfg_vdnn_S32_m005_L10N200.sh
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/vdnn/S32/mfg_vdnn_S32_m006_L10N200.sh
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/vdnn/S32/mfg_vdnn_S32_m007_L10N200.sh
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/vdnn/S32/mfg_vdnn_S32_m008_L10N200.sh
+sbatch code/pinns_data_assimilation/slurm/mazi_fixed_grid/vdnn/S32/m010.sh
+sbatch code/pinns_data_assimilation/slurm/mazi_fixed_grid/vdnn/S32/m011.sh
+sbatch code/pinns_data_assimilation/slurm/mazi_fixed_grid/vdnn/S32/m012.sh
+sbatch code/pinns_data_assimilation/slurm/mazi_fixed_grid/vdnn/S32/m013.sh
