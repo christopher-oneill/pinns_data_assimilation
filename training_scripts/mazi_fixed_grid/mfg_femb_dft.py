@@ -342,16 +342,16 @@ print('O_train.shape: ',O_train.shape)
 
 # import the physics
 # mean model functions
-from pinns_data_assimilation.lib.physics_cartesian import mean_cartesian
-from pinns_data_assimilation.lib.physics_cartesian import mean_loss_wrapper
+from pinns_data_assimilation.lib.navier_stokes_cartesian import mean_cartesian
+from pinns_data_assimilation.lib.navier_stokes_cartesian import mean_loss_wrapper
 
 # fourier model functions
-from pinns_data_assimilation.lib.physics_cartesian import FANS_cartesian
-from pinns_data_assimilation.lib.physics_cartesian import net_f_fourier_cartesian_batch
+from pinns_data_assimilation.lib.navier_stokes_cartesian import FANS_cartesian
+from pinns_data_assimilation.lib.navier_stokes_cartesian import net_f_fourier_cartesian_batch
 # fourier model BCs
-from pinns_data_assimilation.lib.physics_cartesian import BC_FANS_pressure_outlet
-from pinns_data_assimilation.lib.physics_cartesian import BC_FANS_no_slip
-from pinns_data_assimilation.lib.physics_cartesian import BC_FANS_inlet
+from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_FANS_pressure_outlet
+from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_FANS_no_slip
+from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_FANS_inlet
 
 
 # write the loss wrapper
