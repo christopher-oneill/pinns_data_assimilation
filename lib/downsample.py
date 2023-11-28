@@ -29,3 +29,16 @@ def compute_downsample_inds_even(S,n_x,n_y):
     for i in range(downsample_inds_x.size):
         linear_downsample_inds[(i*downsample_inds_y.size):((i+1)*downsample_inds_y.size),0] = downsample_inds_y + downsample_inds_x[i]*n_y
     return linear_downsample_inds, n_x_d, n_y_d
+
+
+
+def compute_downsample_inds_center(S,Xi,Yi):
+    # downsample the data
+    IndMinX = np.argmin(np.abs(Xi))
+    IndMinY = np.argmin(np.abs(Yi))
+    vecX = np.concatenate((np.flip(np.arange(IndMinX,0,-S)),np.arange(IndMinX+S,Xi.shape[0],S)))
+    vecY = np.concatenate((np.flip(np.arange(IndMinY,0,-S)),np.arange(IndMinY+S,Yi.shape[0],S)))
+    matX,matY = np.meshgrid(vecX,vecY)
+    index_vector = np.int64(np.stack((matX.ravel(),matY.ravel()),axis=1))
+    linear_downsample_inds = np.ravel_multi_index(index_vector.transpose(),(Xi.shape[0],Yi.shape[0]))
+    return linear_downsample_inds, vecX.shape[0], vecY.shape[0]

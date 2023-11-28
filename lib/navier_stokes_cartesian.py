@@ -64,30 +64,27 @@ def steady_NS(model_steady,colloc_tensor):
     return f_x, f_y, f_mass
 
 # function wrapper, combine data and physics loss
-def RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_tensor_f,BC_ns,BC_p): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
+def steady_loss_wrapper(model_steady,colloc_tensor_f,BC_ns,BC_p): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
     
     def mean_loss(y_true, y_pred):
         # this needs to match the order that they are concatinated in the array when setting up the network
         # additionally, the known quantities must be first, unknown quantites second
         data_loss_ux = keras.losses.mean_squared_error(y_true[:,0], y_pred[:,0]) # u 
         data_loss_uy = keras.losses.mean_squared_error(y_true[:,1], y_pred[:,1]) # v 
-        data_loss_uxppuxpp = keras.losses.mean_squared_error(y_true[:,2], y_pred[:,2]) # u''u''   
-        data_loss_uxppuypp = keras.losses.mean_squared_error(y_true[:,3], y_pred[:,3]) # u''v''
-        data_loss_uyppuypp = keras.losses.mean_squared_error(y_true[:,4], y_pred[:,4]) # v''v''
-        data_loss = data_loss_ux + data_loss_uy + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp
+        data_loss_p = keras.losses.mean_squared_error(y_true[:,2], y_pred[:,2]) # u''u''   
+        data_loss = tf.reduce_mean(data_loss_ux + data_loss_uy + data_loss_p)
 
-        if (model_RANS.ScalingParameters.physics_loss_coefficient!=0):
+        if (model_steady.ScalingParameters.physics_loss_coefficient!=0):
             # compute physics loss
-            mx,my,mass = RANS_reynolds_stress_cartesian(model_RANS,colloc_tensor_f)
+            mx,my,mass = RANS_reynolds_stress_cartesian(model_steady,colloc_tensor_f)
             physical_loss1 = tf.reduce_mean(tf.square(mx))
             physical_loss2 = tf.reduce_mean(tf.square(my))
             physical_loss3 = tf.reduce_mean(tf.square(mass))
 
-            BC_pressure_loss = BC_RANS_reynolds_stress_pressure(model_RANS,BC_p)
-            BC_no_slip_loss = BC_RANS_reynolds_stress_no_slip(model_RANS,BC_ns)
-            physics_loss = (physical_loss1 + physical_loss2 + physical_loss3 + BC_pressure_loss + BC_no_slip_loss)
-                      
-            return  data_loss+ model_RANS.ScalingParameters.physics_loss_coefficient*physics_loss # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
+            BC_pressure_loss = BC_RANS_reynolds_stress_pressure(model_steady,BC_p)
+            BC_no_slip_loss = BC_RANS_reynolds_stress_no_slip(model_steady,BC_ns)
+            physics_loss = tf.reduce_mean(physical_loss1 + physical_loss2 + physical_loss3 + BC_pressure_loss + BC_no_slip_loss)
+            return  data_loss+ model_steady.ScalingParameters.physics_loss_coefficient*physics_loss # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
         else:
             return data_loss
         
@@ -143,12 +140,11 @@ def RANS_reynolds_stress_cartesian(model_RANS,colloc_tensor):
     f_y = (ux*uy_x + uy*uy_y) + (uxppuypp_x + uyppuypp_y) + p_y - (model_RANS.ScalingParameters.nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
     f_mass = ux_x + uy_y
     
-
     return f_x, f_y, f_mass
 
-# function wrapper, combine data and physics loss
-def RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_tensor_f,BC_ns,BC_p): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
-    
+
+def RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_points,BC_p,BC_ns,BC_inlet,BC_inlet2): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
+    x 
     def mean_loss(y_true, y_pred):
         # this needs to match the order that they are concatinated in the array when setting up the network
         # additionally, the known quantities must be first, unknown quantites second
@@ -157,19 +153,47 @@ def RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_tensor_f,BC_ns,BC_p): # 
         data_loss_uxppuxpp = keras.losses.mean_squared_error(y_true[:,2], y_pred[:,2]) # u''u''   
         data_loss_uxppuypp = keras.losses.mean_squared_error(y_true[:,3], y_pred[:,3]) # u''v''
         data_loss_uyppuypp = keras.losses.mean_squared_error(y_true[:,4], y_pred[:,4]) # v''v''
+        scaling_loss_p = 0.0*tf.reduce_sum(tf.math.maximum(tf.math.abs(y_pred[:,5])-1,0))
+        
+        #if (model_RANS.ScalingParameters.batch_size==colloc_points.shape[0]):
+        #    BC_pressure_scaling_loss = BC_RANS_pressure_magnitude(model_RANS,colloc_points)
+        #else:
+        #    rand_colloc_points = np.random.choice(colloc_points.shape[0],model_RANS.ScalingParameters.batch_size)
+        #    BC_pressure_scaling_loss = BC_RANS_pressure_magnitude(model_RANS,tf.gather(colloc_points,rand_colloc_points))
+        
+        # we add the pressure scaling loss as well because it helps the numerical condition of the model
+        data_loss = tf.reduce_mean(data_loss_ux + data_loss_uy + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp+ scaling_loss_p)
 
+        if (model_RANS.ScalingParameters.physics_loss_coefficient==0):
+            physics_loss = 0.0
+        else:
+            if (model_RANS.ScalingParameters.batch_size==colloc_points.shape[0]):
+                # all colloc points
+                mx,my,mass = RANS_reynolds_stress_cartesian(model_RANS,colloc_points)
+            else:
+                # random selection of collocation points with batch size
+                rand_colloc_points = np.random.choice(colloc_points.shape[0],model_RANS.ScalingParameters.batch_size)
+                mx,my,mass = RANS_reynolds_stress_cartesian(model_RANS,tf.gather(colloc_points,rand_colloc_points))
+            physical_loss1 = tf.reduce_mean(tf.square(mx))
+            physical_loss2 = tf.reduce_mean(tf.square(my))
+            physical_loss3 = tf.reduce_mean(tf.square(mass))
+            physics_loss = tf.reduce_mean(physical_loss1 + physical_loss2 + physical_loss3)
+        if (model_RANS.ScalingParameters.boundary_loss_coefficient==0):
+            boundary_loss = 0.0
+        else:
+            BC_pressure_loss = 500.0*BC_RANS_reynolds_stress_pressure(model_RANS,BC_p) # scaled to compensate the reduce sum on other BCs
+            BC_no_slip_loss = BC_RANS_reynolds_stress_no_slip(model_RANS,BC_ns)
+            BC_inlet_loss = BC_RANS_inlet(model_RANS,BC_inlet)
+            BC_inlet_loss2 = BC_RANS_inlet2(model_RANS,BC_inlet2)
+                       
+            boundary_loss = (BC_pressure_loss + BC_no_slip_loss + BC_inlet_loss+BC_inlet_loss2)
 
-        mx,my,mass = RANS_reynolds_stress_cartesian(model_RANS,colloc_tensor_f)
-        physical_loss1 = tf.reduce_mean(tf.square(mx))
-        physical_loss2 = tf.reduce_mean(tf.square(my))
-        physical_loss3 = tf.reduce_mean(tf.square(mass))
-
-        BC_pressure_loss = BC_RANS_reynolds_stress_pressure(model_RANS,BC_p)
-        BC_no_slip_loss = BC_RANS_reynolds_stress_no_slip(model_RANS,BC_ns)
-                      
-        return data_loss_ux + data_loss_uy + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp + model_RANS.ScalingParameters.physics_loss_coefficient*(physical_loss1 + physical_loss2 + physical_loss3 + BC_pressure_loss + BC_no_slip_loss) # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
-
+        combined_phyisics_loss = model_RANS.ScalingParameters.physics_loss_coefficient*physics_loss + model_RANS.ScalingParameters.boundary_loss_coefficient*boundary_loss
+        dynamic_data_weight = tf.math.exp(tf.math.ceil(tf.math.log(combined_phyisics_loss+1E-30)))
+        return  tf.math.reduce_max((dynamic_data_weight,1))*model_RANS.ScalingParameters.data_loss_coefficient*data_loss + combined_phyisics_loss
+        
     return mean_loss
+
 
 @tf.function
 def predict_RANS_reynolds_stress_cartesian(model_RANS,colloc_tensor):
@@ -192,8 +216,17 @@ def BC_RANS_reynolds_stress_pressure(model_RANS,BC_points):
     up = model_RANS(BC_points)
     # knowns
     # unknowns
+    p = up[:,5]
+    return tf.reduce_mean(tf.square(p))
+
+@tf.function
+def BC_RANS_reynolds_stress_outlet_pressure_sign(model_RANS,BC_points):
+    # pressure outlet should be slightly negative
+    up = model_RANS(BC_points)
+    # knowns
+    # unknowns
     p = up[:,5]*model_RANS.ScalingParameters.MAX_p
-    return tf.square(tf.reduce_mean(p))
+    return tf.cast((p>0.0),tf.float64)
 
 @tf.function
 def BC_RANS_reynolds_stress_no_slip(model_RANS,BC_points):
@@ -204,7 +237,37 @@ def BC_RANS_reynolds_stress_no_slip(model_RANS,BC_points):
     uxppuxpp = up[:,2]*model_RANS.ScalingParameters.MAX_uxppuxpp
     uxppuypp = up[:,3]*model_RANS.ScalingParameters.MAX_uxppuypp
     uyppuypp = up[:,4]*model_RANS.ScalingParameters.MAX_uyppuypp
-    return tf.reduce_mean(tf.square(ux)+tf.square(uy)+tf.square(uxppuxpp)+tf.square(uxppuypp)+tf.square(uyppuypp))
+    return tf.reduce_sum(tf.square(ux)+tf.square(uy)+tf.square(uxppuxpp)+tf.square(uxppuypp)+tf.square(uyppuypp))
+
+@tf.function
+def BC_RANS_inlet(model_RANS,BC_points):
+    up = model_RANS(BC_points)
+    ux = up[:,0]*model_RANS.ScalingParameters.MAX_ux
+    uy = up[:,1]*model_RANS.ScalingParameters.MAX_uy
+    uxppuxpp = up[:,2]*model_RANS.ScalingParameters.MAX_uxppuxpp
+    uxppuypp = up[:,3]*model_RANS.ScalingParameters.MAX_uxppuypp
+    uyppuypp = up[:,4]*model_RANS.ScalingParameters.MAX_uyppuypp
+    return tf.reduce_sum(tf.square(ux-1.0/model_RANS.ScalingParameters.MAX_ux)+tf.square(uy)+tf.square(uxppuxpp)+tf.square(uxppuypp)+tf.square(uyppuypp))
+ # note there is no point where the pressure is close to zero, so we neglect it in the mean field model
+
+@tf.function
+def BC_RANS_inlet2(model_RANS,BC_points):
+    up = model_RANS(BC_points)
+    uxppuxpp = up[:,2]*model_RANS.ScalingParameters.MAX_uxppuxpp
+    uxppuypp = up[:,3]*model_RANS.ScalingParameters.MAX_uxppuypp
+    uyppuypp = up[:,4]*model_RANS.ScalingParameters.MAX_uyppuypp
+    p = up[:,5]*model_RANS.ScalingParameters.MAX_p
+    p_sign = 0.0*tf.reduce_sum(tf.cast(p<0,tf.float64))
+    return tf.reduce_sum(tf.square(uxppuxpp)+tf.square(uxppuypp)+tf.square(uyppuypp)+p_sign)
+ # note there is no point where the pressure is close to zero, so we neglect it in the mean field model
+
+@tf.function
+def BC_RANS_pressure_magnitude(model_RANS,BC_points):
+    # pressure is outside of normalized range
+    up = model_RANS(BC_points)
+    p = up[:,5]
+    return tf.reduce_sum(tf.math.maximum(tf.math.abs(p)-1,0))
+
 
 # fans functions, with specified fourier stresses
 def FANS_loss_wrapper(model_FANS,colloc_tensor_f,colloc_grads,ns_BC_points,p_BC_points,inlet_BC_points): 

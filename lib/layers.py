@@ -70,11 +70,21 @@ class FourierResidualLayer32(keras.layers.Layer):
 class ResidualLayer(keras.layers.Layer):
     # Chris O'Neill, University of Calgary 2023
     # a simple residual block
-    def __init__(self,units,activation='tanh'):
+    def __init__(self,units,activation='tanh',name='Dense',trainable=True,dtype=tf.float64,Dense=None):
         super().__init__()
         self.units = units
-        self.Dense  = keras.layers.Dense(self.units,activation=activation)
-    
+        if Dense==None:
+            self.Dense  = keras.layers.Dense(self.units,activation=activation,name=name,trainable=trainable,dtype=dtype)
+        else:
+            self.Dense = Dense
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "units":self.units,
+            "Dense":self.Dense,
+        })
+        return config
       
     def call(self,inputs):
         return self.Dense(inputs)+inputs

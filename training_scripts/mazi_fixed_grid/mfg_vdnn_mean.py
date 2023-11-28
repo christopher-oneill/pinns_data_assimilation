@@ -22,6 +22,8 @@ from datetime import datetime
 from datetime import timedelta
 import platform
 
+
+
 keras.backend.set_floatx('float64')
 dtype_train = tf.float64
 
@@ -42,19 +44,26 @@ nlayers = int(sys.argv[3])
 nnodes = int(sys.argv[4])
 job_time = int(sys.argv[5])
 
-
+global job_name
 job_name = 'mfg_vdnn_mean{:03d}_S{:d}_L{:d}N{:d}'.format(job_number,supersample_factor,nlayers,nnodes)
 
 job_duration = timedelta(hours=job_time,minutes=0)
 end_time = start_time+job_duration
+
+# declare global variables used in the saving function
+global model_mean
+global save_loc
+
+global X_test
+global epochs
 
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
     import matplotlib.pyplot as plot
     useGPU=False    
-    SLURM_TMPDIR='C:/projects/pinns_beluga/sync/'
-    HOMEDIR = 'C:/projects/pinns_beluga/sync/'
+    SLURM_TMPDIR='C:/projects/pinns_narval/sync/'
+    HOMEDIR = 'C:/projects/pinns_narval/sync/'
     PROJECTDIR=HOMEDIR
     sys.path.append('C:/projects/pinns_local/code/')
 else:
@@ -67,7 +76,8 @@ else:
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     sys.path.append(HOMEDIR+'code/')
 
-from pinns_galerkin_viv.lib.downsample import compute_downsample_inds
+from pinns_data_assimilation.lib.downsample import compute_downsample_inds_center
+from pinns_data_assimilation.lib.layers import ResidualLayer
 
 print("This job is: ",job_name)  
 
@@ -97,6 +107,7 @@ reynoldsStressFile = h5py.File(base_dir+'reynoldsStress.mat','r')
 
 ux = np.array(meanVelocityFile['meanVelocity'][0,:]).transpose()
 uy = np.array(meanVelocityFile['meanVelocity'][1,:]).transpose()
+ux_test = 1.0*ux
 
 uxppuxpp = np.array(reynoldsStressFile['reynoldsStress'][0,:]).transpose()
 uxppuypp = np.array(reynoldsStressFile['reynoldsStress'][1,:]).transpose()
@@ -105,10 +116,10 @@ uyppuypp = np.array(reynoldsStressFile['reynoldsStress'][2,:]).transpose()
 print(configFile['X_vec'].shape)
 x = np.array(configFile['X_vec'][0,:])
 x_test = x
-
+X_grid = np.array(configFile['X_grid'])
 y = np.array(configFile['X_vec'][1,:])
 y_test = y
-
+Y_grid = np.array(configFile['Y_grid'])
 d = np.array(configFile['cylinderDiameter'])
 
 # create additional points for the extrapolated region in front of the cylinder
@@ -134,7 +145,7 @@ MAX_uyppuypp = max(uyppuypp.flatten())
 if supersample_factor>1:
     n_x = np.array(configFile['x_grid']).size
     n_y = np.array(configFile['y_grid']).size
-    downsample_inds, ndx,ndy = compute_downsample_inds(supersample_factor,n_x,n_y)
+    downsample_inds, ndx,ndy = compute_downsample_inds_center(supersample_factor,X_grid[:,0],Y_grid[0,:].transpose())
     x = x[downsample_inds]
     y = y[downsample_inds]
     ux = ux[downsample_inds]
@@ -162,31 +173,53 @@ def colloc_points():
     # reduce the collocation points to 25k
     colloc_limits1 = np.array([[-6.0,10.0],[-2.0,2.0]])
     colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-    colloc_lhs1 = colloc_sample_lhs1(20000)
+    colloc_lhs1 = colloc_sample_lhs1(30000)
 
 
     colloc_limits2 = np.array([[-1.0,3.0],[-1.5,1.5]])
     colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
     colloc_lhs2 = colloc_sample_lhs2(10000)
 
-    colloc_merged = np.vstack((colloc_lhs1,colloc_lhs2))
+    colloc_merged = np.vstack((np.stack((x,y),axis=1),colloc_lhs1,colloc_lhs2))
 
 
     # remove points inside the cylinder
     c1_loc = np.array([0,0],dtype=np.float64)
     cylinder_inds = np.less(np.power(np.power(colloc_merged[:,0]-c1_loc[0],2)+np.power(colloc_merged[:,1]-c1_loc[1],2),0.5*d),0.5)
-    print(cylinder_inds.shape)
     colloc_merged = np.delete(colloc_merged,cylinder_inds[0,:],axis=0)
-    print('colloc_merged.shape',colloc_merged.shape)
 
-    f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_y])
+    f_colloc_train = colloc_merged*np.array([1/MAX_x,1/MAX_x])
     return f_colloc_train
 
 f_colloc_train = colloc_points()
 
+class UserScalingParameters(object):
+    pass
+
+ScalingParameters = UserScalingParameters()
+ScalingParameters.fs = 10.0
+ScalingParameters.MAX_x = np.max(x.flatten())
+ScalingParameters.MAX_y = ScalingParameters.MAX_x # we scale based on the largest spatial dimension
+ScalingParameters.MAX_ux = MAX_ux # we scale based on the max of the whole output array
+ScalingParameters.MAX_uy = MAX_uy
+ScalingParameters.MIN_x = np.min(x.flatten())
+ScalingParameters.MIN_y = np.min(y.flatten())
+ScalingParameters.MIN_ux = np.min(ux.flatten())
+ScalingParameters.MIN_uy = np.min(uy.flatten())
+ScalingParameters.MAX_uxppuxpp = MAX_uxppuxpp
+ScalingParameters.MAX_uxppuypp = MAX_uxppuypp
+ScalingParameters.MAX_uyppuypp = MAX_uyppuypp
+ScalingParameters.nu_mol = 0.0066667
+ScalingParameters.MAX_p= MAX_p # estimated maximum pressure, we should
+ScalingParameters.batch_size = f_colloc_train.shape[0]
+ScalingParameters.physics_loss_coefficient = 1.0
+ScalingParameters.boundary_loss_coefficient = 1.0
+ScalingParameters.data_loss_coefficient = 1.0
+
+
 # normalize the training data:
 x_train = x/MAX_x
-y_train = y/MAX_y
+y_train = y/MAX_x
 ux_train = ux/MAX_ux
 uy_train = uy/MAX_uy
 uxppuxpp_train = uxppuxpp/MAX_uxppuxpp
@@ -197,113 +230,43 @@ uyppuypp_train = uyppuypp/MAX_uyppuypp
 
 theta = np.linspace(0,2*np.pi,1000)
 ns_BC_x = 0.5*d*np.cos(theta)/MAX_x # we beed to normalize the boundary conditions as well
-ns_BC_y = 0.5*d*np.sin(theta)/MAX_y
+ns_BC_y = 0.5*d*np.sin(theta)/MAX_x
 ns_BC_vec = np.hstack((ns_BC_x.reshape(-1,1),ns_BC_y.reshape(-1,1)))
 
 p_BC_x = np.array([MAX_x,MAX_x])/MAX_x
-p_BC_y = np.array([MIN_y,MAX_y])/MAX_y
+p_BC_y = np.array([MIN_y,MAX_y])/MAX_x
 p_BC_vec = np.hstack((p_BC_x.reshape(-1,1),p_BC_y.reshape(-1,1)))
 
 inlet_BC_x = -6.0*np.ones([500,1])/MAX_x
-inlet_BC_y = np.linspace(MIN_y,MAX_y,500)/MAX_y
+inlet_BC_y = np.linspace(MIN_y,MAX_y,500)/MAX_x
 inlet_BC_vec = np.hstack((inlet_BC_x.reshape(-1,1),inlet_BC_y.reshape(-1,1)))
+
+inlet_BC_x = -2.0*np.ones([500,1])/MAX_x
+inlet_BC_y = np.linspace(-2.0,2.0,500)/MAX_x
+inlet_BC_vec2 = np.hstack((inlet_BC_x.reshape(-1,1),inlet_BC_y.reshape(-1,1)))
 
 # the order here must be identical to inside the cost functions
 O_train = np.hstack(((ux_train).reshape(-1,1),(uy_train).reshape(-1,1),(uxppuxpp_train).reshape(-1,1),(uxppuypp_train).reshape(-1,1),(uyppuypp_train).reshape(-1,1),)) # training data
 # note that the order here needs to be the same as the split inside the network!
 X_train = np.hstack((x_train.reshape(-1,1),y_train.reshape(-1,1)))
-X_test = np.hstack((x_test.reshape(-1,1)/MAX_x,y_test.reshape(-1,1)/MAX_y))
-X_large = np.hstack((x_grid_large.reshape(-1,1)/MAX_x,y_grid_large.reshape(-1,1)/MAX_y))
+X_test = np.hstack((x_test.reshape(-1,1)/MAX_x,y_test.reshape(-1,1)/MAX_x))
+X_large = np.hstack((x_grid_large.reshape(-1,1)/MAX_x,y_grid_large.reshape(-1,1)/MAX_x))
 
 print('X_train.shape: ',X_train.shape)
 print('X_train.shape: ',X_test.shape)
 print('O_train.shape: ',O_train.shape)
 
-  
-@tf.function
-def net_f_cartesian(colloc_tensor):
-    
-    up = model_mean(colloc_tensor)
-    # knowns
-    ux = up[:,0]*MAX_ux
-    uy = up[:,1]*MAX_uy
-    uxppuxpp = up[:,2]*MAX_uxppuxpp
-    uxppuypp = up[:,3]*MAX_uxppuypp
-    uyppuypp = up[:,4]*MAX_uyppuypp
-    # unknowns
-    p = up[:,5]*MAX_p
-    
-    # compute the gradients of the quantities
-    
-    # ux gradient
-    dux = tf.gradients(ux, colloc_tensor)[0]
-    ux_x = dux[:,0]/MAX_x
-    ux_y = dux[:,1]/MAX_y
-    # and second derivative
-    ux_xx = tf.gradients(ux_x, colloc_tensor)[0][:,0]/MAX_x
-    ux_yy = tf.gradients(ux_y, colloc_tensor)[0][:,1]/MAX_y
-    
-    # uy gradient
-    duy = tf.gradients(uy, colloc_tensor)[0]
-    uy_x = duy[:,0]/MAX_x
-    uy_y = duy[:,1]/MAX_y
-    # and second derivative
-    uy_xx = tf.gradients(uy_x, colloc_tensor)[0][:,0]/MAX_x
-    uy_yy = tf.gradients(uy_y, colloc_tensor)[0][:,1]/MAX_y
-
-    # gradient unmodeled reynolds stresses
-    uxppuxpp_x = tf.gradients(uxppuxpp, colloc_tensor)[0][:,0]/MAX_x
-    duxppuypp = tf.gradients(uxppuypp, colloc_tensor)[0]
-    uxppuypp_x = duxppuypp[:,0]/MAX_x
-    uxppuypp_y = duxppuypp[:,1]/MAX_y
-    uyppuypp_y = tf.gradients(uyppuypp, colloc_tensor)[0][:,1]/MAX_y
-
-    # pressure gradients
-    dp = tf.gradients(p, colloc_tensor)[0]
-    p_x = dp[:,0]/MAX_x
-    p_y = dp[:,1]/MAX_y
 
 
-    # governing equations
-    f_x = (ux*ux_x + uy*ux_y) + (uxppuxpp_x + uxppuypp_y) + p_x - (nu_mol)*(ux_xx+ux_yy)  #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
-    f_y = (ux*uy_x + uy*uy_y) + (uxppuypp_x + uyppuypp_y) + p_y - (nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
-    f_mass = ux_x + uy_y
-    
+from pinns_data_assimilation.lib.navier_stokes_cartesian import RANS_reynolds_stress_cartesian
+from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_RANS_reynolds_stress_pressure
+from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_RANS_reynolds_stress_no_slip
+from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_RANS_inlet
+from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_RANS_inlet2
 
-    return f_x, f_y, f_mass
+# we need to write the physics wrapper and save wrappers custom to this script
 
-@tf.function
-def BC_pressure(BC_points):
-    up = model_mean(BC_points)
-    # knowns
-    # unknowns
-    p = up[:,5]*MAX_p
-    return tf.square(tf.reduce_mean(p))
-
-@tf.function
-def BC_no_slip(BC_points):
-    up = model_mean(BC_points)
-    # knowns
-    ux = up[:,0]*MAX_ux
-    uy = up[:,1]*MAX_uy
-    uxppuxpp = up[:,2]*MAX_uxppuxpp
-    uxppuypp = up[:,3]*MAX_uxppuypp
-    uyppuypp = up[:,4]*MAX_uyppuypp
-    return tf.reduce_mean(tf.square(ux)+tf.square(uy)+tf.square(uxppuxpp)+tf.square(uxppuypp)+tf.square(uyppuypp))
-
-@tf.function
-def BC_inlet(BC_points):
-    up = model_mean(BC_points)
-    ux = up[:,0]*MAX_ux
-    uy = up[:,1]*MAX_uy
-    uxppuxpp = up[:,2]*MAX_uxppuxpp
-    uxppuypp = up[:,3]*MAX_uxppuypp
-    uyppuypp = up[:,4]*MAX_uyppuypp
-    p = up[:,5]*MAX_p
-    return tf.reduce_sum(tf.square(ux-1.0)+tf.square(uy)+tf.square(uxppuxpp)+tf.square(uxppuypp)+tf.square(uyppuypp)) # note there is no point where the pressure is close to zero, so we neglect it in the mean field model
-
-# function wrapper, combine data and physics loss
-def mean_loss_wrapper(colloc_tensor_f,BC_ns,BC_p,BC_inlet_pts): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
+def RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_points,BC_ns,BC_p,BC_inlet,BC_inlet2): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
     
     def mean_loss(y_true, y_pred):
         # this needs to match the order that they are concatinated in the array when setting up the network
@@ -313,22 +276,62 @@ def mean_loss_wrapper(colloc_tensor_f,BC_ns,BC_p,BC_inlet_pts): # def custom_los
         data_loss_uxppuxpp = keras.losses.mean_squared_error(y_true[:,2], y_pred[:,2]) # u''u''   
         data_loss_uxppuypp = keras.losses.mean_squared_error(y_true[:,3], y_pred[:,3]) # u''v''
         data_loss_uyppuypp = keras.losses.mean_squared_error(y_true[:,4], y_pred[:,4]) # v''v''
-        data_loss = data_loss_ux + data_loss_uy + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp
+        
+        data_loss = tf.reduce_mean(data_loss_ux + data_loss_uy + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp)
 
-        if physics_loss_coefficient!=0:
-            mx,my,mass = net_f_cartesian(colloc_tensor_f)
+        if (model_RANS.ScalingParameters.physics_loss_coefficient==0):
+            physics_loss = 0.0
+        else:
+            if (model_RANS.ScalingParameters.batch_size==colloc_points.shape[0]):
+                # all colloc points
+                mx,my,mass = RANS_reynolds_stress_cartesian(model_RANS,colloc_points)
+            else:
+                # random selection of collocation points with batch size
+                rand_colloc_points = np.random.choice(colloc_points.shape[0],model_RANS.ScalingParameters.batch_size)
+                mx,my,mass = RANS_reynolds_stress_cartesian(model_RANS,tf.gather(colloc_points,rand_colloc_points))
             physical_loss1 = tf.reduce_mean(tf.square(mx))
             physical_loss2 = tf.reduce_mean(tf.square(my))
             physical_loss3 = tf.reduce_mean(tf.square(mass))
-
-            BC_pressure_loss = BC_pressure(BC_p)
-            BC_no_slip_loss = BC_no_slip(BC_ns)
-            BC_inlet_loss = BC_inlet(BC_inlet_pts)
-            return  data_loss + physics_loss_coefficient*(physical_loss1 + physical_loss2 + physical_loss3 + BC_pressure_loss + BC_no_slip_loss + 5.0*BC_inlet_loss) # 0*f_boundary_p + f_boundary_t1+ f_boundary_t2 
+            physics_loss = tf.reduce_mean(physical_loss1 + physical_loss2 + physical_loss3)
+        
+        if (model_RANS.ScalingParameters.boundary_loss_coefficient==0):
+            boundary_loss = 0.0
         else:
-            return data_loss
+            BC_pressure_loss = BC_RANS_reynolds_stress_pressure(model_RANS,BC_p) # scaled to compensate the reduce sum on other BCs
+            BC_no_slip_loss = BC_RANS_reynolds_stress_no_slip(model_RANS,BC_ns)
+            BC_inlet_loss = BC_RANS_inlet(model_RANS,BC_inlet)
+            BC_inlet_loss2 = BC_RANS_inlet2(model_RANS,BC_inlet2)
+                       
+            boundary_loss = (BC_pressure_loss + BC_no_slip_loss + BC_inlet_loss + BC_inlet_loss2)
 
+        return  model_RANS.ScalingParameters.data_loss_coefficient*data_loss + model_RANS.ScalingParameters.physics_loss_coefficient*physics_loss + model_RANS.ScalingParameters.boundary_loss_coefficient*boundary_loss
+        
+        
     return mean_loss
+
+def save_custom():
+    global model_mean
+    global save_loc
+    global job_name
+    global X_test
+    global epochs
+
+    model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
+    pred = model_mean.predict(X_test,batch_size=32)
+    h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
+    h5f.create_dataset('pred',data=pred)
+    h5f.close()
+
+    if physics_loss_coefficient!=0:
+        t_mx,t_my,t_mass = RANS_reynolds_stress_cartesian(model_mean,X_test)
+        h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
+        h5f.create_dataset('mxr',data=t_mx)
+        h5f.create_dataset('myr',data=t_my)
+        h5f.create_dataset('massr',data=t_mass)
+        h5f.close()
+
+
+
 
 
 
@@ -350,6 +353,7 @@ rng = np.random.default_rng()
 # job_name = 'RS3_CC0001_23h'
 # we need to check if there are already checkpoints for this job
 checkpoint_files = get_filepaths_with_glob(PROJECTDIR+'output/'+job_name+'_output/',job_name+'_ep*_model.h5')
+
 if len(checkpoint_files)>0:
     files_epoch_number = np.zeros([len(checkpoint_files),1],dtype=np.uint)
     # if there are checkpoints, train based on the most recent checkpoint
@@ -358,7 +362,10 @@ if len(checkpoint_files)>0:
         files_epoch_number[f_indx]=int(checkpoint_files[f_indx][(re_result.start()+2):re_result.end()])
     epochs = np.uint(np.max(files_epoch_number))
     print(PROJECTDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
-    model_mean = keras.models.load_model(PROJECTDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec,inlet_BC_vec)})
+    model_mean = keras.models.load_model(PROJECTDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'mean_loss':RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,ns_BC_vec,p_BC_vec,inlet_BC_vec,inlet_BC_vec2)})
+    # we need to compile again after loading once we can populate the loss function with the model object
+    model_mean.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_mean,tf.cast(f_colloc_train,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train),tf.cast(inlet_BC_vec,dtype_train),tf.cast(inlet_BC_vec2,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
+    model_mean.ScalingParameters = ScalingParameters
     model_mean.summary()
 else:
     # if not, we train from the beginning
@@ -370,38 +377,27 @@ else:
     dense_nodes = nnodes
     dense_layers = nlayers
     if useGPU:
-        tf_device_string = ['GPU:0']
-        for ngpu in range(1,len(physical_devices)):
-            tf_device_string.append('GPU:'+str(ngpu))
-
-        strategy = tf.distribute.MirroredStrategy(devices=tf_device_string)
-        print('Using devices: ',tf_device_string)
-        with strategy.scope():
-            model_mean = keras.Sequential()
-            model_mean.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
-            for i in range(dense_layers-1):
-                model_mean.add(keras.layers.Dense(dense_nodes, activation='tanh'))
-            model_mean.add(keras.layers.Dense(6,activation='linear'))
-            model_mean.summary()
-            model_mean.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = mean_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train),tf.cast(inlet_BC_vec,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
+        exit()        
     else:
         tf_device_string = '/CPU:0'
 
         with tf.device(tf_device_string):
             model_mean = keras.Sequential()
-            model_mean.add(keras.layers.Dense(dense_nodes, activation='tanh', input_shape=(2,)))
-            for i in range(dense_layers-1):
-                model_mean.add(keras.layers.Dense(dense_nodes, activation='tanh'))
+            model_mean.add(keras.layers.Dense(dense_nodes, activation='linear', input_shape=(2,)))
+            model_mean.add(keras.layers.Dense(dense_nodes, activation='linear'))
+            for i in range(dense_layers-2):
+                model_mean.add(ResidualLayer(dense_nodes,activation='elu'))
             model_mean.add(keras.layers.Dense(6,activation='linear'))
             model_mean.summary()
-            model_mean.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = mean_loss_wrapper(tf.cast(f_colloc_train,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train),tf.cast(inlet_BC_vec,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
+            model_mean.ScalingParameters = ScalingParameters
+            model_mean.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_mean,tf.cast(f_colloc_train,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train),tf.cast(inlet_BC_vec,dtype_train),tf.cast(inlet_BC_vec2,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
 
 
 
 
 
 # train the network
-d_epochs = 1
+d_epochs = 100
 X_train = tf.cast(X_train,dtype_train)
 O_train = tf.cast(O_train,dtype_train)
 last_epoch_time = datetime.now()
@@ -412,7 +408,7 @@ start_epochs = epochs
 
 
 if node_name ==LOCAL_NODE:
-    LBFGS_steps=333
+    LBFGS_steps=1
     LBFGS_epoch = 1000   
 else:
     LBFGS_steps=333
@@ -420,27 +416,26 @@ else:
  
     # local node training loop, save every epoch for testing
 
-    
-    
+model_mean.ScalingParameters.physics_loss_coefficient = 1.0
 if True:
     # LBFGS training, compute canada
-    from pinns_galerkin_viv.lib.LBFGS_example import function_factory
+    from pinns_data_assimilation.lib.LBFGS_example import function_factory
     import tensorflow_probability as tfp
 
     L_iter = 0
     f_colloc_train = colloc_points()
-    func = function_factory(model_mean, mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec,inlet_BC_vec), X_train, O_train)
+    func = function_factory(model_mean, RANS_reynolds_stress_loss_wrapper(model_mean,f_colloc_train,ns_BC_vec,p_BC_vec,inlet_BC_vec,inlet_BC_vec2), X_train, O_train)
     init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables)
             
     while True:
-        if physics_loss_coefficient!=0:
+        if model_mean.ScalingParameters.physics_loss_coefficient!=0:
         # randomly select new collocation points every LGFBS step
             f_colloc_train = colloc_points()
-            func = function_factory(model_mean, mean_loss_wrapper(f_colloc_train,ns_BC_vec,p_BC_vec,inlet_BC_vec), X_train, O_train)
+            func = function_factory(model_mean, RANS_reynolds_stress_loss_wrapper(model_mean,f_colloc_train,ns_BC_vec,p_BC_vec,inlet_BC_vec,inlet_BC_vec2), X_train, O_train)
             init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables)
             
         # train the model with L-BFGS solver
-        results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=LBFGS_steps)
+        results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=LBFGS_steps,tolerance=1E-16)
         func.assign_new_model_parameters(results.position)
         init_params = tf.dynamic_stitch(func.idx, model_mean.trainable_variables) # we need to reasign the parameters otherwise we start from the beginning each time
         epochs = epochs + LBFGS_epoch
@@ -450,46 +445,14 @@ if True:
         # so we have to manually put them back to the model
             
         if np.mod(L_iter,10)==0:
-            model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
-            pred = model_mean.predict(X_test,batch_size=32)
-            h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
-            h5f.create_dataset('pred',data=pred)
-            h5f.close()
-            pred = model_mean.predict(X_large,batch_size=32)
-            h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred_large.mat','w')
-            h5f.create_dataset('pred',data=pred)
-            h5f.close()
-
-            if physics_loss_coefficient!=0:
-                t_mx,t_my,t_mass = net_f_cartesian(X_test)
-                h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
-                h5f.create_dataset('mxr',data=t_mx)
-                h5f.create_dataset('myr',data=t_my)
-                h5f.create_dataset('massr',data=t_mass)
-                h5f.close()
+            save_custom()
 
         # check if we should exit
         average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
         if (datetime.now()+average_epoch_time)>end_time:
             # if there is not enough time to complete the next epoch, exit
             print("Remaining time is insufficient for another epoch, exiting...")
-            # save the last epoch before exiting
-            model_mean.save(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_model.h5')
-            pred = model_mean.predict(X_test,batch_size=32)
-            h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred.mat','w')
-            h5f.create_dataset('pred',data=pred)
-            h5f.close()
-            pred = model_mean.predict(X_large,batch_size=32)
-            h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_pred_large.mat','w')
-            h5f.create_dataset('pred',data=pred)
-            h5f.close()
-            if physics_loss_coefficient!=0:
-                t_mx,t_my,t_mass = net_f_cartesian(X_test)
-                h5f = h5py.File(save_loc+job_name+'_ep'+str(np.uint(epochs))+'_error.mat','w')
-                h5f.create_dataset('mxr',data=t_mx)
-                h5f.create_dataset('myr',data=t_my)
-                h5f.create_dataset('massr',data=t_mass)
-                h5f.close()
+            save_custom()
             exit()
         last_epoch_time = datetime.now()
   

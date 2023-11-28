@@ -330,16 +330,31 @@ if False:
         model_sines.summary()
         model_sines.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),loss=network_loss,jit_compile=False) 
 
+if False:
+    # 6e-7
+    nodes = 100
+    with tf.device('/CPU:0'):
+        model_sines = keras.Sequential()
+        model_sines.add(keras.layers.Dense(2,activation='linear',input_shape=(2,)))
+        #model_sines.add(AdjustableFourierTransformLayer(60,30))
+        model_sines.add(FourierEmbeddingLayer(tf.cast(np.linspace(0,60,120,dtype=np.float64),tf.float64)))
+        model_sines.add(keras.layers.Dense(nodes,activation='linear'))
+        for k in range(8):
+            model_sines.add(ResidualLayer(nodes,activation='elu'))
+        model_sines.add(keras.layers.Dense(10,activation='linear'))
+        model_sines.summary()
+        model_sines.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),loss=network_loss,jit_compile=False) 
+
 if True:
     nodes = 100
     with tf.device('/CPU:0'):
         model_sines = keras.Sequential()
         model_sines.add(keras.layers.Dense(2,activation='linear',input_shape=(2,)))
         #model_sines.add(AdjustableFourierTransformLayer(60,30))
-        model_sines.add(FourierEmbeddingLayer(tf.cast(np.linspace(0,30,120,dtype=np.float64),tf.float64)))
+        model_sines.add(FourierEmbeddingLayer(tf.cast(np.linspace(0,60,120,dtype=np.float64),tf.float64)))
         model_sines.add(keras.layers.Dense(nodes,activation='linear'))
-        for k in range(16):
-            model_sines.add(ResidualLayer(nodes,activation='elu'))
+        for k in range(8):
+            model_sines.add(keras.layers.Dense(nodes,activation='elu'))
         model_sines.add(keras.layers.Dense(10,activation='linear'))
         model_sines.summary()
         model_sines.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),loss=network_loss,jit_compile=False) 
