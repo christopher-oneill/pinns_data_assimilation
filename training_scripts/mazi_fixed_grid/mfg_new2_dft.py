@@ -169,9 +169,12 @@ omega = np.array(fourierModeFile['fShort'][0,mode_number])*2*np.pi
 print(configFile['X_vec'].shape)
 x = np.array(configFile['X_vec'][0,:])
 x_test = x
+X_grid = np.array(configFile['X_grid'])
 y = np.array(configFile['X_vec'][1,:])
 y_test = y
+Y_grid = np.array(configFile['Y_grid'])
 d = np.array(configFile['cylinderDiameter'])
+
 
 # set points inside the cylinder to zero
 
@@ -228,9 +231,7 @@ ScalingParameters.batch_size=32
 
 # if we are downsampling and then upsampling, downsample the source data
 if supersample_factor>1:
-    n_x = np.array(configFile['x_grid']).size
-    n_y = np.array(configFile['y_grid']).size
-    downsample_inds = compute_downsample_inds_center(supersample_factor,n_x,n_y)
+    downsample_inds, ndx, ndy = compute_downsample_inds_center(supersample_factor,X_grid[:,0],Y_grid[0,:].transpose())
     x = x[downsample_inds]
     y = y[downsample_inds]
     ux = ux[downsample_inds]
