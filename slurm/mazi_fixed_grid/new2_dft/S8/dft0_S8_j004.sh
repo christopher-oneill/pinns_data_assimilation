@@ -5,7 +5,7 @@
 #SBATCH --time=0-23:30
 #SBATCH --mail-user=christopher.mark.oneill@gmail.com
 #SBATCH --mail-type=ALL
-#SBATCH --output=/home/coneill/sync/logs/femb/S1/dft0_S1_j010-%A.out
+#SBATCH --output=/home/coneill/sync/logs/new2_dft/S1/new2_dft0_S8_j004-%A.out
 
 # ---------------------------------------------------------------------
 echo "Current working directory: `pwd`"
@@ -18,7 +18,7 @@ cd $SLURM_TMPDIR
 module load python/3.10
 source /home/coneill/sync/venv/tf1/bin/activate
 
-python /home/coneill/sync/code/pinns_data_assimilation/training_scripts/mazi_fixed_grid/mfg_femb_dft.py 0 10 1 100 10 23
+python /home/coneill/sync/code/pinns_data_assimilation/training_scripts/mazi_fixed_grid/mfg_new2_dft.py 4 0 8 100 10 23
 
 
 # ---------------------------------------------------------------------

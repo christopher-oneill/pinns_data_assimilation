@@ -42,14 +42,14 @@ global mean_data_test_grid
 
 assert len(sys.argv)==7
 
-mode_number = int(sys.argv[1])
-supersample_factor = int(sys.argv[2])
-job_number = int(sys.argv[3])
+job_number = int(sys.argv[1])
+mode_number = int(sys.argv[2])
+supersample_factor = int(sys.argv[3])
 arg_nodes = int(sys.argv[4])
 arg_layers = int(sys.argv[5])
 job_hours = int(sys.argv[6])
 
-job_name = 'mfg_femb_dft{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
+job_name = 'mfg_new2_dft{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
 
 
@@ -67,7 +67,7 @@ def save_custom(epochs):
     h5f.create_dataset('pred_grid',data=pred_grid)
     h5f.close()
     if model_fourier.ScalingParameters.physics_loss_coefficient!=0:
-        mxr_grid,mxi_grid,myr_grid,myi_grid,massr_grid,massi_grid = net_f_fourier_cartesian_batch(model_fourier,X_test,mean_data_test_grid,1024)
+        mxr_grid,mxi_grid,myr_grid,myi_grid,massr_grid,massi_grid = FANS_cartesian(model_fourier,X_test,mean_data_test_grid,1024)
         h5f.create_dataset('mxr_grid',data=mxr_grid)
         h5f.create_dataset('mxi_grid',data=mxi_grid)
         h5f.create_dataset('myr_grid',data=myr_grid)
@@ -262,7 +262,6 @@ ScalingParameters.MAX_p= 1 # estimated maximum pressure, we should
 ScalingParameters.MAX_psi= 0.1 # chosen based on abs(max(psi))
 
 def colloc_points():
-
     data_points = np.hstack((np.reshape(x,[x.size,1]),np.reshape(y,[y.size,1])))
 
     # reduce the collocation points to 25k
@@ -340,16 +339,16 @@ print('O_train.shape: ',O_train.shape)
 
 # import the physics
 # mean model functions
-from pinns_data_assimilation.lib.physics_cartesian import mean_cartesian
-from pinns_data_assimilation.lib.physics_cartesian import mean_loss_wrapper
+from pinns_data_assimilation.lib.navier_stokes_cartesian import predict_RANS_reynolds_stress_cartesian
+from pinns_data_assimilation.lib.navier_stokes_cartesian import example_RANS_reynolds_stress_loss_wrapper
 
 # fourier model functions
-from pinns_data_assimilation.lib.physics_cartesian import FANS_cartesian
-from pinns_data_assimilation.lib.physics_cartesian import net_f_fourier_cartesian_batch
+from pinns_data_assimilation.lib.navier_stokes_cartesian import FANS_cartesian
+from pinns_data_assimilation.lib.navier_stokes_cartesian import FANS_cartesian_batch
 # fourier model BCs
-from pinns_data_assimilation.lib.physics_cartesian import BC_FANS_pressure_outlet
-from pinns_data_assimilation.lib.physics_cartesian import BC_FANS_no_slip
-from pinns_data_assimilation.lib.physics_cartesian import BC_FANS_inlet
+from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_FANS_pressure_outlet
+from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_FANS_no_slip
+from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_FANS_inlet
 
 
 # write the loss wrapper
@@ -411,22 +410,22 @@ def FANS_loss_wrapper(model_FANS,colloc_tensor_f,colloc_grads,ns_BC_points,p_BC_
 global model_mean
 with tf.device('/CPU:0'):
     if (supersample_factor == 1):
-        model_mean = keras.models.load_model(PROJECTDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(None,f_colloc_train,ns_BC_vec,p_BC_vec),'QresBlock':QresBlock})
+        model_mean = keras.models.load_model(PROJECTDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':example_RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,ns_BC_vec,p_BC_vec,None,None),'QresBlock':QresBlock})
     elif(supersample_factor == 4):
         # for testing only
-        model_mean = keras.models.load_model(PROJECTDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(None,f_colloc_train,ns_BC_vec,p_BC_vec),'QresBlock':QresBlock})
+        model_mean = keras.models.load_model(PROJECTDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':example_RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,ns_BC_vec,p_BC_vec,None,None),'QresBlock':QresBlock})
     elif (supersample_factor == 8):
         # for testing only
-        model_mean = keras.models.load_model(PROJECTDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':mean_loss_wrapper(None,f_colloc_train,ns_BC_vec,p_BC_vec),'QresBlock':QresBlock})
+        model_mean = keras.models.load_model(PROJECTDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':example_RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,ns_BC_vec,p_BC_vec,None,None),'QresBlock':QresBlock})
     model_mean.trainable=False
 
 # append the scaling parameters to the model
 model_mean.ScalingParameters = ScalingParameters
 
 # get the values for the mean_data tensor
-mean_data = mean_cartesian(model_mean,f_colloc_train)
-mean_data_test = mean_cartesian(model_mean,X_train)
-mean_data_test_grid = mean_cartesian(model_mean,X_test)
+mean_data = predict_RANS_reynolds_stress_cartesian(model_mean,f_colloc_train)
+mean_data_test = predict_RANS_reynolds_stress_cartesian(model_mean,X_train)
+mean_data_test_grid = predict_RANS_reynolds_stress_cartesian(model_mean,X_test)
 
 # we need to check if there are already checkpoints for this job
 checkpoint_files = get_filepaths_with_glob(PROJECTDIR+'output/'+job_name+'_output/',job_name+'_ep*_model.h5')
@@ -463,10 +462,8 @@ else:
         print('Using devices: ',tf_device_string)
         with strategy.scope():
             model_fourier = keras.Sequential()
-            model_fourier.add(keras.layers.Dense(2, activation='linear', input_shape=(2,)))
-            model_fourier.add(FourierEmbeddingLayer(tf.cast(np.linspace(0,60,120,dtype=np.float64),tf.float64)))
-            model_fourier.add(keras.layers.Dense(fourier_nodes,activation='linear'))
-            for i in range(fourier_layers-2):
+            model_fourier.add(keras.layers.Dense(fourier_nodes, activation='linear', input_shape=(2,)))
+            for i in range(fourier_layers-1):
                 model_fourier.add(ResidualLayer(fourier_nodes,activation='elu'))   
             model_fourier.add(keras.layers.Dense(12,activation='linear'))
             model_fourier.ScalingParameters = ScalingParameters # assign the scaling parameters
@@ -475,10 +472,8 @@ else:
     else:
         with tf.device('/CPU:0'):
             model_fourier = keras.Sequential()
-            model_fourier.add(keras.layers.Dense(2, activation='linear', input_shape=(2,)))
-            model_fourier.add(FourierEmbeddingLayer(tf.cast(np.linspace(0,60,120,dtype=np.float64),tf.float64)))
-            model_fourier.add(keras.layers.Dense(fourier_nodes,activation='linear'))
-            for i in range(fourier_layers-2):
+            model_fourier.add(keras.layers.Dense(fourier_nodes, activation='linear', input_shape=(2,)))
+            for i in range(fourier_layers-1):
                 model_fourier.add(ResidualLayer(fourier_nodes,activation='elu'))   
             model_fourier.add(keras.layers.Dense(12,activation='linear'))
             model_fourier.ScalingParameters = ScalingParameters # assign the scaling parameters
@@ -578,7 +573,7 @@ if BACKPROP_flag==False:
             f_colloc_train = colloc_points()
             # get the values for the mean_data tensor
             
-            mean_data = mean_cartesian(model_mean,f_colloc_train)
+            mean_data = predict_RANS_reynolds_stress_cartesian(model_mean,f_colloc_train)
             func = function_factory(model_fourier, FANS_loss_wrapper(model_fourier,f_colloc_train,mean_data,ns_BC_vec,p_BC_vec,inlet_BC_vec), X_train, F_train)
             init_params = tf.dynamic_stitch(func.idx, model_fourier.trainable_variables)
             

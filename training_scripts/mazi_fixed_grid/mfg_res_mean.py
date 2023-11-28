@@ -426,12 +426,12 @@ if True:
 
     else:
         with tf.device('/GPU:0'):
-            model_RANS = keras.models.load_model(savedir+'mfg_res_mean_ep119_model.h5',custom_objects={'mean_loss':RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),'ResidualLayer':ResidualLayer})
+            model_RANS = keras.models.load_model(savedir+'mfg_res_mean_ep320_model.h5',custom_objects={'mean_loss':RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),'ResidualLayer':ResidualLayer})
             # we need to compile again after loading once we can populate the loss function with the model object
             model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,f_colloc_train,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
             model_RANS.ScalingParameters = ScalingParameters
             model_RANS.summary()
-            training_steps=120
+            training_steps=320
 else:
     # model on CPU
     if False:
@@ -528,20 +528,23 @@ model_RANS.ScalingParameters.batch_size = 128
 #hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*8,callbacks=[CustomCallback()])
 #training_steps = training_steps+8
 
-model_RANS.ScalingParameters.batch_size = 512
+model_RANS.ScalingParameters.batch_size = 1024
 keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-6)
 hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*200,callbacks=[CustomCallback()])
 training_steps = training_steps+200
+save_custom(model_RANS,training_steps)
 
 model_RANS.ScalingParameters.batch_size = 2048
 keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-7)
 hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*500,callbacks=[CustomCallback()])
 training_steps = training_steps+200
+save_custom(model_RANS,training_steps)
 
 model_RANS.ScalingParameters.batch_size = 8192
 keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-8)
 hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*1000,callbacks=[CustomCallback()])
 training_steps = training_steps+300
+save_custom(model_RANS,training_steps)
 
 model_RANS.ScalingParameters.batch_size = 8192 #f_colloc_train.shape[0]
 if False:

@@ -143,8 +143,8 @@ def RANS_reynolds_stress_cartesian(model_RANS,colloc_tensor):
     return f_x, f_y, f_mass
 
 
-def RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_points,BC_p,BC_ns,BC_inlet,BC_inlet2): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
-    x 
+def example_RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_points,BC_p,BC_ns,BC_inlet,BC_inlet2): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
+     
     def mean_loss(y_true, y_pred):
         # this needs to match the order that they are concatinated in the array when setting up the network
         # additionally, the known quantities must be first, unknown quantites second
@@ -270,7 +270,7 @@ def BC_RANS_pressure_magnitude(model_RANS,BC_points):
 
 
 # fans functions, with specified fourier stresses
-def FANS_loss_wrapper(model_FANS,colloc_tensor_f,colloc_grads,ns_BC_points,p_BC_points,inlet_BC_points): 
+def example_FANS_loss_wrapper(model_FANS,colloc_tensor_f,colloc_grads,ns_BC_points,p_BC_points,inlet_BC_points): 
     
     def custom_loss(y_true, y_pred):
         # this needs to match the order that they are concatinated in the array when setting up the network
