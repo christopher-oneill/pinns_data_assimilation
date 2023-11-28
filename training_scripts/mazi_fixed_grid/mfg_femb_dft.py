@@ -42,9 +42,9 @@ global mean_data_test_grid
 
 assert len(sys.argv)==7
 
-mode_number = int(sys.argv[1])
-supersample_factor = int(sys.argv[2])
-job_number = int(sys.argv[3])
+job_number = int(sys.argv[1])
+mode_number = int(sys.argv[2])
+supersample_factor = int(sys.argv[3])
 arg_nodes = int(sys.argv[4])
 arg_layers = int(sys.argv[5])
 job_hours = int(sys.argv[6])
@@ -169,8 +169,10 @@ omega = np.array(fourierModeFile['fShort'][0,mode_number])*2*np.pi
 print(configFile['X_vec'].shape)
 x = np.array(configFile['X_vec'][0,:])
 x_test = x
+X_grid = np.array(configFile['X_grid'])
 y = np.array(configFile['X_vec'][1,:])
 y_test = y
+Y_grid = np.array(configFile['Y_grid'])
 d = np.array(configFile['cylinderDiameter'])
 
 # set points inside the cylinder to zero
@@ -225,12 +227,13 @@ ScalingParameters.physics_loss_coefficient = 1.0
 ScalingParameters.boundary_loss_coefficient = 1.0
 ScalingParameters.data_loss_coefficient = 1.0
 ScalingParameters.batch_size=32
+ScalingParameters.nu_mol = 0.0066667
+ScalingParameters.MAX_p= 1 # estimated maximum pressure, we should 
+ScalingParameters.MAX_psi= 0.1 # chosen based on abs(max(psi))
 
 # if we are downsampling and then upsampling, downsample the source data
 if supersample_factor>1:
-    n_x = np.array(configFile['x_grid']).size
-    n_y = np.array(configFile['y_grid']).size
-    downsample_inds = compute_downsample_inds_center(supersample_factor,n_x,n_y)
+    downsample_inds,ndx,ndy = compute_downsample_inds_center(supersample_factor,X_grid[:,0],Y_grid[0,:].transpose())
     x = x[downsample_inds]
     y = y[downsample_inds]
     ux = ux[downsample_inds]
@@ -251,15 +254,14 @@ if supersample_factor>1:
 
 
 
-ScalingParameters.nu_mol = 0.0066667
+
 
 print('max_x: ',ScalingParameters.MAX_x)
 print('min_x: ',ScalingParameters.MIN_x)
 print('max_y: ',ScalingParameters.MAX_y)
 print('min_y: ',ScalingParameters.MIN_y)
 
-ScalingParameters.MAX_p= 1 # estimated maximum pressure, we should 
-ScalingParameters.MAX_psi= 0.1 # chosen based on abs(max(psi))
+
 
 def colloc_points():
 

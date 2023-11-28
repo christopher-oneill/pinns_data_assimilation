@@ -1,21 +1,32 @@
 #!/bin/bash
 
-cd /home/coneill/sync/
+cd /home/coneill/sync/code/pinns_data_assimilation/slurm/mazi_fixed_grid/femb_dft/
 
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/femb_dft/mfg_femb_dft0_S1_j001.sh
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/femb_dft/mfg_femb_dft0_S1_j002.sh
+sbatch S1/dft0_S1_j001.sh
+sbatch S1/dft0_S1_j002.sh
+sbatch S1/dft0_S1_j003.sh
+sbatch S1/dft0_S1_j004.sh
+sbatch S1/dft1_S1_j001.sh
+sbatch S1/dft1_S1_j002.sh
+sbatch S1/dft1_S1_j003.sh
+sbatch S1/dft1_S1_j004.sh
 
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/femb_dft/mfg_femb_dft1_S1_j001.sh
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/femb_dft/mfg_femb_dft1_S1_j002.sh
+sbatch S4/dft0_S4_j001.sh
+sbatch S4/dft0_S4_j002.sh
+sbatch S4/dft0_S4_j003.sh
+sbatch S4/dft0_S4_j004.sh
+sbatch S4/dft1_S4_j001.sh
+sbatch S4/dft1_S4_j002.sh
+sbatch S4/dft1_S4_j003.sh
+sbatch S4/dft1_S4_j004.sh
 
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/femb_dft/mfg_femb_dft2_S1_j001.sh
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/femb_dft/mfg_femb_dft2_S1_j002.sh
+sbatch S8/dft0_S8_j001.sh
+sbatch S8/dft0_S8_j002.sh
+sbatch S8/dft0_S8_j003.sh
+sbatch S8/dft0_S8_j004.sh
+sbatch S8/dft1_S8_j001.sh
+sbatch S8/dft1_S8_j002.sh
+sbatch S8/dft1_S8_j003.sh
+sbatch S8/dft1_S8_j004.sh
 
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/femb_dft/mfg_femb_dft3_S1_j001.sh
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/femb_dft/mfg_femb_dft3_S1_j002.sh
 
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/femb_dft/mfg_femb_dft4_S1_j001.sh
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/femb_dft/mfg_femb_dft4_S1_j002.sh
-
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/femb_dft/mfg_femb_dft5_S1_j001.sh
-sbatch code/pinns_galerkin_viv/slurm/mazi_fixed_grid/femb_dft/mfg_femb_dft5_S1_j002.sh
