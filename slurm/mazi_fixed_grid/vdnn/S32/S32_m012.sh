@@ -18,7 +18,7 @@ cd $SLURM_TMPDIR
 module load python/3.10
 source /home/coneill/sync/venv/tf1/bin/activate
 
-python /home/coneill/sync/code/pinns_galerkin_viv/training_scripts/mazi_fixed_grid/mfg_vdnn_mean.py 12 32 10 100 23
+python /home/coneill/sync/code/pinns_data_assimilation/training_scripts/mazi_fixed_grid/mfg_vdnn_mean.py 12 32 10 100 23
 
 
 # ---------------------------------------------------------------------
