@@ -413,13 +413,13 @@ def FANS_loss_wrapper(model_FANS,colloc_tensor_f,colloc_grads,ns_BC_points,p_BC_
 global model_mean
 with tf.device('/CPU:0'):
     if (supersample_factor == 1):
-        model_mean = keras.models.load_model(PROJECTDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':example_RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,ns_BC_vec,p_BC_vec),'QresBlock':QresBlock})
+        model_mean = keras.models.load_model(PROJECTDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':example_RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,ns_BC_vec,p_BC_vec,None,None),'QresBlock':QresBlock})
     elif(supersample_factor == 4):
         # for testing only
-        model_mean = keras.models.load_model(PROJECTDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':example_RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,ns_BC_vec,p_BC_vec),'QresBlock':QresBlock})
+        model_mean = keras.models.load_model(PROJECTDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':example_RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,ns_BC_vec,p_BC_vec,None,None),'QresBlock':QresBlock})
     elif (supersample_factor == 8):
         # for testing only
-        model_mean = keras.models.load_model(PROJECTDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':example_RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,ns_BC_vec,p_BC_vec),'QresBlock':QresBlock})
+        model_mean = keras.models.load_model(PROJECTDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':example_RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,ns_BC_vec,p_BC_vec,None,None),'QresBlock':QresBlock})
     model_mean.trainable=False
 
 # append the scaling parameters to the model
@@ -443,7 +443,7 @@ if len(checkpoint_files)>0:
 
         
     print(PROJECTDIR+'output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
-    model_fourier = keras.models.load_model(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'custom_loss':FANS_loss_wrapper(None,f_colloc_train,mean_data,ns_BC_vec,p_BC_vec,inlet_BC_vec),'FourierResidualLayer64':FourierResidualLayer64,'ProductResidualLayer64':ProductResidualLayer64,'ResidualLayer':ResidualLayer})
+    model_fourier = keras.models.load_model(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'custom_loss':FANS_loss_wrapper(None,f_colloc_train,mean_data,ns_BC_vec,p_BC_vec,inlet_BC_vec),'FourierEmbeddingLayer':FourierEmbeddingLayer,'ResidualLayer':ResidualLayer})
     model_fourier.ScalingParameters = ScalingParameters # assign the scaling parameters
     model_fourier.compile(optimizer=keras.optimizers.SGD(learning_rate=1E-12), loss = FANS_loss_wrapper(model_fourier,tf.cast(f_colloc_train,dtype_train),tf.cast(mean_data,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train),tf.cast(inlet_BC_vec,dtype_train)),jit_compile=False)
     model_fourier.summary()
