@@ -2,6 +2,7 @@
 
 
 import tensorflow as tf
+
 import tensorflow.keras as keras
 import h5py
 #import tensorflow_probability as tfp
@@ -19,12 +20,7 @@ sys.path.append('C:/projects/pinns_local/code/')
 
 #from pinns_data_assimilation.lib.LBFGS_example import function_factory
 from pinns_data_assimilation.lib.layers import ResidualLayer
-from pinns_data_assimilation.lib.layers import FourierResidualLayer64
-from pinns_data_assimilation.lib.layers import ProductResidualLayer64
-from pinns_data_assimilation.lib.layers import CubicFourierProductBlock64
-from pinns_data_assimilation.lib.layers import FourierEmbeddingLayer
-from pinns_data_assimilation.lib.layers import AdjustableFourierTransformLayer
-from pinns_data_assimilation.lib.layers import QuarticFourierProductBlock64
+
 
 from pinns_data_assimilation.lib.downsample import compute_downsample_inds_center
 
@@ -39,12 +35,7 @@ def plot_err(epoch,model_RANS):
     pred_test = model_RANS.predict(i_test[:],batch_size=1000)
     pred_test_grid = np.reshape(pred_test,[X_grid.shape[0],X_grid.shape[1],6])
 
-    plot.close(epoch)
-    plot.close(epoch+1)
-    plot.close(epoch+2)
-    plot.close(epoch+3)
-    plot.close(epoch+4)
-    plot.close(epoch+5)
+    plot.close('all')
 
     err_test1 = o_test_grid[:,:,0]-pred_test_grid[:,:,0]
     plot.figure(epoch)
@@ -172,7 +163,7 @@ HOMEDIR = 'C:/projects/pinns_narval/sync/'
 # read the data
 base_dir = HOMEDIR+'data/mazi_fixed_grid/'
 global savedir
-savedir = HOMEDIR+'output/mfg_res_mean004/'
+savedir = HOMEDIR+'output/mfg_res_mean_poisson001/'
 create_directory_if_not_exists(savedir)
 
 reynoldsStressFile = h5py.File(base_dir+'reynoldsStress.mat','r')
@@ -249,20 +240,8 @@ if supersample_factor>1:
     uyuy = uyuy[downsample_inds]
 
 
-
-
-
-
-
 o_train = np.hstack((ux.reshape(-1,1)/MAX_ux,uy.reshape(-1,1)/MAX_uy,uxux.reshape(-1,1)/MAX_uxux,uxuy.reshape(-1,1)/MAX_uxuy,uyuy.reshape(-1,1)/MAX_uyuy))
-
-
-
-
-
-
-
-i_train = np.hstack((x.reshape(-1,1),y.reshape(-1,1)))
+i_train = np.hstack((x.reshape(-1,1)/MAX_x,y.reshape(-1,1)/MAX_x))
 
 global p_grid
 p = np.array(meanPressureFile['meanPressure']).transpose()
@@ -291,9 +270,10 @@ ScalingParameters.MAX_uyppuypp = MAX_uyuy
 ScalingParameters.nu_mol = 0.0066667
 ScalingParameters.MAX_p= MAX_p # estimated maximum pressure, we should
 ScalingParameters.batch_size = 32 
-ScalingParameters.physics_loss_coefficient = 1.0
-ScalingParameters.boundary_loss_coefficient = 1.0
-ScalingParameters.data_loss_coefficient = 1.0E3
+ScalingParameters.physics_loss_coefficient = 0.0
+ScalingParameters.boundary_loss_coefficient = 0.0
+ScalingParameters.data_loss_coefficient = 1.0E6
+ScalingParameters.pressure_loss_coefficient=1.0
 
 # define boundary condition points
 theta = np.linspace(0,2*np.pi,1000)
@@ -317,9 +297,8 @@ class CustomCallback(keras.callbacks.Callback):
     def on_epoch_end(self,epoch,logs=None):
         global training_steps
         global model_RANS
-        if np.mod(epoch,1000)==0:
-            plot_err(training_steps,model_RANS)
-            save_custom(model_RANS,training_steps + epoch)
+        plot_err(training_steps,model_RANS)
+        #save_custom(model_RANS,training_steps + epoch)
         
 
 
@@ -358,6 +337,7 @@ f_colloc_train = colloc_points()
 
 # import the physics
 from pinns_data_assimilation.lib.navier_stokes_cartesian import RANS_reynolds_stress_cartesian
+from pinns_data_assimilation.lib.navier_stokes_cartesian import RANS_poisson_equation
 from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_RANS_reynolds_stress_pressure
 from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_RANS_reynolds_stress_no_slip
 from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_RANS_inlet
@@ -368,12 +348,12 @@ def RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_points,BC_p,BC_ns,BC_inl
     def mean_loss(y_true, y_pred):
         # this needs to match the order that they are concatinated in the array when setting up the network
         # additionally, the known quantities must be first, unknown quantites second
-        data_loss_ux = keras.losses.mean_squared_error(y_true[:,0], y_pred[:,0]) # u 
-        data_loss_uy = keras.losses.mean_squared_error(y_true[:,1], y_pred[:,1]) # v 
-        data_loss_uxppuxpp = keras.losses.mean_squared_error(y_true[:,2], y_pred[:,2]) # u''u''   
-        data_loss_uxppuypp = keras.losses.mean_squared_error(y_true[:,3], y_pred[:,3]) # u''v''
-        data_loss_uyppuypp = keras.losses.mean_squared_error(y_true[:,4], y_pred[:,4]) # v''v''
-        scaling_loss_p = 0.0*tf.reduce_mean(tf.square(tf.math.maximum(tf.math.abs(y_pred[:,5])-1,0)))
+        data_loss_ux = keras.losses.mean_squared_error(y_true[:,0], y_pred[:,0])+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,0])-1,0)) # u 
+        data_loss_uy = keras.losses.mean_squared_error(y_true[:,1], y_pred[:,1])+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,1])-1,0)) # v 
+        data_loss_uxppuxpp = keras.losses.mean_squared_error(y_true[:,2], y_pred[:,2])+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,2])-1,0)) # u''u''   
+        data_loss_uxppuypp = keras.losses.mean_squared_error(y_true[:,3], y_pred[:,3])+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,3])-1,0)) # u''v''
+        data_loss_uyppuypp = keras.losses.mean_squared_error(y_true[:,4], y_pred[:,4])+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,4])-1,0)) # v''v''
+        scaling_loss_p = tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,5])-1,0))
         # we add the pressure scaling loss as well because it helps the numerical condition of the model
         data_loss = tf.reduce_mean(data_loss_ux + data_loss_uy + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp+ scaling_loss_p)
 
@@ -401,62 +381,59 @@ def RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_points,BC_p,BC_ns,BC_inl
                        
             boundary_loss = (BC_pressure_loss + BC_no_slip_loss + BC_inlet_loss+BC_inlet_loss2)
 
-        combined_phyisics_loss = model_RANS.ScalingParameters.physics_loss_coefficient*physics_loss + model_RANS.ScalingParameters.boundary_loss_coefficient*boundary_loss
+        if (model_RANS.ScalingParameters.pressure_loss_coefficient ==0):
+            pressure_loss = 0.0
+        else:
+            # poisson equation used for preconditioning the network before using the NS equation
+            if (model_RANS.ScalingParameters.batch_size==colloc_points.shape[0]):
+                # all colloc points
+                fp = RANS_poisson_equation(model_RANS,tf.gather(colloc_points,rand_colloc_points))
+            else:
+                rand_colloc_points = np.random.choice(colloc_points.shape[0],model_RANS.ScalingParameters.batch_size)
+                fp = RANS_poisson_equation(model_RANS,tf.gather(colloc_points,rand_colloc_points))
+            BC_pressure_loss = 1.0*BC_RANS_reynolds_stress_pressure(model_RANS,BC_p)
+            pressure_loss = tf.reduce_mean(fp)+BC_pressure_loss
+
+        combined_phyisics_loss = model_RANS.ScalingParameters.physics_loss_coefficient*physics_loss + model_RANS.ScalingParameters.boundary_loss_coefficient*boundary_loss + model_RANS.ScalingParameters.pressure_loss_coefficient*pressure_loss
         dynamic_data_weight = tf.math.exp(tf.math.ceil(tf.math.log(combined_phyisics_loss+1E-30)))
         return  tf.math.reduce_max((dynamic_data_weight,1))*model_RANS.ScalingParameters.data_loss_coefficient*data_loss + combined_phyisics_loss
         
     return mean_loss
 
 
+from pinns_data_assimilation.lib.layers import FourierEmbeddingLayer
+from pinns_data_assimilation.lib.layers import CylindricalEmbeddingLayer
+
+
+
 global training_steps
 global model_RANS
 # model creation
-if False:
-    if False:
-        training_steps = 0
-        nodes = 100
-        with tf.device('/GPU:0'):
-            model_RANS = keras.Sequential()
-            model_RANS.add(keras.layers.Dense(nodes,activation='linear',input_shape=(2,)))
-            for k in range(10):
-                model_RANS.add(ResidualLayer(nodes,activation='elu'))
-            model_RANS.add(keras.layers.Dense(6,activation='linear'))
-            model_RANS.summary()
-            model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),loss=RANS_reynolds_stress_loss_wrapper(model_RANS,f_colloc_train,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) 
+tf_device_string ='/GPU:0'
 
-    else:
-        with tf.device('/GPU:0'):
-            model_RANS = keras.models.load_model(savedir+'mfg_res_mean_ep320_model.h5',custom_objects={'mean_loss':RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),'ResidualLayer':ResidualLayer})
-            # we need to compile again after loading once we can populate the loss function with the model object
-            model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,f_colloc_train,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
-            model_RANS.ScalingParameters = ScalingParameters
-            model_RANS.summary()
-            training_steps=320
-else:
-    # model on CPU
-    if True:
+if True:
         
-        training_steps = 0
-        nodes = 100
-        with tf.device('/CPU:0'):
-            
-            model_RANS = keras.Sequential()
-            model_RANS.add(keras.layers.Dense(nodes,activation='linear',input_shape=(2,)))
-            for k in range(20):
-                model_RANS.add(ResidualLayer(nodes,activation='elu'))
-            model_RANS.add(keras.layers.Dense(6,activation='linear'))
-            model_RANS.summary()
-            model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),loss=RANS_reynolds_stress_loss_wrapper(model_RANS,f_colloc_train,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) 
-    else:
-        with tf.device('/CPU:0'):
-            model_RANS = keras.models.load_model(savedir+'mfg_res_mean_ep19_model.h5',custom_objects={'mean_loss':RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),'ResidualLayer':ResidualLayer})
-            # we need to compile again after loading once we can populate the loss function with the model object
-            model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,f_colloc_train,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
-            model_RANS.ScalingParameters = ScalingParameters
-            model_RANS.summary()
-            training_steps=20
-
-
+    training_steps = 0
+    nodes = 120
+    with tf.device(tf_device_string):
+        
+        model_RANS = keras.Sequential()
+        model_RANS.add(keras.layers.Dense(2,activation='linear',input_shape=(2,)))
+        #model_RANS.add(FourierEmbeddingLayer(np.linspace(0,15,31,True)))
+        #model_RANS.add(CylindricalEmbeddingLayer())
+        model_RANS.add(keras.layers.Dense(nodes,activation='linear'))
+        for k in range(18):
+            model_RANS.add(ResidualLayer(nodes,activation='elu'))
+        model_RANS.add(keras.layers.Dense(6,activation='linear'))
+        model_RANS.summary()
+        model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),loss=RANS_reynolds_stress_loss_wrapper(model_RANS,f_colloc_train,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) 
+else:
+    with tf.device(tf_device_string):
+        model_RANS = keras.models.load_model(savedir+'mfg_res_mean_ep350_model.h5',custom_objects={'mean_loss':RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),'ResidualLayer':ResidualLayer,'CylindricalEmbeddingLayer':CylindricalEmbeddingLayer})
+        # we need to compile again after loading once we can populate the loss function with the model object
+        model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,f_colloc_train,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
+        model_RANS.summary()
+        training_steps=350
 
 model_RANS.ScalingParameters = ScalingParameters
 
@@ -522,30 +499,45 @@ if False:
 
 model_RANS.ScalingParameters.physics_loss_coefficient=np.float64(0.0)
 model_RANS.ScalingParameters.boundary_loss_coefficient=np.float64(0.0)
-model_RANS.ScalingParameters.batch_size = 128
+model_RANS.ScalingParameters.pressure_loss_coefficient=np.float64(1.0)
+model_RANS.ScalingParameters.batch_size = 32
 
-keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-5)
-hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*25,callbacks=[CustomCallback()])
+for i in range(5):
+    keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-4)
+    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*10,callbacks=[CustomCallback()])
+    training_steps = training_steps+10
+    save_custom(model_RANS,training_steps)
+
+for i in range(10):
+    keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-5)
+    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*10,callbacks=[CustomCallback()])
+    training_steps = training_steps+10
+    save_custom(model_RANS,training_steps)
+
+model_RANS.ScalingParameters.batch_size = 256
+keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-6)
+hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*100,callbacks=[CustomCallback()])
 training_steps = training_steps+100
 save_custom(model_RANS,training_steps)
 
-model_RANS.ScalingParameters.batch_size = 1024
-keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-6)
-hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*100,callbacks=[CustomCallback()])
-training_steps = training_steps+500
-save_custom(model_RANS,training_steps)
+
+exit()
+
+
 
 model_RANS.ScalingParameters.batch_size = 2048
 keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-7)
 hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*200,callbacks=[CustomCallback()])
-training_steps = training_steps+1000
+training_steps = training_steps+200
 save_custom(model_RANS,training_steps)
+
 
 model_RANS.ScalingParameters.batch_size = 8192
 keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-8)
 hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*200,callbacks=[CustomCallback()])
 training_steps = training_steps+1000
 save_custom(model_RANS,training_steps)
+
 
 model_RANS.ScalingParameters.batch_size = 8192 #f_colloc_train.shape[0]
 if False:

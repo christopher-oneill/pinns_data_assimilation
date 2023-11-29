@@ -194,6 +194,49 @@ def example_RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_points,BC_p,BC_n
         
     return mean_loss
 
+@tf.function
+def RANS_poisson_equation(model_RANS,colloc_tensor):
+    # reynolds averaged poisson equation, from: Turbulent Flows, Stephen B. Pope. Page 85, Eqn 4.13
+    up = model_RANS(colloc_tensor)
+    # knowns
+    ux = up[:,0]*model_RANS.ScalingParameters.MAX_ux
+    uy = up[:,1]*model_RANS.ScalingParameters.MAX_uy
+    uxux = up[:,2]*model_RANS.ScalingParameters.MAX_uxppuxpp
+    uxuy = up[:,3]*model_RANS.ScalingParameters.MAX_uxppuypp
+    uyuy = up[:,4]*model_RANS.ScalingParameters.MAX_uyppuypp
+    # unknowns
+    p = up[:,5]*model_RANS.ScalingParameters.MAX_p
+    
+    # compute the gradients of the quantities
+    
+    # ux gradient
+    dux = tf.gradients(ux, colloc_tensor)[0]
+    ux_x = dux[:,0]/model_RANS.ScalingParameters.MAX_x
+    ux_y = dux[:,1]/model_RANS.ScalingParameters.MAX_y
+
+    # uy gradient
+    duy = tf.gradients(uy, colloc_tensor)[0]
+    uy_x = duy[:,0]/model_RANS.ScalingParameters.MAX_x
+    uy_y = duy[:,1]/model_RANS.ScalingParameters.MAX_y
+
+    # gradient unmodeled reynolds stresses
+    uxux_x = tf.gradients(uxux, colloc_tensor)[0][:,0]/model_RANS.ScalingParameters.MAX_x
+    uxux_xx = tf.gradients(uxux_x, colloc_tensor)[0][:,0]/model_RANS.ScalingParameters.MAX_x
+    uxuy_x = tf.gradients(uxuy, colloc_tensor)[0][:,0]/model_RANS.ScalingParameters.MAX_x
+    uxuy_xy =  tf.gradients(uxuy_x, colloc_tensor)[0][:,1]/model_RANS.ScalingParameters.MAX_y
+    uyuy_y = tf.gradients(uyuy, colloc_tensor)[0][:,1]/model_RANS.ScalingParameters.MAX_y
+    uyuy_yy = tf.gradients(uyuy_y, colloc_tensor)[0][:,1]/model_RANS.ScalingParameters.MAX_y
+
+    # pressure gradients
+    dp = tf.gradients(p, colloc_tensor)[0]
+    p_x = dp[:,0]/model_RANS.ScalingParameters.MAX_x
+    p_y = dp[:,1]/model_RANS.ScalingParameters.MAX_y
+    p_xx = tf.gradients(p_x,colloc_tensor)[0][:,0]/model_RANS.ScalingParameters.MAX_x
+    p_yy = tf.gradients(p_y,colloc_tensor)[0][:,1]/model_RANS.ScalingParameters.MAX_y
+
+    f_p = (p_xx+p_yy) + (ux_x*ux_x+2.0*ux_y*uy_x+uy_y*uy_y) + (uxux_xx+2.0*uxuy_xy+uyuy_yy)
+    return f_p
+
 
 @tf.function
 def predict_RANS_reynolds_stress_cartesian(model_RANS,colloc_tensor):

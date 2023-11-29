@@ -252,15 +252,39 @@ class FourierEmbeddingLayer(keras.layers.Layer):
     # number of layer weights is factorial with width! so be careful picking too wide a network
     def __init__(self,frequency_vector):
         super().__init__()
-        self.frequency_vector = tf.reshape(frequency_vector,(1,1,tf.shape(frequency_vector)[0]))
+        #self.frequency_vector = tf.constant(tf.zeros((1,1,tf.shape(frequency_vector)[0])),dtype=tf.float64,name='f1')
+        #self.nfreq = tf.constant(tf.zeros((1,),dtype=tf.int64,name='n'))
+        self.frequency_vector = tf.reshape(tf.convert_to_tensor(frequency_vector),(1,1,tf.shape(frequency_vector)[0]))
         self.nfreq = tf.shape(self.frequency_vector)[2]
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "frequency_vector":self.frequency_vector.numpy(),
+            "nfreq":self.nfreq.numpy(),
+        })
+        return config
+      
           
     def call(self,inputs):
         inp_shape = tf.shape(inputs)
         inp_prod = tf.reshape(tf.multiply(tf.reshape(inputs,(inp_shape[0],inp_shape[-1],1)),self.frequency_vector),(inp_shape[0],inp_shape[-1]*self.nfreq))
         return tf.concat((inputs,tf.cos(2.0*np.pi*inp_prod),tf.sin(2.0*np.pi*inp_prod)),axis=1)
     
+class CylindricalEmbeddingLayer(keras.layers.Layer):
+    def __init__(self,*args,**kwargs):
+        super(CylindricalEmbeddingLayer,self).__init__(*args,**kwargs)
 
+
+    def get_config(self):
+        config = super().get_config()
+        config.update()
+        return config
+      
+          
+    def call(self,inputs):
+        inp_shape = tf.shape(inputs)
+        return tf.concat((inputs,tf.reshape(tf.sqrt(tf.square(inputs[:,0])+tf.square(inputs[:,1])),(inp_shape[0],1)),tf.reshape(tf.atan2(inputs[:,1],inputs[:,0]),(inp_shape[0],1))),axis=1)
 
 class AdjustableFourierTransformLayer(keras.layers.Layer):
     # Chris O'Neill, University of Calgary 2023

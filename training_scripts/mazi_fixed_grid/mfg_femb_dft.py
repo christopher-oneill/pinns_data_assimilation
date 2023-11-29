@@ -575,6 +575,8 @@ func = function_factory(model_fourier, FANS_loss_wrapper(model_fourier,f_colloc_
 init_params = tf.dynamic_stitch(func.idx, model_fourier.trainable_variables)
 
 model_fourier.ScalingParameters.batch_size = 1024 #f_colloc_train.shape[0]
+model_fourier.ScalingParameters.physics_loss_coefficient=0.0
+model_fourier.ScalingParameters.boundary_loss_coefficient=0.0
 if BACKPROP_flag==False:
     while True:
         if model_fourier.ScalingParameters.physics_loss_coefficient!=0:
