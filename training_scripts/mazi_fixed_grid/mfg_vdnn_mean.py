@@ -362,9 +362,9 @@ if len(checkpoint_files)>0:
         files_epoch_number[f_indx]=int(checkpoint_files[f_indx][(re_result.start()+2):re_result.end()])
     epochs = np.uint(np.max(files_epoch_number))
     print(PROJECTDIR+'/output/'+job_name+'_output/',job_name+'_ep'+str(epochs))
-    model_mean = keras.models.load_model(PROJECTDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'mean_loss':RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,ns_BC_vec,p_BC_vec,inlet_BC_vec,inlet_BC_vec2)})
+    model_mean = keras.models.load_model(PROJECTDIR+'/output/'+job_name+'_output/'+job_name+'_ep'+str(epochs)+'_model.h5',custom_objects={'mean_loss':RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,ns_BC_vec,p_BC_vec,inlet_BC_vec,inlet_BC_vec2),'ResidualLayer':ResidualLayer})
     # we need to compile again after loading once we can populate the loss function with the model object
-    model_mean.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_mean,tf.cast(f_colloc_train,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train),tf.cast(inlet_BC_vec,dtype_train),tf.cast(inlet_BC_vec2,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
+    model_mean.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_mean,tf.cast(f_colloc_train,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train),tf.cast(inlet_BC_vec,dtype_train),tf.cast(inlet_BC_vec2,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
     model_mean.ScalingParameters = ScalingParameters
     model_mean.summary()
 else:
