@@ -249,12 +249,10 @@ class QuarticFourierProductBlock64(keras.layers.Layer):
 # a more classical fourier embedding layer, passes through the input
 class FourierEmbeddingLayer(keras.layers.Layer):
     # Chris O'Neill, University of Calgary 2023
-    # number of layer weights is factorial with width! so be careful picking too wide a network
-    def __init__(self,frequency_vector):
-        super().__init__()
-        #self.frequency_vector = tf.constant(tf.zeros((1,1,tf.shape(frequency_vector)[0])),dtype=tf.float64,name='f1')
-        #self.nfreq = tf.constant(tf.zeros((1,),dtype=tf.int64,name='n'))
-        self.frequency_vector = tf.reshape(tf.convert_to_tensor(frequency_vector),(1,1,tf.shape(frequency_vector)[0]))
+    
+    def __init__(self,frequency_vector,nfreq=None,**kwargs):
+        super(FourierEmbeddingLayer,self).__init__(**kwargs)
+        self.frequency_vector = tf.reshape(tf.convert_to_tensor(tf.cast(frequency_vector,tf.float64)),(1,1,tf.size(frequency_vector)))
         self.nfreq = tf.shape(self.frequency_vector)[2]
 
     def get_config(self):
@@ -264,13 +262,14 @@ class FourierEmbeddingLayer(keras.layers.Layer):
             "nfreq":self.nfreq.numpy(),
         })
         return config
-      
           
     def call(self,inputs):
         inp_shape = tf.shape(inputs)
         inp_prod = tf.reshape(tf.multiply(tf.reshape(inputs,(inp_shape[0],inp_shape[-1],1)),self.frequency_vector),(inp_shape[0],inp_shape[-1]*self.nfreq))
         return tf.concat((inputs,tf.cos(2.0*np.pi*inp_prod),tf.sin(2.0*np.pi*inp_prod)),axis=1)
     
+
+
 class CylindricalEmbeddingLayer(keras.layers.Layer):
     def __init__(self,*args,**kwargs):
         super(CylindricalEmbeddingLayer,self).__init__(*args,**kwargs)

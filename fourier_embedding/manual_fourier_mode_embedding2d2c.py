@@ -3,7 +3,7 @@
 import tensorflow as tf
 import tensorflow.keras as keras
 import h5py
-import tensorflow_probability as tfp
+#import tensorflow_probability as tfp
 
 keras.backend.set_floatx('float64')
 
@@ -33,6 +33,8 @@ def plot_err(epoch,model_sines):
     global i_test
     global MAX_o_train
     global o_test_grid
+    global saveFig
+    global figure_prefix
     pred_test = model_sines.predict(i_test[:],batch_size=1000)
     pred_test_grid = np.reshape(pred_test,[X_grid.shape[0],X_grid.shape[1],10])
 
@@ -51,6 +53,8 @@ def plot_err(epoch,model_sines):
     plot.contourf(X_grid,Y_grid,err_test1,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
+    if saveFig:
+        plot.savefig(figure_prefix+'ep'+str(epoch)+'_phi_xr.png',dpi=300)
 
     err_test2 = o_test_grid[:,:,1]/MAX_o_train-pred_test_grid[:,:,1]
     plot.figure(epoch+1)
@@ -67,7 +71,8 @@ def plot_err(epoch,model_sines):
     plot.contourf(X_grid,Y_grid,err_test2,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
-    plot.show(block=False)
+    if saveFig:
+        plot.savefig(figure_prefix+'_ep'+str(epoch)+'_phi_xi.png',dpi=300)
 
     err_test3 = o_test_grid[:,:,2]/MAX_o_train-pred_test_grid[:,:,2]
     plot.figure(epoch+2)
@@ -84,6 +89,8 @@ def plot_err(epoch,model_sines):
     plot.contourf(X_grid,Y_grid,err_test3,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
+    if saveFig:
+        plot.savefig(figure_prefix+'_ep'+str(epoch)+'_phi_yr.png',dpi=300)
 
     err_test4 = o_test_grid[:,:,3]/MAX_o_train-pred_test_grid[:,:,3]
     plot.figure(epoch+3)
@@ -100,8 +107,8 @@ def plot_err(epoch,model_sines):
     plot.contourf(X_grid,Y_grid,err_test4,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
-    plot.show(block=False)
-    plot.pause(1)
+    if saveFig:
+        plot.savefig(figure_prefix+'_ep'+str(epoch)+'_phi_yi.png',dpi=300)
 
     err_test5 = o_test_grid[:,:,4]/MAX_o_train-pred_test_grid[:,:,4]
     plot.figure(epoch+4)
@@ -118,6 +125,8 @@ def plot_err(epoch,model_sines):
     plot.contourf(X_grid,Y_grid,err_test5,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
+    if saveFig:
+        plot.savefig(figure_prefix+'_ep'+str(epoch)+'_tau_xxr.png',dpi=300)
 
     err_test6 = o_test_grid[:,:,5]/MAX_o_train-pred_test_grid[:,:,5]
     plot.figure(epoch+5)
@@ -134,7 +143,8 @@ def plot_err(epoch,model_sines):
     plot.contourf(X_grid,Y_grid,err_test6,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
-    plot.show(block=False)
+    if saveFig:
+        plot.savefig(figure_prefix+'_ep'+str(epoch)+'_tau_xxi.png',dpi=300)
 
     err_test7 = o_test_grid[:,:,6]/MAX_o_train-pred_test_grid[:,:,6]
     plot.figure(epoch+6)
@@ -151,6 +161,8 @@ def plot_err(epoch,model_sines):
     plot.contourf(X_grid,Y_grid,err_test7,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
+    if saveFig:
+        plot.savefig(figure_prefix+'_ep'+str(epoch)+'_tau_xyr.png',dpi=300)
 
     err_test8 = o_test_grid[:,:,7]/MAX_o_train-pred_test_grid[:,:,7]
     plot.figure(epoch+7)
@@ -167,8 +179,8 @@ def plot_err(epoch,model_sines):
     plot.contourf(X_grid,Y_grid,err_test8,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
-    plot.show(block=False)
-    plot.pause(1)
+    if saveFig:
+        plot.savefig(figure_prefix+'_ep'+str(epoch)+'_tau_xyi.png',dpi=300)
 
     err_test9 = o_test_grid[:,:,8]/MAX_o_train-pred_test_grid[:,:,8]
     plot.figure(epoch+8)
@@ -185,6 +197,8 @@ def plot_err(epoch,model_sines):
     plot.contourf(X_grid,Y_grid,err_test9,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
+    if saveFig:
+        plot.savefig(figure_prefix+'_ep'+str(epoch)+'_tau_yyr.png',dpi=300)
 
     err_test10 = o_test_grid[:,:,9]/MAX_o_train-pred_test_grid[:,:,9]
     plot.figure(epoch+9)
@@ -201,6 +215,8 @@ def plot_err(epoch,model_sines):
     plot.contourf(X_grid,Y_grid,err_test10,levels=21)
     plot.set_cmap('bwr')
     plot.colorbar()
+    if saveFig:
+        plot.savefig(figure_prefix+'_ep'+str(epoch)+'_tau_yyi.png',dpi=300)
     plot.show(block=False)
     plot.pause(1)
 
@@ -210,6 +226,7 @@ plot.ion()
 HOMEDIR = 'C:/projects/pinns_narval/sync/'
 # read the data
 base_dir = HOMEDIR+'data/mazi_fixed_grid/'
+plot_dir = HOMEDIR + 'output/mfg_femb_manual_plots/'
 fourierModeFile = h5py.File(base_dir+'fourier_data_DFT.mat','r')
 configFile = h5py.File(base_dir+'configuration.mat','r')
 
@@ -224,6 +241,10 @@ Y_grid = np.array(configFile['Y_grid'])
 y_test = y
 
 mode_number=5
+global saveFig
+global figure_prefix
+saveFig=True
+figure_prefix = plot_dir+'vdnn_femb_10L100N_m'+str(mode_number)
 
 meanVelocityFile = h5py.File(base_dir+'meanVelocity.mat','r')
 ux = np.array(meanVelocityFile['meanVelocity'][0,:]).transpose()
@@ -351,13 +372,13 @@ if True:
         model_sines = keras.Sequential()
         model_sines.add(keras.layers.Dense(2,activation='linear',input_shape=(2,)))
         #model_sines.add(AdjustableFourierTransformLayer(60,30))
-        model_sines.add(FourierEmbeddingLayer(tf.cast(np.linspace(0,60,120,dtype=np.float64),tf.float64)))
-        model_sines.add(keras.layers.Dense(nodes,activation='linear'))
-        for k in range(8):
-            model_sines.add(keras.layers.Dense(nodes,activation='elu'))
+        model_sines.add(FourierEmbeddingLayer(tf.cast(np.linspace(0,60,121,dtype=np.float64),tf.float64)))
+        model_sines.add(keras.layers.Dense(nodes,activation='linear',input_shape=(2+121*2,)))
+        for k in range(9):
+            model_sines.add(keras.layers.Dense(nodes,activation='swish'))
         model_sines.add(keras.layers.Dense(10,activation='linear'))
         model_sines.summary()
-        model_sines.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),loss=network_loss,jit_compile=False) 
+        model_sines.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),loss=network_loss) # ,jit_compile=False 
 
 shuffle_inds = np.array(range((i_train).shape[0])).transpose()
 shuffle_inds = np.random.shuffle(shuffle_inds)
@@ -372,26 +393,45 @@ LBFGS_epochs = 3*LBFGS_steps
 
 epochs = 0
 
+history_list = []
+
 if True:
     keras.backend.set_value(model_sines.optimizer.learning_rate, 1E-3)
     hist = model_sines.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=30)
-    plot_err(500,model_sines)
+    history_list.append(hist.history['loss'])
+    plot_err(30,model_sines)
     keras.backend.set_value(model_sines.optimizer.learning_rate, 1E-4)
     hist = model_sines.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=30)
-    plot_err(1000,model_sines)
+    history_list.append(hist.history['loss'])
+    plot_err(60,model_sines)
     keras.backend.set_value(model_sines.optimizer.learning_rate, 1E-5)
     hist = model_sines.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=30)
-    plot_err(1500,model_sines)
+    history_list.append(hist.history['loss'])
+    plot_err(90,model_sines)
     keras.backend.set_value(model_sines.optimizer.learning_rate, 1E-6)
     hist = model_sines.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=30)
-    plot_err(2000,model_sines)
+    history_list.append(hist.history['loss'])
+    plot_err(120,model_sines)
     keras.backend.set_value(model_sines.optimizer.learning_rate, 1E-7)
     hist = model_sines.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=30)
-    plot_err(2500,model_sines)
-    pred =  model_sines.predict(i_train,batch_size=1000)
+    history_list.append(hist.history['loss'])
+    plot_err(150,model_sines)
+    
+history_arr = history_list[0]
+for i in range(1,len(history_list)):
+    history_arr = np.concatenate((history_arr,history_list[i]),axis=0)
+
+epoch_arr = np.arange(history_arr.shape[0])
+
+plot.figure(1001)
+plot.scatter(epoch_arr,history_arr)
+plot.yscale('log')
+plot.xscale('log')
+plot.savefig(figure_prefix+'training_history.png',dpi=300)
+
 
 epochs=2500
-if True:
+if False:
     for L_iter in range(10):
 
         func = function_factory(model_sines, network_loss, tf.cast(i_train_shuffle[:],tf.float64), tf.cast(o_train_shuffle[:],tf.float64))
@@ -406,5 +446,5 @@ if True:
 
 
 
-plot.show(block=True)
+#plot.show(block=True)
 

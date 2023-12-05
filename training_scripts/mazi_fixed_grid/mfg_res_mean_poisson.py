@@ -13,6 +13,9 @@ keras.backend.set_floatx('float64')
 import numpy as np
 
 import matplotlib.pyplot as plot
+import matplotlib
+
+import time
 
 import sys
 sys.path.append('C:/projects/pinns_local/code/')
@@ -32,109 +35,51 @@ def plot_err(epoch,model_RANS):
     global Y_grid
     global i_test
     global o_test_grid
+    global saveFig
+    global fig_dir
+    global d
+
+    cylinder_mask = (np.power(X_grid,2.0)+np.power(Y_grid,2.0))<np.power(d/2.0,2.0)
+
+    o_test_grid_temp = np.zeros([X_grid.shape[0],X_grid.shape[1],6])
+    o_test_grid_temp[:,:,0:5] = o_test_grid
+    o_test_grid_temp[:,:,5]=p_grid
+    o_test_grid_temp[cylinder_mask] = np.NaN
+
     pred_test = model_RANS.predict(i_test[:],batch_size=1000)
     pred_test_grid = np.reshape(pred_test,[X_grid.shape[0],X_grid.shape[1],6])
+    pred_test_grid[cylinder_mask] = np.NaN
 
     plot.close('all')
 
-    err_test1 = o_test_grid[:,:,0]-pred_test_grid[:,:,0]
-    plot.figure(epoch)
-    plot.title('Full Resolution')
-    plot.subplot(3,1,1)
-    plot.contourf(X_grid,Y_grid,o_test_grid[:,:,0],levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-    plot.subplot(3,1,2)
-    plot.contourf(X_grid,Y_grid,pred_test_grid[:,:,0],levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-    plot.subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,err_test1,levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
+    err_test = o_test_grid_temp-pred_test_grid
 
-    err_test2 = o_test_grid[:,:,1]-pred_test_grid[:,:,1]
-    plot.figure(epoch+1)
-    plot.title('Full Resolution')
-    plot.subplot(3,1,1)
-    plot.contourf(X_grid,Y_grid,o_test_grid[:,:,1],levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-    plot.subplot(3,1,2)
-    plot.contourf(X_grid,Y_grid,pred_test_grid[:,:,1],levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-    plot.subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,err_test2,levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
+    plot_save_exts = ['_ux.png','_uy.png','_uxux.png','_uxuy.png','_uyuy.png','_p.png']
 
-    err_test3 = o_test_grid[:,:,2]-pred_test_grid[:,:,2]
-    plot.figure(epoch+2)
-    plot.title('Full Resolution')
-    plot.subplot(3,1,1)
-    plot.contourf(X_grid,Y_grid,o_test_grid[:,:,2],levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-    plot.subplot(3,1,2)
-    plot.contourf(X_grid,Y_grid,pred_test_grid[:,:,2],levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-    plot.subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,err_test3,levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
 
-    err_test4 = o_test_grid[:,:,3]-pred_test_grid[:,:,3]
-    plot.figure(epoch+3)
-    plot.title('Full Resolution')
-    plot.subplot(3,1,1)
-    plot.contourf(X_grid,Y_grid,o_test_grid[:,:,3],levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-    plot.subplot(3,1,2)
-    plot.contourf(X_grid,Y_grid,pred_test_grid[:,:,3],levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-    plot.subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,err_test4,levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
+    for i in range(6):
 
-    err_test5 = o_test_grid[:,:,4]-pred_test_grid[:,:,4]
-    plot.figure(epoch+4)
-    plot.title('Full Resolution')
-    plot.subplot(3,1,1)
-    plot.contourf(X_grid,Y_grid,o_test_grid[:,:,4],levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-    plot.subplot(3,1,2)
-    plot.contourf(X_grid,Y_grid,pred_test_grid[:,:,4],levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-    plot.subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,err_test5,levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-   
-    err_test5 = p_grid-pred_test_grid[:,:,5]
-    plot.figure(epoch+5)
-    plot.title('Full Resolution')
-    plot.subplot(3,1,1)
-    plot.contourf(X_grid,Y_grid,p_grid,levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-    plot.subplot(3,1,2)
-    plot.contourf(X_grid,Y_grid,pred_test_grid[:,:,5],levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
-    plot.subplot(3,1,3)
-    plot.contourf(X_grid,Y_grid,err_test5,levels=21)
-    plot.set_cmap('bwr')
-    plot.colorbar()
+        o_test_max = np.nanmax(np.abs(o_test_grid_temp[:,:,i].ravel()))
+        o_test_levels = np.linspace(-o_test_max,o_test_max,21)
 
-    plot.show(block=False)
-    plot.pause(1)
+        plot.figure(epoch)
+        plot.title('Full Resolution')
+        plot.subplot(3,1,1)
+        plot.contourf(X_grid,Y_grid,o_test_grid_temp[:,:,i],levels=o_test_levels)
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        plot.subplot(3,1,2)
+        plot.contourf(X_grid,Y_grid,pred_test_grid[:,:,i],levels=21,vmin=-o_test_max,vmax=o_test_max)
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        plot.subplot(3,1,3)
+        plot.contourf(X_grid,Y_grid,err_test[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        if saveFig:
+            plot.savefig(fig_dir+'ep'+str(epoch)+plot_save_exts[i],dpi=300)
+
+
 
 def save_custom(model,epochs):
     global i_test
@@ -163,8 +108,11 @@ HOMEDIR = 'C:/projects/pinns_narval/sync/'
 # read the data
 base_dir = HOMEDIR+'data/mazi_fixed_grid/'
 global savedir
-savedir = HOMEDIR+'output/mfg_res_mean_poisson001/'
+savedir = HOMEDIR+'output/mfg_res_mean_poisson010/'
 create_directory_if_not_exists(savedir)
+global fig_dir
+fig_dir = savedir + 'figures/'
+create_directory_if_not_exists(fig_dir)
 
 reynoldsStressFile = h5py.File(base_dir+'reynoldsStress.mat','r')
 meanVelocityFile = h5py.File(base_dir+'meanVelocity.mat','r')
@@ -182,6 +130,7 @@ X_grid = np.array(configFile['X_grid'])
 y = np.array(configFile['X_vec'][1,:])
 Y_grid = np.array(configFile['Y_grid'])
 y_test = y
+global d
 d = np.array(configFile['cylinderDiameter'])
 
 
@@ -215,15 +164,13 @@ global o_test_grid
 o_test_grid = np.reshape(np.hstack((ux.reshape(-1,1)/MAX_ux,uy.reshape(-1,1)/MAX_uy,uxux.reshape(-1,1)/MAX_uxux,uxuy.reshape(-1,1)/MAX_uxuy,uyuy.reshape(-1,1)/MAX_uyuy)),[X_grid.shape[0],X_grid.shape[1],5])
 ux_grid = np.reshape(ux,X_grid.shape)
 
-global i_test
-i_test = np.hstack((x_test.reshape(-1,1),y_test.reshape(-1,1)))
-
 
 MAX_x = np.max(X_grid)
 MAX_y = np.max(Y_grid)
 x_test = X_grid/MAX_x
 y_test = Y_grid/MAX_x
-
+global i_test
+i_test = np.hstack((x_test.reshape(-1,1),y_test.reshape(-1,1)))
 
 supersample_factor=1
 # if we are downsampling and then upsampling, downsample the source data
@@ -272,8 +219,8 @@ ScalingParameters.MAX_p= MAX_p # estimated maximum pressure, we should
 ScalingParameters.batch_size = 32 
 ScalingParameters.physics_loss_coefficient = 0.0
 ScalingParameters.boundary_loss_coefficient = 0.0
-ScalingParameters.data_loss_coefficient = 1.0E6
-ScalingParameters.pressure_loss_coefficient=1.0
+ScalingParameters.data_loss_coefficient = 1.0
+ScalingParameters.pressure_loss_coefficient=0.0
 
 # define boundary condition points
 theta = np.linspace(0,2*np.pi,1000)
@@ -297,8 +244,7 @@ class CustomCallback(keras.callbacks.Callback):
     def on_epoch_end(self,epoch,logs=None):
         global training_steps
         global model_RANS
-        plot_err(training_steps,model_RANS)
-        #save_custom(model_RANS,training_steps + epoch)
+        plot_err(training_steps+epoch+1,model_RANS)
         
 
 
@@ -307,13 +253,13 @@ class CustomCallback(keras.callbacks.Callback):
 
 # define the collocation points
 
-def colloc_points():
+def colloc_points_function():
     
     data_points = np.hstack((np.reshape(x,[x.size,1]),np.reshape(y,[y.size,1])))
 
     colloc_limits1 = np.array([[-10.0,10.0],[-2.0,2.0]])
     colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-    colloc_lhs1 = colloc_sample_lhs1(70000)
+    colloc_lhs1 = colloc_sample_lhs1(78000-x.size+20000)
 
 
     colloc_limits2 = np.array([[-1.0,3.0],[-1.5,1.5]])
@@ -333,10 +279,16 @@ def colloc_points():
     f_colloc_train = colloc_merged*np.array([1/ScalingParameters.MAX_x,1/ScalingParameters.MAX_y])
     return f_colloc_train
 
-f_colloc_train = colloc_points()
+f_colloc_train = colloc_points_function()
+
+colloc_vector = tf.Variable(initial_value=f_colloc_train,trainable=False,name='colloc_vector')
+
+print(colloc_vector)
+
 
 # import the physics
 from pinns_data_assimilation.lib.navier_stokes_cartesian import RANS_reynolds_stress_cartesian
+from pinns_data_assimilation.lib.navier_stokes_cartesian import RANS_reynolds_stress_cartesian_GradTape
 from pinns_data_assimilation.lib.navier_stokes_cartesian import RANS_poisson_equation
 from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_RANS_reynolds_stress_pressure
 from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_RANS_reynolds_stress_no_slip
@@ -348,15 +300,15 @@ def RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_points,BC_p,BC_ns,BC_inl
     def mean_loss(y_true, y_pred):
         # this needs to match the order that they are concatinated in the array when setting up the network
         # additionally, the known quantities must be first, unknown quantites second
-        data_loss_ux = keras.losses.mean_squared_error(y_true[:,0], y_pred[:,0])+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,0])-1,0)) # u 
-        data_loss_uy = keras.losses.mean_squared_error(y_true[:,1], y_pred[:,1])+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,1])-1,0)) # v 
-        data_loss_uxppuxpp = keras.losses.mean_squared_error(y_true[:,2], y_pred[:,2])+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,2])-1,0)) # u''u''   
-        data_loss_uxppuypp = keras.losses.mean_squared_error(y_true[:,3], y_pred[:,3])+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,3])-1,0)) # u''v''
-        data_loss_uyppuypp = keras.losses.mean_squared_error(y_true[:,4], y_pred[:,4])+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,4])-1,0)) # v''v''
-        scaling_loss_p = tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,5])-1,0))
+        data_loss_ux = keras.losses.mean_squared_error(y_true[:,0], y_pred[:,0])#+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,0])-1,0)) # u 
+        data_loss_uy = keras.losses.mean_squared_error(y_true[:,1], y_pred[:,1])#+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,1])-1,0)) # v 
+        data_loss_uxppuxpp = keras.losses.mean_squared_error(y_true[:,2], y_pred[:,2])#+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,2])-1,0)) # u''u''   
+        data_loss_uxppuypp = keras.losses.mean_squared_error(y_true[:,3], y_pred[:,3])#+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,3])-1,0)) # u''v''
+        data_loss_uyppuypp = keras.losses.mean_squared_error(y_true[:,4], y_pred[:,4])#+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,4])-1,0)) # v''v''
+        scaling_loss_p = 0.0#tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,5])-1,0))
         # we add the pressure scaling loss as well because it helps the numerical condition of the model
         data_loss = tf.reduce_mean(data_loss_ux + data_loss_uy + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp+ scaling_loss_p)
-
+        
         if (model_RANS.ScalingParameters.physics_loss_coefficient==0):
             physics_loss = 0.0
         else:
@@ -396,7 +348,7 @@ def RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_points,BC_p,BC_ns,BC_inl
 
         combined_phyisics_loss = model_RANS.ScalingParameters.physics_loss_coefficient*physics_loss + model_RANS.ScalingParameters.boundary_loss_coefficient*boundary_loss + model_RANS.ScalingParameters.pressure_loss_coefficient*pressure_loss
         dynamic_data_weight = tf.math.exp(tf.math.ceil(tf.math.log(combined_phyisics_loss+1E-30)))
-        return  tf.math.reduce_max((dynamic_data_weight,1))*model_RANS.ScalingParameters.data_loss_coefficient*data_loss + combined_phyisics_loss
+        return  tf.math.reduce_max((dynamic_data_weight,tf.cast(1.0,tf.float64)))*model_RANS.ScalingParameters.data_loss_coefficient*data_loss + combined_phyisics_loss
         
     return mean_loss
 
@@ -409,9 +361,11 @@ from pinns_data_assimilation.lib.layers import CylindricalEmbeddingLayer
 global training_steps
 global model_RANS
 # model creation
-tf_device_string ='/GPU:0'
+tf_device_string ='/CPU:0'
 
-if True:
+frequency_vector = tf.constant(np.linspace(0,30,61,True))
+
+if False:
         
     training_steps = 0
     nodes = 120
@@ -419,23 +373,24 @@ if True:
         
         model_RANS = keras.Sequential()
         model_RANS.add(keras.layers.Dense(2,activation='linear',input_shape=(2,)))
-        #model_RANS.add(FourierEmbeddingLayer(np.linspace(0,15,31,True)))
+        #model_RANS.add(FourierEmbeddingLayer(frequency_vector))
         #model_RANS.add(CylindricalEmbeddingLayer())
-        model_RANS.add(keras.layers.Dense(nodes,activation='linear'))
-        for k in range(18):
-            model_RANS.add(ResidualLayer(nodes,activation='elu'))
+        model_RANS.add(keras.layers.Dense(nodes,activation='linear',))
+        for k in range(20):
+            model_RANS.add(ResidualLayer(nodes,activation='swish'))
         model_RANS.add(keras.layers.Dense(6,activation='linear'))
         model_RANS.summary()
-        model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),loss=RANS_reynolds_stress_loss_wrapper(model_RANS,f_colloc_train,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) 
+        model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),loss=RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) 
 else:
     with tf.device(tf_device_string):
-        model_RANS = keras.models.load_model(savedir+'mfg_res_mean_ep350_model.h5',custom_objects={'mean_loss':RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),'ResidualLayer':ResidualLayer,'CylindricalEmbeddingLayer':CylindricalEmbeddingLayer})
+        model_RANS = keras.models.load_model(savedir+'mfg_res_mean_ep100_model.h5',custom_objects={'mean_loss':RANS_reynolds_stress_loss_wrapper(None,f_colloc_train,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),'ResidualLayer':ResidualLayer,'FourierEmbeddingLayer':FourierEmbeddingLayer})
         # we need to compile again after loading once we can populate the loss function with the model object
-        model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,f_colloc_train,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
+        model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
         model_RANS.summary()
-        training_steps=350
+        training_steps=100
 
 model_RANS.ScalingParameters = ScalingParameters
+#model_RANS.colloc_batch = tf.Variable(tf.zeros((model_RANS.ScalingParameters.batch_size,2),dtype=tf.float64),trainable=False,name='colloc_batch')
 
 # shuffle
 shuffle_inds = np.array(range((i_train).shape[0])).transpose()
@@ -453,73 +408,102 @@ LBFGS_epochs = 3*LBFGS_steps
 d_ts = 100
 # training
 
+global saveFig
+saveFig=True
+
 if False:
-    model_RANS.ScalingParameters.batch_size=128
-    model_RANS.ScalingParameters.physics_loss_coefficient=1.0
-    keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-5)
-    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=d_ts,callbacks=[CustomCallback()])
-    training_steps = training_steps+d_ts
+    ux_fft = np.fft.fft2(ux_grid+4*np.sin(15*np.pi*X_grid+15*np.pi*Y_grid),None,(0,1))
 
-    keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-6)
-    model_RANS.ScalingParameters.batch_size=128
-    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=d_ts,callbacks=[CustomCallback()])
-    training_steps = training_steps+d_ts
+    hL = np.int64(np.array(ux_grid.shape)/2)
+    plot.figure(1)
+    plot.contourf(X_grid[0:hL[0],0:hL[1]],Y_grid[0:hL[0],0:hL[1]],np.log10(np.abs(ux_fft[0:hL[0],0:hL[1]])),21)
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.show(block=True)
 
-    keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-7)
-    model_RANS.ScalingParameters.batch_size=128
-    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=d_ts,callbacks=[CustomCallback()])
-    training_steps = training_steps+d_ts
-
-    keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-8)
-    model_RANS.ScalingParameters.batch_size=128
-    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=d_ts,callbacks=[CustomCallback()])
-    training_steps = training_steps+d_ts
-    
-    keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-9)
-    model_RANS.ScalingParameters.batch_size=128
-    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=d_ts,callbacks=[CustomCallback()])
-    training_steps = training_steps+d_ts
-    
-if False:
-    
-    keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-4)
-    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=50)
-    plot_err(1000,model_RANS)
-    keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-5)
-    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=50)
-    plot_err(1500,model_RANS)
-    keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-6)
-    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=50)
-    plot_err(2000,model_RANS)
-    keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-7)
-    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=50)
-    plot_err(2500,model_RANS)
-    pred =  model_RANS.predict(i_train,batch_size=1000)
+    exit()
 
 
-model_RANS.ScalingParameters.physics_loss_coefficient=np.float64(0.0)
-model_RANS.ScalingParameters.boundary_loss_coefficient=np.float64(0.0)
-model_RANS.ScalingParameters.pressure_loss_coefficient=np.float64(1.0)
+history_list = []
+model_RANS.ScalingParameters.physics_loss_coefficient=np.float64(1.0)
+model_RANS.ScalingParameters.boundary_loss_coefficient=np.float64(1.0)
+model_RANS.ScalingParameters.pressure_loss_coefficient=np.float64(0.0)
 model_RANS.ScalingParameters.batch_size = 32
+if False:
+    
 
-for i in range(5):
-    keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-4)
-    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*10,callbacks=[CustomCallback()])
-    training_steps = training_steps+10
-    save_custom(model_RANS,training_steps)
 
-for i in range(10):
-    keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-5)
-    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*10,callbacks=[CustomCallback()])
-    training_steps = training_steps+10
-    save_custom(model_RANS,training_steps)
 
-model_RANS.ScalingParameters.batch_size = 256
-keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-6)
-hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*100,callbacks=[CustomCallback()])
-training_steps = training_steps+100
-save_custom(model_RANS,training_steps)
+    print('physics_loss=1')
+    model_RANS.ScalingParameters.physics_loss_coefficient=np.float64(1.0)
+    model_RANS.ScalingParameters.boundary_loss_coefficient=np.float64(1.0)
+    model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),loss=RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) 
 
+    print('learning rate = 1E-4')
+    for i in range(5):
+        keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-4)
+        hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*10,callbacks=[CustomCallback()])
+        history_list.append(hist.history['loss'])
+        training_steps = training_steps+10
+        save_custom(model_RANS,training_steps)
+
+if True:
+
+    print('learning rate =5E-5')
+    for i in range(5):
+        keras.backend.set_value(model_RANS.optimizer.learning_rate, 5E-5)
+        hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*10,callbacks=[CustomCallback()])
+        history_list.append(hist.history['loss'])
+        training_steps = training_steps+10
+        save_custom(model_RANS,training_steps)
+
+    print('learning rate = 1E-5')
+    for i in range(5):
+        keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-5)
+        hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*10,callbacks=[CustomCallback()])
+        history_list.append(hist.history['loss'])
+        training_steps = training_steps+10
+        save_custom(model_RANS,training_steps)
+
+
+
+
+
+
+    exit()
+
+
+
+    for i in range(3):
+        keras.backend.set_value(model_RANS.optimizer.learning_rate, 5E-5)
+        hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*10,callbacks=[CustomCallback()])
+        history_list.append(hist.history['loss'])
+        training_steps = training_steps+10
+        save_custom(model_RANS,training_steps)
+        plot_err(training_steps,model_RANS)
+
+    
+    for i in range(3):
+        keras.backend.set_value(model_RANS.optimizer.learning_rate, 5E-5)
+        hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*10,callbacks=[CustomCallback()])
+        history_list.append(hist.history['loss'])
+        training_steps = training_steps+10
+        save_custom(model_RANS,training_steps)
+        plot_err(training_steps,model_RANS)
+
+
+history_arr = history_list[0]
+for i in range(1,len(history_list)):
+    history_arr = np.concatenate((history_arr,history_list[i]),axis=0)
+
+epoch_arr = np.arange(history_arr.shape[0])
+
+plot.figure(1001)
+plot.scatter(epoch_arr,history_arr)
+plot.yscale('log')
+plot.xscale('log')
+
+plot.savefig(savedir+time.strftime("%Y%m%d_%H%M",time.localtime())+'training_history.png',dpi=300)
 
 exit()
 

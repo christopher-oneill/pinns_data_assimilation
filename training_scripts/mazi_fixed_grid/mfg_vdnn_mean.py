@@ -386,7 +386,7 @@ else:
             model_mean.add(keras.layers.Dense(dense_nodes, activation='linear', input_shape=(2,)))
             model_mean.add(keras.layers.Dense(dense_nodes, activation='linear'))
             for i in range(dense_layers-2):
-                model_mean.add(ResidualLayer(dense_nodes,activation='elu'))
+                model_mean.add(ResidualLayer(dense_nodes,activation='swish'))
             model_mean.add(keras.layers.Dense(6,activation='linear'))
             model_mean.summary()
             model_mean.ScalingParameters = ScalingParameters

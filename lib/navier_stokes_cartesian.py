@@ -142,6 +142,121 @@ def RANS_reynolds_stress_cartesian(model_RANS,colloc_tensor):
     
     return f_x, f_y, f_mass
 
+@tf.function
+def RANS_reynolds_stress_cartesian_GradTape(model_RANS,colloc_points):
+    print(colloc_points)
+    with tf.GradientTape(persistent=True) as tape1:
+        tape1.watch(model_RANS.trainable_variables)
+        tape1.watch(colloc_points)
+        with tf.GradientTape(persistent=True) as tape2:
+            tape2.watch(model_RANS.trainable_variables)
+            tape2.watch(colloc_points)
+            up = model_RANS(colloc_points)
+            
+            ux = up[:,0]*model_RANS.ScalingParameters.MAX_ux
+            uy = up[:,1]*model_RANS.ScalingParameters.MAX_uy
+            uxux = up[:,2]*model_RANS.ScalingParameters.MAX_ux
+            uxuy = up[:,3]*model_RANS.ScalingParameters.MAX_ux
+            uyuy = up[:,4]*model_RANS.ScalingParameters.MAX_ux
+            p = up[:,5]*model_RANS.ScalingParameters.MAX_ux
+            # dont record the derivatives of up
+            with tape2.stop_recording():
+                # we need to record these with tape1 so that we can differentiate them again
+                dux = tape2.gradient(ux,colloc_points)
+                duy = tape2.gradient(uy,colloc_points)
+                with tape1.stop_recording():
+                    # we dont need to record these for higher derivatives
+                    duxux = tape2.gradient(uxux,colloc_points)
+                    duxuy = tape2.gradient(uxuy,colloc_points)
+                    duyuy = tape2.gradient(uyuy,colloc_points)
+                    dp = tape2.gradient(p,colloc_points)
+            # exit the scope of tape 2
+            ux_x = dux[:,0]/model_RANS.ScalingParameters.MAX_x
+            ux_y = dux[:,1]/model_RANS.ScalingParameters.MAX_y
+            uy_x = duy[:,0]/model_RANS.ScalingParameters.MAX_x
+            uy_y = duy[:,1]/model_RANS.ScalingParameters.MAX_y
+        with tape1.stop_recording():
+            ddux_x = tape1.gradient(ux_x,colloc_points)
+            ddux_y = tape1.gradient(ux_y,colloc_points) 
+            dduy_x = tape1.gradient(ux_x,colloc_points) 
+            dduy_y = tape1.gradient(uy_y,colloc_points) 
+        
+    del tape1
+    del tape2
+
+    # scale remaining gradients
+
+    uxux_x = duxux[:,0]*model_RANS.ScalingParameters.MAX_uxppuxpp/model_RANS.ScalingParameters.MAX_x
+    uxuy_x = duxuy[:,0]*model_RANS.ScalingParameters.MAX_uxppuypp/model_RANS.ScalingParameters.MAX_x
+    uxuy_y = duxuy[:,1]*model_RANS.ScalingParameters.MAX_uxppuypp/model_RANS.ScalingParameters.MAX_y
+    uyuy_y = duyuy[:,1]*model_RANS.ScalingParameters.MAX_uyppuypp/model_RANS.ScalingParameters.MAX_y
+
+    p_x = dp[:,0]*model_RANS.ScalingParameters.MAX_p/model_RANS.ScalingParameters.MAX_x
+    p_y = dp[:,1]*model_RANS.ScalingParameters.MAX_p/model_RANS.ScalingParameters.MAX_y
+
+    ux_xx = ddux_x[:,0]/model_RANS.ScalingParameters.MAX_x
+    ux_yy = ddux_y[:,1]/model_RANS.ScalingParameters.MAX_y
+    uy_xx = dduy_x[:,0]/model_RANS.ScalingParameters.MAX_x
+    uy_yy = dduy_y[:,1]/model_RANS.ScalingParameters.MAX_y
+
+    # governing equations
+    f_x = (ux*ux_x + uy*ux_y) + (uxux_x + uxuy_y) + p_x - (model_RANS.ScalingParameters.nu_mol)*(ux_xx+ux_yy)  #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
+    f_y = (ux*uy_x + uy*uy_y) + (uxuy_x + uyuy_y) + p_y - (model_RANS.ScalingParameters.nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
+    f_mass = ux_x + uy_y
+    
+    return f_x, f_y, f_mass
+
+
+
+
+@tf.function
+def RANS_reynolds_stress_cartesian_GradTape_slow(model_RANS,colloc_points):
+    with tf.GradientTape() as tape1:
+        tape1.watch(model_RANS.trainable_variables)
+        tape1.watch(colloc_points)
+        with tf.GradientTape() as tape2:
+            tape2.watch(model_RANS.trainable_variables)
+            tape2.watch(colloc_points)
+            up = model_RANS(colloc_points)
+            tape2.watch(up)
+            tape1.watch(up)
+            
+        dup = tape2.batch_jacobian(up,colloc_points)
+    ddup = tape1.batch_jacobian(dup,colloc_points)
+
+    # scale gradients
+        
+    ux = up[:,0]*model_RANS.ScalingParameters.MAX_ux
+    uy = up[:,1]*model_RANS.ScalingParameters.MAX_uy
+
+    ux_x = dup[:,0,0]*model_RANS.ScalingParameters.MAX_ux/model_RANS.ScalingParameters.MAX_x
+    ux_y = dup[:,0,1]*model_RANS.ScalingParameters.MAX_ux/model_RANS.ScalingParameters.MAX_y
+    uy_x = dup[:,1,0]*model_RANS.ScalingParameters.MAX_uy/model_RANS.ScalingParameters.MAX_x
+    uy_y = dup[:,1,1]*model_RANS.ScalingParameters.MAX_uy/model_RANS.ScalingParameters.MAX_x
+
+    uxux_x = dup[:,2,0]*model_RANS.ScalingParameters.MAX_uxppuxpp/model_RANS.ScalingParameters.MAX_x
+    uxuy_x = dup[:,3,0]*model_RANS.ScalingParameters.MAX_uxppuypp/model_RANS.ScalingParameters.MAX_x
+    uxuy_y = dup[:,3,1]*model_RANS.ScalingParameters.MAX_uxppuypp/model_RANS.ScalingParameters.MAX_y
+    uyuy_y = dup[:,4,1]*model_RANS.ScalingParameters.MAX_uyppuypp/model_RANS.ScalingParameters.MAX_y
+
+    p_x = dup[:,5,0]*model_RANS.ScalingParameters.MAX_p/model_RANS.ScalingParameters.MAX_x
+    p_y = dup[:,5,1]*model_RANS.ScalingParameters.MAX_p/model_RANS.ScalingParameters.MAX_y
+
+    ux_xx = ddup[:,0,0,0]*model_RANS.ScalingParameters.MAX_ux/(model_RANS.ScalingParameters.MAX_x*model_RANS.ScalingParameters.MAX_x) 
+    ux_yy = ddup[:,0,0,1]*model_RANS.ScalingParameters.MAX_ux/(model_RANS.ScalingParameters.MAX_y*model_RANS.ScalingParameters.MAX_y) 
+    uy_xx = ddup[:,1,1,0]*model_RANS.ScalingParameters.MAX_uy/(model_RANS.ScalingParameters.MAX_x*model_RANS.ScalingParameters.MAX_x) 
+    uy_yy = ddup[:,1,1,1]*model_RANS.ScalingParameters.MAX_uy/(model_RANS.ScalingParameters.MAX_y*model_RANS.ScalingParameters.MAX_y) 
+
+    # governing equations
+    f_x = (ux*ux_x + uy*ux_y) + (uxux_x + uxuy_y) + p_x - (model_RANS.ScalingParameters.nu_mol)*(ux_xx+ux_yy)  #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
+    f_y = (ux*uy_x + uy*uy_y) + (uxuy_x + uyuy_y) + p_y - (model_RANS.ScalingParameters.nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
+    f_mass = ux_x + uy_y
+    
+    return f_x, f_y, f_mass
+
+
+
+
 
 def example_RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_points,BC_p,BC_ns,BC_inlet,BC_inlet2): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
      
