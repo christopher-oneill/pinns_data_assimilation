@@ -46,10 +46,10 @@ def steady_NS(model_steady,colloc_tensor):
 
     # second derivatives
     (dux_x,dux_y,duy_x,duy_y) = tf.gradients((),(colloc_tensor,colloc_tensor,colloc_tensor))
-    uy_xx = dux_x[:,0]/model_steady.ScalingParameters.MAX_x
-    uy_yy = dux_y[:,1]/model_steady.ScalingParameters.MAX_y
-    ux_xx = duy_x[:,0]/model_steady.ScalingParameters.MAX_x
-    ux_yy = duy_y[:,1]/model_steady.ScalingParameters.MAX_y
+    ux_xx = dux_x[:,0]/model_steady.ScalingParameters.MAX_x
+    ux_yy = dux_y[:,1]/model_steady.ScalingParameters.MAX_y
+    uy_xx = duy_x[:,0]/model_steady.ScalingParameters.MAX_x
+    uy_yy = duy_y[:,1]/model_steady.ScalingParameters.MAX_y
 
     # governing equations
     f_x = (ux*ux_x + uy*ux_y) + p_x - (model_steady.ScalingParameters.nu_mol)*(ux_xx+ux_yy)  
