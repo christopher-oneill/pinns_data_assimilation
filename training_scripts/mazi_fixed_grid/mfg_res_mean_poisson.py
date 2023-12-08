@@ -52,10 +52,13 @@ def plot_err(epoch,model_RANS):
     pred_test_grid = np.reshape(pred_test,[X_grid.shape[0],X_grid.shape[1],6])
     pred_test_grid[cylinder_mask] = np.NaN
 
-    mx,my,mass = RANS_reynolds_stress_cartesian(model_RANS,i_test[:])
-    mx = np.reshape(mx,X_grid.shape)
-    my = np.reshape(my,X_grid.shape)
-    mass = np.reshape(mass,X_grid.shape)
+    mx,my,mass = RANS_reynolds_stress_cartesian2(model_RANS,i_test[:])
+    mx = 1.0*np.reshape(mx,X_grid.shape)
+    mx[cylinder_mask] = np.NaN
+    my = 1.0*np.reshape(my,X_grid.shape)
+    my[cylinder_mask] = np.NaN
+    mass = 1.0*np.reshape(mass,X_grid.shape)
+    mass[cylinder_mask] = np.NaN
 
 
     plot.close('all')
@@ -125,6 +128,15 @@ def save_custom(model,epochs):
         h5f.create_dataset('massr',data=t_mass)
         h5f.close()
 
+
+def load_custom(epochs,lr):
+    global savedir
+    model_RANS = keras.models.load_model(savedir+'mfg_res_mean_ep'+str(epochs)+'_model.h5',custom_objects={'mean_loss':RANS_reynolds_stress_loss_wrapper(None,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),'ResidualLayer':ResidualLayer,'FourierEmbeddingLayer':FourierEmbeddingLayer})
+    # we need to compile again after loading once we can populate the loss function with the model object
+    model_RANS.ScalingParameters = ScalingParameters
+    model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=lr), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
+    
+
 from pinns_data_assimilation.lib.file_util import create_directory_if_not_exists
 
 
@@ -135,7 +147,7 @@ HOMEDIR = 'C:/projects/pinns_narval/sync/'
 # read the data
 base_dir = HOMEDIR+'data/mazi_fixed_grid/'
 global savedir
-savedir = HOMEDIR+'output/mfg_res_mean_poisson011/'
+savedir = HOMEDIR+'output/mfg_res_mean_poisson013/'
 create_directory_if_not_exists(savedir)
 global fig_dir
 fig_dir = savedir + 'figures/'
@@ -243,7 +255,8 @@ ScalingParameters.MAX_uxppuypp = MAX_uxuy
 ScalingParameters.MAX_uyppuypp = MAX_uyuy
 ScalingParameters.nu_mol = 0.0066667
 ScalingParameters.MAX_p= MAX_p # estimated maximum pressure, we should
-ScalingParameters.batch_size = 32 
+ScalingParameters.batch_size = 32
+ScalingParameters.colloc_batch_size = 32
 ScalingParameters.physics_loss_coefficient = np.float64(0.0)
 ScalingParameters.boundary_loss_coefficient = np.float64(0.0)
 ScalingParameters.data_loss_coefficient = np.float64(1.0)
@@ -267,13 +280,23 @@ inlet_BC_x = -2.0*np.ones([100,1])/ScalingParameters.MAX_x
 inlet_BC_y = np.linspace(-2.0,2.0,100)/ScalingParameters.MAX_y
 inlet_BC_vec2 = np.hstack((inlet_BC_x.reshape(-1,1),inlet_BC_y.reshape(-1,1)))
 
-class CustomCallback(keras.callbacks.Callback):
+class PlotCallback(keras.callbacks.Callback):
     def on_epoch_end(self,epoch,logs=None):
         global training_steps
         global model_RANS
         plot_err(training_steps+epoch+1,model_RANS)
         
+global batch_number
+batch_number = 0
 
+class BatchTrackingCallback(keras.callbacks.Callback):
+    def on_epoch_begin(self,epoch,logs=None):
+        global batch_number
+        batch_number=0
+    def on_batch_end(self,epoch,logs=None):
+        global batch_number
+        print(batch_number)
+        batch_number = batch_number+1
 
 
 
@@ -312,13 +335,63 @@ colloc_vector = colloc_points_function()
 
 
 # import the physics
-from pinns_data_assimilation.lib.navier_stokes_cartesian import RANS_reynolds_stress_cartesian
-from pinns_data_assimilation.lib.navier_stokes_cartesian import RANS_reynolds_stress_cartesian_GradTape
 from pinns_data_assimilation.lib.navier_stokes_cartesian import RANS_poisson_equation
 from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_RANS_reynolds_stress_pressure
 from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_RANS_reynolds_stress_no_slip
 from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_RANS_inlet
 from pinns_data_assimilation.lib.navier_stokes_cartesian import BC_RANS_inlet2
+
+@tf.function
+def RANS_reynolds_stress_cartesian2(model_RANS,colloc_tensor):
+    # in this version we try to trace the graph only twice (first gradient, second gradient)
+    up = model_RANS(colloc_tensor)
+    # knowns
+    ux = up[:,0]*model_RANS.ScalingParameters.MAX_ux
+    uy = up[:,1]*model_RANS.ScalingParameters.MAX_uy
+    uxux = up[:,2]*model_RANS.ScalingParameters.MAX_uxppuxpp
+    uxuy = up[:,3]*model_RANS.ScalingParameters.MAX_uxppuypp
+    uyuy = up[:,4]*model_RANS.ScalingParameters.MAX_uyppuypp
+    # unknowns
+    p = up[:,5]*model_RANS.ScalingParameters.MAX_p
+    
+    # compute the gradients of the quantities
+    
+    # first gradients
+    (dux,duy,duxux,duxuy,duyuy,dp) = tf.gradients((ux,uy,uxux,uxuy,uyuy,p), (colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor))
+    
+    # ux grads
+    ux_x = dux[:,0]/model_RANS.ScalingParameters.MAX_x
+    ux_y = dux[:,1]/model_RANS.ScalingParameters.MAX_y
+    
+    # uy gradient
+    uy_x = duy[:,0]/model_RANS.ScalingParameters.MAX_x
+    uy_y = duy[:,1]/model_RANS.ScalingParameters.MAX_y
+
+
+    # gradient unmodeled reynolds stresses
+    uxux_x = duxux[:,0]/model_RANS.ScalingParameters.MAX_x
+    uxuy_x = duxuy[:,0]/model_RANS.ScalingParameters.MAX_x
+    uxuy_y = duxuy[:,1]/model_RANS.ScalingParameters.MAX_y
+    uyuy_y = duyuy[:,1]/model_RANS.ScalingParameters.MAX_y
+
+    # pressure gradients
+    p_x = dp[:,0]/model_RANS.ScalingParameters.MAX_x
+    p_y = dp[:,1]/model_RANS.ScalingParameters.MAX_y
+
+    (dux_x,dux_y,duy_x,duy_y) = tf.gradients((ux_x,ux_y,uy_x,uy_y),(colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor))
+    # and second derivative
+    ux_xx = dux_x[:,0]/model_RANS.ScalingParameters.MAX_x
+    ux_yy = dux_y[:,1]/model_RANS.ScalingParameters.MAX_y
+    uy_xx = duy_x[:,0]/model_RANS.ScalingParameters.MAX_x
+    uy_yy = duy_y[:,1]/model_RANS.ScalingParameters.MAX_y
+
+    # governing equations
+    f_x = (ux*ux_x + uy*ux_y) + (uxux_x + uxuy_y) + p_x - (model_RANS.ScalingParameters.nu_mol)*(ux_xx+ux_yy)  #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
+    f_y = (ux*uy_x + uy*uy_y) + (uxuy_x + uyuy_y) + p_y - (model_RANS.ScalingParameters.nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
+    f_mass = ux_x + uy_y
+    
+    return f_x, f_y, f_mass
+
 
 @tf.function
 def RANS_error_gradient(model_RANS,colloc_tensor):
@@ -381,6 +454,69 @@ def RANS_error_gradient(model_RANS,colloc_tensor):
 
 
     return f_x_x, f_x_y, f_y_x, f_y_y, f_m_x, f_m_y
+
+@tf.function
+def RANS_error_gradient2(model_RANS,colloc_tensor):
+    up = model_RANS(colloc_tensor)
+    # knowns
+    ux = up[:,0]*model_RANS.ScalingParameters.MAX_ux
+    uy = up[:,1]*model_RANS.ScalingParameters.MAX_uy
+    uxux = up[:,2]*model_RANS.ScalingParameters.MAX_uxppuxpp
+    uxuy = up[:,3]*model_RANS.ScalingParameters.MAX_uxppuypp
+    uyuy = up[:,4]*model_RANS.ScalingParameters.MAX_uyppuypp
+    # unknowns
+    p = up[:,5]*model_RANS.ScalingParameters.MAX_p
+    
+    # compute the gradients of the quantities
+    
+    # first gradients
+    (dux,duy,duxux,duxuy,duyuy,dp) = tf.gradients((ux,uy,uxux,uxuy,uyuy,p), (colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor))
+    
+    # ux grads
+    ux_x = dux[:,0]/model_RANS.ScalingParameters.MAX_x
+    ux_y = dux[:,1]/model_RANS.ScalingParameters.MAX_y
+    
+    # uy gradient
+    uy_x = duy[:,0]/model_RANS.ScalingParameters.MAX_x
+    uy_y = duy[:,1]/model_RANS.ScalingParameters.MAX_y
+
+
+    # gradient unmodeled reynolds stresses
+    uxux_x = duxux[:,0]/model_RANS.ScalingParameters.MAX_x
+    uxuy_x = duxuy[:,0]/model_RANS.ScalingParameters.MAX_x
+    uxuy_y = duxuy[:,1]/model_RANS.ScalingParameters.MAX_y
+    uyuy_y = duyuy[:,1]/model_RANS.ScalingParameters.MAX_y
+
+    # pressure gradients
+    p_x = dp[:,0]/model_RANS.ScalingParameters.MAX_x
+    p_y = dp[:,1]/model_RANS.ScalingParameters.MAX_y
+
+    (dux_x,dux_y,duy_x,duy_y) = tf.gradients((ux_x,ux_y,uy_x,uy_y),(colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor))
+    # and second derivative
+    ux_xx = dux_x[:,0]/model_RANS.ScalingParameters.MAX_x
+    ux_yy = dux_y[:,1]/model_RANS.ScalingParameters.MAX_y
+    uy_xx = duy_x[:,0]/model_RANS.ScalingParameters.MAX_x
+    uy_yy = duy_y[:,1]/model_RANS.ScalingParameters.MAX_y
+
+    # governing equations
+    f_x = (ux*ux_x + uy*ux_y) + (uxux_x + uxuy_y) + p_x - (model_RANS.ScalingParameters.nu_mol)*(ux_xx+ux_yy)  #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
+    f_y = (ux*uy_x + uy*uy_y) + (uxuy_x + uyuy_y) + p_y - (model_RANS.ScalingParameters.nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
+    f_m = ux_x + uy_y
+
+    (df_x,df_y,df_m) = tf.gradients((f_x,f_y,f_m),(colloc_tensor,colloc_tensor,colloc_tensor))
+
+    
+    f_x_x = df_x[:,0]/model_RANS.ScalingParameters.MAX_x
+    f_x_y = df_x[:,1]/model_RANS.ScalingParameters.MAX_y
+    f_y_x = df_y[:,0]/model_RANS.ScalingParameters.MAX_x
+    f_y_y = df_y[:,1]/model_RANS.ScalingParameters.MAX_y
+    f_m_x = df_m[:,0]/model_RANS.ScalingParameters.MAX_x
+    f_m_y = df_m[:,1]/model_RANS.ScalingParameters.MAX_y
+
+
+    return f_x_x, f_x_y, f_y_x, f_y_y, f_m_x, f_m_y
+
+
 
 
 
@@ -565,7 +701,7 @@ def RANS_sort_by_grad_err(model_RANS,colloc_points,batch_size=1000):
     for batch in range(0,n_batch):
         progbar.update(batch+1)
         batch_inds = np.arange(batch*batch_size,np.min([(batch+1)*batch_size,colloc_points.shape[0]]))
-        f_x_x, f_x_y, f_y_x, f_y_y, f_m_x, f_m_y = RANS_error_gradient(model_RANS,tf.gather(colloc_points,batch_inds))
+        f_x_x, f_x_y, f_y_x, f_y_y, f_m_x, f_m_y = RANS_error_gradient2(model_RANS,tf.gather(colloc_points,batch_inds))
         f_x_x_list.append(f_x_x)
         f_x_y_list.append(f_x_y)
         f_y_x_list.append(f_y_x)
@@ -588,6 +724,32 @@ def RANS_sort_by_grad_err(model_RANS,colloc_points,batch_size=1000):
     return colloc_points_sorted
 
 
+def RANS_sample_by_grad_err(model_RANS,colloc_points,size):
+    colloc_points_sorted = RANS_sort_by_grad_err(model_RANS,colloc_points)
+    rand_colloc_points = np.abs(np.random.randn(size,)/3.0)
+    rand_colloc_points[rand_colloc_points>1.0]=1.0
+    rand_colloc_points = np.int64((colloc_points.shape[0]-1)*rand_colloc_points)
+    colloc_points_sampled = colloc_points_sorted[rand_colloc_points,:]
+
+    return colloc_points_sampled
+
+def data_sample_by_err(i_train,o_train,size):
+    global model_RANS
+    # evaluate the error
+    pred = model_RANS(i_train)
+    err = np.sum(np.power(pred[:,0:5] - o_train,2.0),axis=1)
+    err_order = np.argsort(err)
+    # sort
+    i_train_sorted = i_train[err_order[::-1],:]
+    o_train_sorted = o_train[err_order[::-1],:]
+    # sample based on the error
+    rand_points = np.abs(np.random.randn(size,)/3.0)
+    rand_points[rand_points>1.0]=1.0
+    rand_points = np.int64((i_train.shape[0]-1)*rand_points)
+    i_train_sampled = i_train_sorted[rand_points,:]
+    o_train_sampled = o_train_sorted[rand_points,:]
+
+    return i_train_sampled, o_train_sampled
 
 
 def RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_points,BC_p,BC_ns,BC_inlet,BC_inlet2): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
@@ -600,7 +762,7 @@ def RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_points,BC_p,BC_ns,BC_inl
         data_loss_uxppuxpp = keras.losses.mean_squared_error(y_true[:,2], y_pred[:,2])#+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,2])-1,0)) # u''u''   
         data_loss_uxppuypp = keras.losses.mean_squared_error(y_true[:,3], y_pred[:,3])#+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,3])-1,0)) # u''v''
         data_loss_uyppuypp = keras.losses.mean_squared_error(y_true[:,4], y_pred[:,4])#+tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,4])-1,0)) # v''v''
-        scaling_loss_p = 0.0#tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,5])-1,0))
+        scaling_loss_p = (model_RANS.ScalingParameters.physics_loss_coefficient==0.0)*tf.reduce_mean(tf.square(y_pred[:,5]))#tf.reduce_mean(tf.math.maximum(tf.square(y_pred[:,5])-1,0))
         # we add the pressure scaling loss as well because it helps the numerical condition of the model
         data_loss = tf.reduce_mean(data_loss_ux + data_loss_uy + data_loss_uxppuxpp + data_loss_uxppuypp +data_loss_uyppuypp+ scaling_loss_p)
         
@@ -615,10 +777,13 @@ def RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_points,BC_p,BC_ns,BC_inl
                 # rand_colloc_points = np.random.choice(colloc_points.shape[0],model_RANS.ScalingParameters.batch_size)
                 
                 # gaussian random sampling based on the gradient error, we just need to have pre-sorted the collocation points based on the error
-                rand_colloc_points = np.abs(np.random.randn(model_RANS.ScalingParameters.batch_size,)/3.0)
-                rand_colloc_points[rand_colloc_points>1.0]=1.0
-                rand_colloc_points = np.int64((colloc_points.shape[0]-1)*rand_colloc_points)      
-                mx,my,mass = RANS_reynolds_stress_cartesian(model_RANS,tf.gather(colloc_points,rand_colloc_points))
+                #rand_colloc_points = np.abs(np.random.randn(model_RANS.ScalingParameters.batch_size,)/3.0)
+                #rand_colloc_points[rand_colloc_points>1.0]=1.0
+                #rand_colloc_points = np.int64((colloc_points.shape[0]-1)*rand_colloc_points)
+
+                ## batch indexing
+                global batch_number
+                mx,my,mass = RANS_reynolds_stress_cartesian2(model_RANS,colloc_points[(model_RANS.ScalingParameters.colloc_batch_size*batch_number):(model_RANS.ScalingParameters.colloc_batch_size*(batch_number+1)),:])
             physical_loss1 = tf.reduce_mean(tf.square(mx))
             physical_loss2 = tf.reduce_mean(tf.square(my))
             physical_loss3 = tf.reduce_mean(tf.square(mass))
@@ -665,10 +830,10 @@ tf_device_string ='/CPU:0'
 
 frequency_vector = tf.constant(np.linspace(0,30,61,True))
 
-if False:
+if True:
         
     training_steps = 0
-    nodes = 120
+    nodes = 50
     with tf.device(tf_device_string):
         
         model_RANS = keras.Sequential()
@@ -676,32 +841,23 @@ if False:
         #model_RANS.add(FourierEmbeddingLayer(frequency_vector))
         #model_RANS.add(CylindricalEmbeddingLayer())
         model_RANS.add(keras.layers.Dense(nodes,activation='linear',))
-        for k in range(20):
+        for k in range(60):
             model_RANS.add(ResidualLayer(nodes,activation='swish'))
         model_RANS.add(keras.layers.Dense(6,activation='linear'))
         model_RANS.summary()
         model_RANS.ScalingParameters = ScalingParameters
-        model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),loss=RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) 
+        model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),loss=RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2)) #,jit_compile=False 
 else:
     with tf.device(tf_device_string):
-        model_RANS = keras.models.load_model(savedir+'mfg_res_mean_ep220_model.h5',custom_objects={'mean_loss':RANS_reynolds_stress_loss_wrapper(None,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),'ResidualLayer':ResidualLayer,'FourierEmbeddingLayer':FourierEmbeddingLayer})
+        model_RANS = keras.models.load_model(savedir+'mfg_res_mean_ep130_model.h5',custom_objects={'mean_loss':RANS_reynolds_stress_loss_wrapper(None,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),'ResidualLayer':ResidualLayer,'FourierEmbeddingLayer':FourierEmbeddingLayer})
         # we need to compile again after loading once we can populate the loss function with the model object
         model_RANS.ScalingParameters = ScalingParameters
         model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
         model_RANS.summary()
-        training_steps=220
+        training_steps=130
 
 
 #model_RANS.colloc_batch = tf.Variable(tf.zeros((model_RANS.ScalingParameters.batch_size,2),dtype=tf.float64),trainable=False,name='colloc_batch')
-
-# shuffle
-shuffle_inds = np.array(range((i_train).shape[0])).transpose()
-shuffle_inds = np.random.shuffle(shuffle_inds)
-
-i_train_shuffle = tf.cast((i_train[shuffle_inds,:])[0,:,:],tf.float64)
-o_train_shuffle = tf.cast((o_train[shuffle_inds])[0,:],tf.float64)
-print(i_train_shuffle.shape)
-print(o_train_shuffle.shape)
 
 LBFGS_steps = 333
 LBFGS_epochs = 3*LBFGS_steps
@@ -726,145 +882,51 @@ if False:
     exit()
 
 
+
+
 history_list = []
-print('physics_loss = 0.0')
-model_RANS.ScalingParameters.physics_loss_coefficient=np.float64(0.0)
-model_RANS.ScalingParameters.boundary_loss_coefficient=np.float64(0.0)
-model_RANS.ScalingParameters.pressure_loss_coefficient=np.float64(0.0)
-model_RANS.ScalingParameters.batch_size = 32
 if True:
-    #print('learning rate = 1E-4')
-    #for i in range(2):
-    #    keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-4)
-    #    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*10,callbacks=[CustomCallback()])
-    #    history_list.append(hist.history['loss'])
-    #    training_steps = training_steps+10
-    #   save_custom(model_RANS,training_steps)
-    #    # recompile after we order the points by err
-    #    print(colloc_vector[0,:])
-    #    model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
- 
+    # new style training with probabalistic training dataset
+    lr_schedule = np.array([1E-4, 1E-5, 1E-6, 1E-4, 5E-5, 1E-5, 5E-6, 1E-6, 5E-7])
+    ep_schedule = np.array([20, 40, 50, 50, 50, 50, 50, 50, 50])
+    phys_schedule = np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
 
-    print('physics_loss=1')
-    model_RANS.ScalingParameters.physics_loss_coefficient=np.float64(1.0)
-    model_RANS.ScalingParameters.boundary_loss_coefficient=np.float64(1.0)
-    model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),loss=RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) 
+    c_ep_schedule = np.cumsum(ep_schedule)
+    for p in range(np.argwhere(c_ep_schedule>=training_steps)[0,0],len(ep_schedule)):
+        keras.backend.set_value(model_RANS.optimizer.learning_rate, lr_schedule[p])
+        print('epoch',str(training_steps))
+        print('physics loss =',str(phys_schedule[p]))
+        print('learning rate =',str(lr_schedule[p]))
 
-    #print('learning rate = 1E-4')
-    #for i in range(10):
-    #   keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-4)
-    #    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*10,callbacks=[CustomCallback(),SortCollocCallback()])
-    #    history_list.append(hist.history['loss'])
-    #    training_steps = training_steps+10
-    #    save_custom(model_RANS,training_steps)
-    #    print(colloc_vector[0,:])
-    #    model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
- 
-
-
-    #print('learning rate =5E-5')
-    #for i in range(5):
-    #    keras.backend.set_value(model_RANS.optimizer.learning_rate, 5E-5)
-    #    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*10,callbacks=[CustomCallback(),SortCollocCallback()])
-    #    history_list.append(hist.history['loss'])
-    #    training_steps = training_steps+10
-    #    save_custom(model_RANS,training_steps)
-    #    print(colloc_vector[0,:])
-    #    model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
- 
-
-    #print('learning rate = 1E-5')
-    #for i in range(2):
-    #    keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-5)
-    #    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*10,callbacks=[CustomCallback(),SortCollocCallback()])
-    #    history_list.append(hist.history['loss'])
-    #    training_steps = training_steps+10
-    #    save_custom(model_RANS,training_steps)
-    #   print(colloc_vector[0,:])
-    #    model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
- 
-    #print('learning rate = 5E-6')
-    #for i in range(5):
-    #    keras.backend.set_value(model_RANS.optimizer.learning_rate, 5E-6)
-    #    hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*10,callbacks=[CustomCallback(),SortCollocCallback()])
-    #    history_list.append(hist.history['loss'])
-    #    training_steps = training_steps+10
-    #    save_custom(model_RANS,training_steps)
-    #    print(colloc_vector[0,:])
-    #    model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
- 
-    #print('learning rate = 1E-6')
-    #for i in range(5):
-    #    keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-6)
-    #    for k in range(10):
-    #        colloc_vector = RANS_sort_by_grad_err(model_RANS,colloc_vector)
-    #        temp_learning_rate = model_RANS.optimizer.learning_rate
-    #        model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=temp_learning_rate), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
-    #        hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*1,callbacks=[CustomCallback()])
-    #        history_list.append(hist.history['loss'])
-    #        training_steps = training_steps+1
-    #    save_custom(model_RANS,training_steps)
-
-    print('learning rate = 5E-7')
-    for i in range(5):
-        keras.backend.set_value(model_RANS.optimizer.learning_rate, 5E-7)
-        for k in range(10):
-            colloc_vector = RANS_sort_by_grad_err(model_RANS,colloc_vector)
+        model_RANS.ScalingParameters.physics_loss_coefficient = phys_schedule[p]
+        model_RANS.ScalingParameters.boundary_loss_coefficient = phys_schedule[p]
+        for i in range(ep_schedule[p]):
+            if (np.mod(i,10)==0):
+                # evaluate the whole dataset in normal order
+                i_train_sampled = i_train
+                o_train_sampled = o_train
+            else:
+                # evaluate the dataset based on the error
+                i_train_sampled, o_train_sampled = data_sample_by_err(i_train,o_train,i_train.shape[0])
+                
+            if (model_RANS.ScalingParameters.physics_loss_coefficient == 0.0):
+                colloc_vector_batch = None
+            else:
+                batches = np.int64(np.ceil(i_train_sampled.shape[0]/model_RANS.ScalingParameters.batch_size))
+                colloc_vector_batch = RANS_sample_by_grad_err(model_RANS,colloc_vector,batches*model_RANS.ScalingParameters.colloc_batch_size)
             temp_learning_rate = model_RANS.optimizer.learning_rate
-            model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=temp_learning_rate), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
-            hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*1,callbacks=[CustomCallback()])
+            model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=temp_learning_rate), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector_batch,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2)) #(...,BC_points1,...,BC_points3)
+            hist = model_RANS.fit(i_train_sampled,o_train_sampled, batch_size=32, epochs=(supersample_factor*supersample_factor)*1)
             history_list.append(hist.history['loss'])
-        training_steps = training_steps+10
-        save_custom(model_RANS,training_steps)
+            training_steps = training_steps+1
+            if (np.mod(i,10)==0):
+                save_custom(model_RANS,training_steps)
+                plot_err(training_steps,model_RANS)
+                # clear the backend and reload
+                keras.backend.clear_session()
+                load_custom(training_steps,temp_learning_rate)
+
         
-    print('learning rate = 1E-7')
-    for i in range(5):
-        keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-7)
-        for k in range(10):
-            colloc_vector = RANS_sort_by_grad_err(model_RANS,colloc_vector)
-            temp_learning_rate = model_RANS.optimizer.learning_rate
-            model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=temp_learning_rate), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
-            hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*1,callbacks=[CustomCallback()])
-            history_list.append(hist.history['loss'])
-        training_steps = training_steps+10
-        save_custom(model_RANS,training_steps) 
-
-
-
-
-
-
-    exit()
-
-    print('learning rate = 1E-6')
-    for i in range(5):
-        keras.backend.set_value(model_RANS.optimizer.learning_rate, 1E-6)
-        hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*10,callbacks=[CustomCallback()])
-        history_list.append(hist.history['loss'])
-        training_steps = training_steps+10
-        save_custom(model_RANS,training_steps)
-        print(colloc_vector[0,:])
-        model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
- 
-
-
-
-    for i in range(3):
-        keras.backend.set_value(model_RANS.optimizer.learning_rate, 5E-5)
-        hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*10,callbacks=[CustomCallback()])
-        history_list.append(hist.history['loss'])
-        training_steps = training_steps+10
-        save_custom(model_RANS,training_steps)
-        plot_err(training_steps,model_RANS)
-
-    
-    for i in range(3):
-        keras.backend.set_value(model_RANS.optimizer.learning_rate, 5E-5)
-        hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*10,callbacks=[CustomCallback()])
-        history_list.append(hist.history['loss'])
-        training_steps = training_steps+10
-        save_custom(model_RANS,training_steps)
-        plot_err(training_steps,model_RANS)
 
 
 history_arr = history_list[0]
@@ -916,3 +978,44 @@ if False:
 
 plot.show(block=True)
 
+if False:
+    shuffle_inds = np.array(range((i_train).shape[0])).transpose()
+    shuffle_inds = np.random.shuffle(shuffle_inds)
+
+    i_train_shuffle = tf.cast((i_train[shuffle_inds,:])[0,:,:],tf.float64)
+    o_train_shuffle = tf.cast((o_train[shuffle_inds])[0,:],tf.float64)
+    print(i_train_shuffle.shape)
+    print(o_train_shuffle.shape)
+
+
+    # old style training with constant training dataset
+    lr_schedule = np.array([1E-4, 1E-5, 1E-6, 1E-4, 5E-5, 1E-5, 5E-6, 1E-6, 5E-7])
+    ep_schedule = np.array([20, 40, 50, 50, 50, 50, 50, 50, 50])
+    phys_schedule = np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+
+    c_ep_schedule = np.cumsum(ep_schedule)
+    for p in range(np.argwhere(c_ep_schedule>=training_steps)[0,0],len(ep_schedule)):
+        keras.backend.set_value(model_RANS.optimizer.learning_rate, lr_schedule[p])
+        print('epoch',str(training_steps))
+        print('physics loss =',str(phys_schedule[p]))
+        print('learning rate =',str(lr_schedule[p]))
+
+        model_RANS.ScalingParameters.physics_loss_coefficient = phys_schedule[p]
+        model_RANS.ScalingParameters.boundary_loss_coefficient = phys_schedule[p]
+        for i in range(ep_schedule[p]):
+            if (model_RANS.ScalingParameters.physics_loss_coefficient == 0.0):
+                colloc_vector_batch = None
+            else:
+                batches = np.int64(np.ceil(i_train_shuffle.shape[0]/model_RANS.ScalingParameters.batch_size))
+                colloc_vector_batch = RANS_sample_by_grad_err(model_RANS,colloc_vector,batches*model_RANS.ScalingParameters.colloc_batch_size)
+            temp_learning_rate = model_RANS.optimizer.learning_rate
+            model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=temp_learning_rate), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector_batch,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2)) #(...,BC_points1,...,BC_points3)
+            hist = model_RANS.fit(i_train_shuffle,o_train_shuffle, batch_size=32, epochs=(supersample_factor*supersample_factor)*1)
+            history_list.append(hist.history['loss'])
+            training_steps = training_steps+1
+            if (np.mod(i,10)==0):
+                save_custom(model_RANS,training_steps)
+                plot_err(training_steps,model_RANS)
+                # clear the backend and reload
+                keras.backend.clear_session()
+                load_custom(training_steps,temp_learning_rate)

@@ -29,38 +29,33 @@ def steady_NS(model_steady,colloc_tensor):
     ux = up[:,0]*model_steady.ScalingParameters.MAX_ux
     uy = up[:,1]*model_steady.ScalingParameters.MAX_uy
     # unknowns
-    p = up[:,3]*model_steady.ScalingParameters.MAX_p
+    p = up[:,2]*model_steady.ScalingParameters.MAX_p
     
     # compute the gradients of the quantities
+    # first derivatives
+    (dux,duy,dp)  =tf.gradients((ux,uy,p),(colloc_tensor,colloc_tensor,colloc_tensor))
     # ux gradient
-    dux = tf.gradients(ux, colloc_tensor)[0]
     ux_x = dux[:,0]/model_steady.ScalingParameters.MAX_x
-    ux_y = dux[:,1]/model_steady.ScalingParameters.MAX_y
-    # and second derivative
-    ux_xx = tf.gradients(ux_x, colloc_tensor)[0][:,0]/model_steady.ScalingParameters.MAX_x
-    ux_yy = tf.gradients(ux_y, colloc_tensor)[0][:,1]/model_steady.ScalingParameters.MAX_y
-    
+    ux_y = dux[:,1]/model_steady.ScalingParameters.MAX_y   
     # uy gradient
-    duy = tf.gradients(uy, colloc_tensor)[0]
     uy_x = duy[:,0]/model_steady.ScalingParameters.MAX_x
     uy_y = duy[:,1]/model_steady.ScalingParameters.MAX_y
-    # and second derivative
-    uy_xx = tf.gradients(uy_x, colloc_tensor)[0][:,0]/model_steady.ScalingParameters.MAX_x
-    uy_yy = tf.gradients(uy_y, colloc_tensor)[0][:,1]/model_steady.ScalingParameters.MAX_y
-
-
     # pressure gradients
-    dp = tf.gradients(p, colloc_tensor)[0]
     p_x = dp[:,0]/model_steady.ScalingParameters.MAX_x
     p_y = dp[:,1]/model_steady.ScalingParameters.MAX_y
 
+    # second derivatives
+    (dux_x,dux_y,duy_x,duy_y) = tf.gradients((),(colloc_tensor,colloc_tensor,colloc_tensor))
+    uy_xx = dux_x[:,0]/model_steady.ScalingParameters.MAX_x
+    uy_yy = dux_y[:,1]/model_steady.ScalingParameters.MAX_y
+    ux_xx = duy_x[:,0]/model_steady.ScalingParameters.MAX_x
+    ux_yy = duy_y[:,1]/model_steady.ScalingParameters.MAX_y
 
     # governing equations
     f_x = (ux*ux_x + uy*ux_y) + p_x - (model_steady.ScalingParameters.nu_mol)*(ux_xx+ux_yy)  
     f_y = (ux*uy_x + uy*uy_y) + p_y - (model_steady.ScalingParameters.nu_mol)*(uy_xx+uy_yy)
     f_mass = ux_x + uy_y
     
-
     return f_x, f_y, f_mass
 
 # function wrapper, combine data and physics loss
