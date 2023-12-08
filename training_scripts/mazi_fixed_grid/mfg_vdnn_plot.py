@@ -18,7 +18,7 @@ output_base_dir = 'C:/projects/pinns_narval/sync/output/'
 data_dir = 'C:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
 case_prefix = 'mfg_vdnn_mean'
 
-supersample_factor_list = [16]
+supersample_factor_list = [1,4,8,16,32]
 
 node_list = [100]
 layer_list = [10]

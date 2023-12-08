@@ -233,16 +233,16 @@ ns_BC_x = 0.5*d*np.cos(theta)/MAX_x # we beed to normalize the boundary conditio
 ns_BC_y = 0.5*d*np.sin(theta)/MAX_x
 ns_BC_vec = np.hstack((ns_BC_x.reshape(-1,1),ns_BC_y.reshape(-1,1)))
 
-p_BC_x = np.array([MAX_x,MAX_x])/MAX_x
-p_BC_y = np.array([MIN_y,MAX_y])/MAX_x
+p_BC_x = np.array([10.0,10.0])/MAX_x
+p_BC_y = np.array([-2.0,2.0])/MAX_x
 p_BC_vec = np.hstack((p_BC_x.reshape(-1,1),p_BC_y.reshape(-1,1)))
 
-inlet_BC_x = -6.0*np.ones([500,1])/MAX_x
-inlet_BC_y = np.linspace(MIN_y,MAX_y,500)/MAX_x
+inlet_BC_x = -10.0*np.ones([100,1])/MAX_x
+inlet_BC_y = np.linspace(MIN_y,MAX_y,100)/MAX_x
 inlet_BC_vec = np.hstack((inlet_BC_x.reshape(-1,1),inlet_BC_y.reshape(-1,1)))
 
-inlet_BC_x = -2.0*np.ones([500,1])/MAX_x
-inlet_BC_y = np.linspace(-2.0,2.0,500)/MAX_x
+inlet_BC_x = -2.0*np.ones([100,1])/MAX_x
+inlet_BC_y = np.linspace(-2.0,2.0,100)/MAX_x
 inlet_BC_vec2 = np.hstack((inlet_BC_x.reshape(-1,1),inlet_BC_y.reshape(-1,1)))
 
 # the order here must be identical to inside the cost functions
@@ -384,13 +384,12 @@ else:
         with tf.device(tf_device_string):
             model_mean = keras.Sequential()
             model_mean.add(keras.layers.Dense(dense_nodes, activation='linear', input_shape=(2,)))
-            model_mean.add(keras.layers.Dense(dense_nodes, activation='linear'))
-            for i in range(dense_layers-2):
+            for i in range(dense_layers-1):
                 model_mean.add(ResidualLayer(dense_nodes,activation='swish'))
             model_mean.add(keras.layers.Dense(6,activation='linear'))
             model_mean.summary()
             model_mean.ScalingParameters = ScalingParameters
-            model_mean.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_mean,tf.cast(f_colloc_train,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train),tf.cast(inlet_BC_vec,dtype_train),tf.cast(inlet_BC_vec2,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
+            model_mean.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_mean,tf.cast(f_colloc_train,dtype_train),tf.cast(ns_BC_vec,dtype_train),tf.cast(p_BC_vec,dtype_train),tf.cast(inlet_BC_vec,dtype_train),tf.cast(inlet_BC_vec2,dtype_train)),jit_compile=False) #(...,BC_points1,...,BC_points3)
 
 
 
@@ -408,7 +407,7 @@ start_epochs = epochs
 
 
 if node_name ==LOCAL_NODE:
-    LBFGS_steps=1
+    LBFGS_steps=333
     LBFGS_epoch = 1000   
 else:
     LBFGS_steps=333
@@ -455,4 +454,35 @@ if True:
             save_custom()
             exit()
         last_epoch_time = datetime.now()
-  
+
+if False:
+    history_list  = []
+
+
+    while True:
+        keras.backend.set_value(model_mean.optimizer.learning_rate, 1E-4)
+
+        if epochs>50:
+            keras.backend.set_value(model_mean.optimizer.learning_rate, 5E-5)
+        if epochs>100:
+            keras.backend.set_value(model_mean.optimizer.learning_rate, 1E-5)
+        if epochs>150:
+            keras.backend.set_value(model_mean.optimizer.learning_rate, 5E-6)
+        if epochs>200:
+            keras.backend.set_value(model_mean.optimizer.learning_rate, 1E-6)
+
+        hist = model_mean.fit(X_train,O_train, batch_size=32, epochs=10)
+        history_list.append(hist.history['loss'])
+        epochs = epochs+10
+        save_custom()
+
+        # check if done
+        average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
+        if (datetime.now()+average_epoch_time)>end_time:
+            # if there is not enough time to complete the next epoch, exit
+            print("Remaining time is insufficient for another epoch, exiting...")
+            save_custom()
+            exit()
+        last_epoch_time = datetime.now()
+
+    
