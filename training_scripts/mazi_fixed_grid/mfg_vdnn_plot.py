@@ -82,8 +82,8 @@ for node_index in range(len(node_list)):
                 if supersample_factor>1:
                     n_x = X_grid.shape[0]
                     n_y = X_grid.shape[1]
-                    linear_downsample_inds,n_x_d,n_y_d = compute_downsample_inds(supersample_factor,n_x,n_y)
-                    #linear_downsample_inds,n_x_d,n_y_d = compute_downsample_inds_center(supersample_factor,X_grid[:,0],Y_grid[0,:].transpose())
+                    #linear_downsample_inds,n_x_d,n_y_d = compute_downsample_inds(supersample_factor,n_x,n_y)
+                    linear_downsample_inds,n_x_d,n_y_d = compute_downsample_inds_center(supersample_factor,X_grid[:,0],Y_grid[0,:].transpose())
 
                     x_downsample = x[linear_downsample_inds]
                     y_downsample = y[linear_downsample_inds]
