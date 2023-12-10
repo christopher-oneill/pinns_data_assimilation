@@ -89,52 +89,53 @@ def steady_loss_wrapper(model_steady,colloc_tensor_f,BC_ns,BC_p): # def custom_l
 # RANS functions with specified reynolds stresses
 @tf.function
 def RANS_reynolds_stress_cartesian(model_RANS,colloc_tensor):
+    # in this version we try to trace the graph only twice (first gradient, second gradient)
     up = model_RANS(colloc_tensor)
     # knowns
     ux = up[:,0]*model_RANS.ScalingParameters.MAX_ux
     uy = up[:,1]*model_RANS.ScalingParameters.MAX_uy
-    uxppuxpp = up[:,2]*model_RANS.ScalingParameters.MAX_uxppuxpp
-    uxppuypp = up[:,3]*model_RANS.ScalingParameters.MAX_uxppuypp
-    uyppuypp = up[:,4]*model_RANS.ScalingParameters.MAX_uyppuypp
+    uxux = up[:,2]*model_RANS.ScalingParameters.MAX_uxppuxpp
+    uxuy = up[:,3]*model_RANS.ScalingParameters.MAX_uxppuypp
+    uyuy = up[:,4]*model_RANS.ScalingParameters.MAX_uyppuypp
     # unknowns
     p = up[:,5]*model_RANS.ScalingParameters.MAX_p
     
     # compute the gradients of the quantities
     
-    # ux gradient
-    dux = tf.gradients(ux, colloc_tensor)[0]
+    # first gradients
+    (dux,duy,duxux,duxuy,duyuy,dp) = tf.gradients((ux,uy,uxux,uxuy,uyuy,p), (colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor))
+    
+    # ux grads
     ux_x = dux[:,0]/model_RANS.ScalingParameters.MAX_x
     ux_y = dux[:,1]/model_RANS.ScalingParameters.MAX_y
-    # and second derivative
-    ux_xx = tf.gradients(ux_x, colloc_tensor)[0][:,0]/model_RANS.ScalingParameters.MAX_x
-    ux_yy = tf.gradients(ux_y, colloc_tensor)[0][:,1]/model_RANS.ScalingParameters.MAX_y
     
     # uy gradient
-    duy = tf.gradients(uy, colloc_tensor)[0]
     uy_x = duy[:,0]/model_RANS.ScalingParameters.MAX_x
     uy_y = duy[:,1]/model_RANS.ScalingParameters.MAX_y
-    # and second derivative
-    uy_xx = tf.gradients(uy_x, colloc_tensor)[0][:,0]/model_RANS.ScalingParameters.MAX_x
-    uy_yy = tf.gradients(uy_y, colloc_tensor)[0][:,1]/model_RANS.ScalingParameters.MAX_y
+
 
     # gradient unmodeled reynolds stresses
-    uxppuxpp_x = tf.gradients(uxppuxpp, colloc_tensor)[0][:,0]/model_RANS.ScalingParameters.MAX_x
-    duxppuypp = tf.gradients(uxppuypp, colloc_tensor)[0]
-    uxppuypp_x = duxppuypp[:,0]/model_RANS.ScalingParameters.MAX_x
-    uxppuypp_y = duxppuypp[:,1]/model_RANS.ScalingParameters.MAX_y
-    uyppuypp_y = tf.gradients(uyppuypp, colloc_tensor)[0][:,1]/model_RANS.ScalingParameters.MAX_y
+    uxux_x = duxux[:,0]/model_RANS.ScalingParameters.MAX_x
+    uxuy_x = duxuy[:,0]/model_RANS.ScalingParameters.MAX_x
+    uxuy_y = duxuy[:,1]/model_RANS.ScalingParameters.MAX_y
+    uyuy_y = duyuy[:,1]/model_RANS.ScalingParameters.MAX_y
 
     # pressure gradients
-    dp = tf.gradients(p, colloc_tensor)[0]
     p_x = dp[:,0]/model_RANS.ScalingParameters.MAX_x
     p_y = dp[:,1]/model_RANS.ScalingParameters.MAX_y
 
+    (dux_x,dux_y,duy_x,duy_y) = tf.gradients((ux_x,ux_y,uy_x,uy_y),(colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor))
+    # and second derivative
+    ux_xx = dux_x[:,0]/model_RANS.ScalingParameters.MAX_x
+    ux_yy = dux_y[:,1]/model_RANS.ScalingParameters.MAX_y
+    uy_xx = duy_x[:,0]/model_RANS.ScalingParameters.MAX_x
+    uy_yy = duy_y[:,1]/model_RANS.ScalingParameters.MAX_y
 
     # governing equations
-    f_x = (ux*ux_x + uy*ux_y) + (uxppuxpp_x + uxppuypp_y) + p_x - (model_RANS.ScalingParameters.nu_mol)*(ux_xx+ux_yy)  #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
-    f_y = (ux*uy_x + uy*uy_y) + (uxppuypp_x + uyppuypp_y) + p_y - (model_RANS.ScalingParameters.nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
+    f_x = (ux*ux_x + uy*ux_y) + (uxux_x + uxuy_y) + p_x - (model_RANS.ScalingParameters.nu_mol)*(ux_xx+ux_yy)  #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
+    f_y = (ux*uy_x + uy*uy_y) + (uxuy_x + uyuy_y) + p_y - (model_RANS.ScalingParameters.nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
     f_mass = ux_x + uy_y
-    
+
     return f_x, f_y, f_mass
 
 @tf.function
@@ -488,60 +489,49 @@ def FANS_cartesian(model_FANS,colloc_tensor, mean_grads):
     uy_y = mean_grads[:,5]
 
 
-    # compute the gradients of the quantities
+    # first derivatives
+    (dphi_xr,dphi_xi,dphi_yr,dphi_yi,dtau_xx_r,dtau_xx_i,dtau_xy_r,dtau_xy_i,dtau_yy_r,dtau_yy_i,dpsi_r,dpsi_i) = tf.gradients((phi_xr,phi_xi,phi_yr,phi_yi,tau_xx_r,tau_xx_i,tau_xy_r,tau_xy_i,tau_yy_r,tau_yy_i,psi_r,psi_i), (colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor))
     
-    # phi_xr gradient
-    dphi_xr = tf.gradients(phi_xr, colloc_tensor)[0]
+    # velocity mode gradients    
     phi_xr_x = dphi_xr[:,0]/model_FANS.ScalingParameters.MAX_x
     phi_xr_y = dphi_xr[:,1]/model_FANS.ScalingParameters.MAX_y
-    # and second derivative
-    phi_xr_xx = tf.gradients(phi_xr_x, colloc_tensor)[0][:,0]/model_FANS.ScalingParameters.MAX_x
-    phi_xr_yy = tf.gradients(phi_xr_y, colloc_tensor)[0][:,1]/model_FANS.ScalingParameters.MAX_y
-
-    # phi_xi gradient
-    dphi_xi = tf.gradients(phi_xi, colloc_tensor)[0]
     phi_xi_x = dphi_xi[:,0]/model_FANS.ScalingParameters.MAX_x
     phi_xi_y = dphi_xi[:,1]/model_FANS.ScalingParameters.MAX_y
-    # and second derivative
-    phi_xi_xx = tf.gradients(phi_xi_x, colloc_tensor)[0][:,0]/model_FANS.ScalingParameters.MAX_x
-    phi_xi_yy = tf.gradients(phi_xi_y, colloc_tensor)[0][:,1]/model_FANS.ScalingParameters.MAX_y
-
-    # phi_yr gradient
-    dphi_yr = tf.gradients(phi_yr, colloc_tensor)[0]
     phi_yr_x = dphi_yr[:,0]/model_FANS.ScalingParameters.MAX_x
     phi_yr_y = dphi_yr[:,1]/model_FANS.ScalingParameters.MAX_y
-    # and second derivative
-    phi_yr_xx = tf.gradients(phi_yr_x, colloc_tensor)[0][:,0]/model_FANS.ScalingParameters.MAX_x
-    phi_yr_yy = tf.gradients(phi_yr_y, colloc_tensor)[0][:,1]/model_FANS.ScalingParameters.MAX_y
-    
-    # phi_yi gradient
-    dphi_yi = tf.gradients(phi_yi, colloc_tensor)[0]
     phi_yi_x = dphi_yi[:,0]/model_FANS.ScalingParameters.MAX_x
     phi_yi_y = dphi_yi[:,1]/model_FANS.ScalingParameters.MAX_y
-    # and second derivative
-    phi_yi_xx = tf.gradients(phi_yi_x, colloc_tensor)[0][:,0]/model_FANS.ScalingParameters.MAX_x
-    phi_yi_yy = tf.gradients(phi_yi_y, colloc_tensor)[0][:,1]/model_FANS.ScalingParameters.MAX_y
 
     # gradient reynolds stress fourier component, real
-    tau_xx_r_x = tf.gradients(tau_xx_r, colloc_tensor)[0][:,0]/model_FANS.ScalingParameters.MAX_x
-    dtau_xy_r = tf.gradients(tau_xy_r, colloc_tensor)[0]
+    tau_xx_r_x = dtau_xx_r[:,0]/model_FANS.ScalingParameters.MAX_x
     tau_xy_r_x = dtau_xy_r[:,0]/model_FANS.ScalingParameters.MAX_x
     tau_xy_r_y = dtau_xy_r[:,1]/model_FANS.ScalingParameters.MAX_y
-    tau_yy_r_y = tf.gradients(tau_yy_r, colloc_tensor)[0][:,1]/model_FANS.ScalingParameters.MAX_y
+    tau_yy_r_y = dtau_yy_r[:,1]/model_FANS.ScalingParameters.MAX_y
     # gradient reynolds stress fourier component, complex
-    tau_xx_i_x = tf.gradients(tau_xx_i, colloc_tensor)[0][:,0]/model_FANS.ScalingParameters.MAX_x
-    dtau_xy_i = tf.gradients(tau_xy_i, colloc_tensor)[0]
+    tau_xx_i_x = dtau_xx_i[:,0]/model_FANS.ScalingParameters.MAX_x
     tau_xy_i_x = dtau_xy_i[:,0]/model_FANS.ScalingParameters.MAX_x
     tau_xy_i_y = dtau_xy_i[:,1]/model_FANS.ScalingParameters.MAX_y
-    tau_yy_i_y = tf.gradients(tau_yy_i, colloc_tensor)[0][:,1]/model_FANS.ScalingParameters.MAX_y
+    tau_yy_i_y = dtau_yy_i[:,1]/model_FANS.ScalingParameters.MAX_y
 
     # pressure gradients
-    dpsi_r = tf.gradients(psi_r, colloc_tensor)[0]
     psi_r_x = dpsi_r[:,0]/model_FANS.ScalingParameters.MAX_x
     psi_r_y = dpsi_r[:,1]/model_FANS.ScalingParameters.MAX_y
-    dpsi_i = tf.gradients(psi_i, colloc_tensor)[0]
     psi_i_x = dpsi_i[:,0]/model_FANS.ScalingParameters.MAX_x
     psi_i_y = dpsi_i[:,1]/model_FANS.ScalingParameters.MAX_y
+
+    # second derivatives
+
+    (dphi_xr_x,dphi_xr_y,dphi_xi_x,dphi_xi_y,dphi_yr_x,dphi_yr_y,dphi_yi_x,dphi_yi_y) = tf.gradients((phi_xr_x,phi_xr_y,phi_xi_x,phi_xi_y,phi_yr_x,phi_yr_y,phi_yi_x,phi_yi_y),(colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor,colloc_tensor))
+
+    phi_xr_xx = dphi_xr_x[:,0]/model_FANS.ScalingParameters.MAX_x
+    phi_xr_yy = dphi_xr_y[:,1]/model_FANS.ScalingParameters.MAX_y
+    phi_xi_xx = dphi_xi_x[:,0]/model_FANS.ScalingParameters.MAX_x
+    phi_xi_yy = dphi_xi_y[:,1]/model_FANS.ScalingParameters.MAX_y
+    phi_yr_xx = dphi_yr_x[:,0]/model_FANS.ScalingParameters.MAX_x
+    phi_yr_yy = dphi_yr_y[:,1]/model_FANS.ScalingParameters.MAX_y
+    phi_yi_xx = dphi_yi_x[:,0]/model_FANS.ScalingParameters.MAX_x
+    phi_yi_yy = dphi_yi_y[:,1]/model_FANS.ScalingParameters.MAX_y
+
 
     # governing equations
     f_xr = -model_FANS.ScalingParameters.omega*phi_xi+(phi_xr*ux_x + phi_yr*ux_y+ ux*phi_xr_x +uy*phi_xr_y ) + (tau_xx_r_x + tau_xy_r_y) + psi_r_x - (model_FANS.ScalingParameters.nu_mol)*(phi_xr_xx+phi_xr_yy)  
