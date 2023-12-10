@@ -67,7 +67,7 @@ def save_custom(epochs):
     h5f.create_dataset('pred_grid',data=pred_grid)
     h5f.close()
     if model_fourier.ScalingParameters.physics_loss_coefficient!=0:
-        mxr_grid,mxi_grid,myr_grid,myi_grid,massr_grid,massi_grid = FANS_cartesian(model_fourier,X_test,mean_data_test_grid,1024)
+        mxr_grid,mxi_grid,myr_grid,myi_grid,massr_grid,massi_grid = FANS_cartesian(model_fourier,X_test,mean_data_test_grid)
         h5f.create_dataset('mxr_grid',data=mxr_grid)
         h5f.create_dataset('mxi_grid',data=mxi_grid)
         h5f.create_dataset('myr_grid',data=myr_grid)
@@ -557,7 +557,7 @@ if BACKPROP_flag:
 
 
 
-LBFGS_steps=333
+LBFGS_steps=10
 LBFGS_epoch = 1000
 
 

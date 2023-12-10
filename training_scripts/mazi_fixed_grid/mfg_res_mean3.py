@@ -147,7 +147,7 @@ HOMEDIR = 'C:/projects/pinns_narval/sync/'
 # read the data
 base_dir = HOMEDIR+'data/mazi_fixed_grid/'
 global savedir
-savedir = HOMEDIR+'output/mfg_res_mean3_001/'
+savedir = HOMEDIR+'output/mfg_res_mean3_002/'
 create_directory_if_not_exists(savedir)
 global fig_dir
 fig_dir = savedir + 'figures/'
@@ -403,7 +403,7 @@ def RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_points,BC_p,BC_ns,BC_inl
                 #rand_colloc_points = np.int64((colloc_points.shape[0]-1)*rand_colloc_points)
 
                 ## random batch indexing
-                batch_start = tf.random.uniform(1,0,colloc_points.shape[0]-model_RANS.ScalingParameters.colloc_batch_size-1)
+                batch_start = np.random.randint(0,colloc_points.shape[0]-model_RANS.ScalingParameters.colloc_batch_size-1,)
                 mx,my,mass = RANS_reynolds_stress_cartesian2(model_RANS,colloc_points[batch_start:(batch_start+model_RANS.ScalingParameters.colloc_batch_size-1),:])
             physical_loss1 = tf.reduce_mean(tf.square(mx))
             physical_loss2 = tf.reduce_mean(tf.square(my))
@@ -433,7 +433,7 @@ tf_device_string ='/CPU:0'
 
 frequency_vector = tf.constant(np.linspace(0,30,61,True))
 
-if True:
+if False:
         
     training_steps = 0
     nodes = 100
@@ -449,12 +449,12 @@ if True:
         model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),loss=RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2)) #,jit_compile=False 
 else:
     with tf.device(tf_device_string):
-        model_RANS = keras.models.load_model(savedir+'mfg_res_mean3_ep60_model.h5',custom_objects={'mean_loss':RANS_reynolds_stress_loss_wrapper(None,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),'ResidualLayer':ResidualLayer})
+        model_RANS = keras.models.load_model(savedir+'mfg_res_mean3_ep80_model.h5',custom_objects={'mean_loss':RANS_reynolds_stress_loss_wrapper(None,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),'ResidualLayer':ResidualLayer})
         # we need to compile again after loading once we can populate the loss function with the model object
         model_RANS.ScalingParameters = ScalingParameters
-        model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
+        model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=1E-5), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
         model_RANS.summary()
-        training_steps=60
+        training_steps=80
 
 
 #model_RANS.colloc_batch = tf.Variable(tf.zeros((model_RANS.ScalingParameters.batch_size,2),dtype=tf.float64),trainable=False,name='colloc_batch')
@@ -475,9 +475,20 @@ saveFig=True
 history_list = []
 if True:
     # new style training with probabalistic training dataset
-    lr_schedule = np.array([1E-4, 1E-5, 1E-6, 1E-7, 1E-5, 5E-6, 1E-6, 5E-7])
-    ep_schedule = np.array([1, 20, 40, 60, 80, 120, 160, 200])
-    phys_schedule = np.array([0.0, 0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.1, 0.1])
+    lr_schedule = np.array([1E-4, 1E-5, 1E-6, 1E-7, 1E-5, 1E-5, 5E-6, 1E-6, 5E-7])
+    ep_schedule = np.array([1, 20, 40, 60, 80, 320, 480, 600, 720])
+    phys_schedule = np.array([0.0, 0.0, 0.0, 0.0, 0.01, 0.01, 0.01, 0.01, 0.1, 0.01])
+
+    # reset the correct learing rate on load
+    i_temp = 0
+    for i in range(len(ep_schedule)):
+        if training_steps>=ep_schedule[i]:
+            i_temp = i
+    
+    model_RANS.ScalingParameters.physics_loss_coefficient = phys_schedule[i_temp]
+    model_RANS.ScalingParameters.boundary_loss_coefficient = phys_schedule[i_temp]
+    model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=lr_schedule[i_temp]), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
+
 
     while True:
 
@@ -489,6 +500,10 @@ if True:
                 print('learning rate =',str(lr_schedule[i]))
                 model_RANS.ScalingParameters.physics_loss_coefficient = phys_schedule[i]
                 model_RANS.ScalingParameters.boundary_loss_coefficient = phys_schedule[i]
+                if (i>0):
+                    if (phys_schedule[i]!=phys_schedule[i-1]):
+                        model_RANS.compile(optimizer=keras.optimizers.Adam(learning_rate=lr_schedule[i]), loss = RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_vector,p_BC_vec,cyl_BC_vec,inlet_BC_vec,inlet_BC_vec2),jit_compile=False) #(...,BC_points1,...,BC_points3)
+   
 
         hist = model_RANS.fit(i_train,o_train, batch_size=32, epochs=1)
         training_steps = training_steps+1
