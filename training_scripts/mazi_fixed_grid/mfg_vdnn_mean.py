@@ -86,8 +86,8 @@ save_loc = PROJECTDIR+'output/'+job_name+'_output/'
 checkpoint_filepath = save_loc+'checkpoint'
 physics_loss_coefficient = 1.0
 # set number of cores to compute on 
-tf.config.threading.set_intra_op_parallelism_threads(16)
-tf.config.threading.set_inter_op_parallelism_threads(16)
+tf.config.threading.set_intra_op_parallelism_threads(32)
+tf.config.threading.set_inter_op_parallelism_threads(32)
 
 if useGPU:
     physical_devices = tf.config.list_physical_devices('GPU')
