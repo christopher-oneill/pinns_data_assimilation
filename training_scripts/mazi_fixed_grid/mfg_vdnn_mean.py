@@ -437,7 +437,7 @@ if True:
         # after training, the final optimized parameters are still in results.position
         # so we have to manually put them back to the model
             
-        if np.mod(L_iter,1)==0: # 10*supersample_factor*supersample_factor
+        if np.mod(L_iter,10*supersample_factor*supersample_factor)==0: # 
             save_custom()
 
         # check if we should exit
