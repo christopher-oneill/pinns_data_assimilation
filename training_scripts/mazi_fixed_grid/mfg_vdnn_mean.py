@@ -115,10 +115,10 @@ uyppuypp = np.array(reynoldsStressFile['reynoldsStress'][2,:]).transpose()
 
 print(configFile['X_vec'].shape)
 x = np.array(configFile['X_vec'][0,:])
-x_test = x
+x_test = 1.0*x
 X_grid = np.array(configFile['X_grid'])
 y = np.array(configFile['X_vec'][1,:])
-y_test = y
+y_test = 1.0*y
 Y_grid = np.array(configFile['Y_grid'])
 d = np.array(configFile['cylinderDiameter'])
 
@@ -171,16 +171,19 @@ MAX_p= 1 # estimated maximum pressure, we should
 
 def colloc_points():
     # reduce the collocation points to 25k
-    colloc_limits1 = np.array([[-6.0,10.0],[-2.0,2.0]])
+    colloc_limits1 = np.array([[-2.0,10.0],[-2.0,2.0]])
     colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-    colloc_lhs1 = colloc_sample_lhs1(30000)
+    colloc_lhs1 = colloc_sample_lhs1(20000)
 
-
-    colloc_limits2 = np.array([[-1.0,3.0],[-1.5,1.5]])
+    colloc_limits2 = np.array([[-6.0,-2.0],[-2.0,2.0]])
     colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
-    colloc_lhs2 = colloc_sample_lhs2(10000)
+    colloc_lhs2 = colloc_sample_lhs2(2000)
 
-    colloc_merged = np.vstack((np.stack((x,y),axis=1),colloc_lhs1,colloc_lhs2))
+    colloc_limits3 = np.array([[-1.5,1.5],[-1.5,1.5]])
+    colloc_sample_lhs3 = LHS(xlimits=colloc_limits3)
+    colloc_lhs3 = colloc_sample_lhs3(10000)
+
+    colloc_merged = np.concatenate((colloc_lhs1,colloc_lhs2,colloc_lhs3),axis=0)
 
 
     # remove points inside the cylinder
@@ -228,7 +231,7 @@ uyppuypp_train = uyppuypp/MAX_uyppuypp
 
 # boundary condition points
 
-theta = np.linspace(0,2*np.pi,1000)
+theta = np.linspace(0,2*np.pi,360)
 ns_BC_x = 0.5*d*np.cos(theta)/MAX_x # we beed to normalize the boundary conditions as well
 ns_BC_y = 0.5*d*np.sin(theta)/MAX_x
 ns_BC_vec = np.hstack((ns_BC_x.reshape(-1,1),ns_BC_y.reshape(-1,1)))
@@ -282,13 +285,7 @@ def RANS_reynolds_stress_loss_wrapper(model_RANS,colloc_points,BC_ns,BC_p,BC_inl
         if (model_RANS.ScalingParameters.physics_loss_coefficient==0):
             physics_loss = 0.0
         else:
-            if (model_RANS.ScalingParameters.batch_size==colloc_points.shape[0]):
-                # all colloc points
-                mx,my,mass = RANS_reynolds_stress_cartesian(model_RANS,colloc_points)
-            else:
-                # random selection of collocation points with batch size
-                rand_colloc_points = np.random.choice(colloc_points.shape[0],model_RANS.ScalingParameters.batch_size)
-                mx,my,mass = RANS_reynolds_stress_cartesian(model_RANS,tf.gather(colloc_points,rand_colloc_points))
+            mx,my,mass = RANS_reynolds_stress_cartesian(model_RANS,colloc_points)
             physical_loss1 = tf.reduce_mean(tf.square(mx))
             physical_loss2 = tf.reduce_mean(tf.square(my))
             physical_loss3 = tf.reduce_mean(tf.square(mass))
@@ -385,7 +382,7 @@ else:
             model_mean = keras.Sequential()
             model_mean.add(keras.layers.Dense(dense_nodes, activation='linear', input_shape=(2,)))
             for i in range(dense_layers-1):
-                model_mean.add(ResidualLayer(dense_nodes,activation='swish'))
+                model_mean.add(ResidualLayer(dense_nodes,activation='tanh'))
             model_mean.add(keras.layers.Dense(6,activation='linear'))
             model_mean.summary()
             model_mean.ScalingParameters = ScalingParameters
@@ -403,15 +400,12 @@ last_epoch_time = datetime.now()
 average_epoch_time=timedelta(minutes=10)
 start_epochs = epochs
 
-
-
-
 if node_name ==LOCAL_NODE:
-    LBFGS_steps=333
-    LBFGS_epoch = 1000   
+    LBFGS_steps=1
+    LBFGS_epoch = 3*LBFGS_steps   
 else:
     LBFGS_steps=333
-    LBFGS_epoch = 1000
+    LBFGS_epoch = 3*LBFGS_steps
  
     # local node training loop, save every epoch for testing
 
@@ -443,7 +437,7 @@ if True:
         # after training, the final optimized parameters are still in results.position
         # so we have to manually put them back to the model
             
-        if np.mod(L_iter,10)==0:
+        if np.mod(L_iter,1)==0: # 10*supersample_factor*supersample_factor
             save_custom()
 
         # check if we should exit
