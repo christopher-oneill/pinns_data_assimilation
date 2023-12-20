@@ -586,7 +586,7 @@ if BACKPROP_flag==False:
         epochs = epochs +LBFGS_epoch
         L_iter = L_iter+1
                
-        if np.mod(L_iter,10)==0:
+        if np.mod(L_iter,10*supersample_factor*supersample_factor)==0:
             save_custom(epochs)
 
         # check if we should exit

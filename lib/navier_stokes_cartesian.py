@@ -379,18 +379,18 @@ def BC_RANS_reynolds_stress_outlet_pressure_sign(model_RANS,BC_points):
     up = model_RANS(BC_points)
     # knowns
     # unknowns
-    p = up[:,5]*model_RANS.ScalingParameters.MAX_p
+    p = up[:,5]
     return tf.cast((p>0.0),tf.float64)
 
 @tf.function
 def BC_RANS_reynolds_stress_no_slip(model_RANS,BC_points):
     up = model_RANS(BC_points)
     # knowns
-    ux = up[:,0]*model_RANS.ScalingParameters.MAX_ux
-    uy = up[:,1]*model_RANS.ScalingParameters.MAX_uy
-    uxppuxpp = up[:,2]*model_RANS.ScalingParameters.MAX_uxppuxpp
-    uxppuypp = up[:,3]*model_RANS.ScalingParameters.MAX_uxppuypp
-    uyppuypp = up[:,4]*model_RANS.ScalingParameters.MAX_uyppuypp
+    ux = up[:,0]
+    uy = up[:,1]
+    uxppuxpp = up[:,2]
+    uxppuypp = up[:,3]
+    uyppuypp = up[:,4]
     return tf.reduce_sum(tf.square(ux)+tf.square(uy)+tf.square(uxppuxpp)+tf.square(uxppuypp)+tf.square(uyppuypp))
 
 @tf.function
@@ -407,12 +407,10 @@ def BC_RANS_inlet(model_RANS,BC_points):
 @tf.function
 def BC_RANS_inlet2(model_RANS,BC_points):
     up = model_RANS(BC_points)
-    uxppuxpp = up[:,2]*model_RANS.ScalingParameters.MAX_uxppuxpp
-    uxppuypp = up[:,3]*model_RANS.ScalingParameters.MAX_uxppuypp
-    uyppuypp = up[:,4]*model_RANS.ScalingParameters.MAX_uyppuypp
-    p = up[:,5]*model_RANS.ScalingParameters.MAX_p
-    p_sign = 0.0*tf.reduce_sum(tf.cast(p<0,tf.float64))
-    return tf.reduce_sum(tf.square(uxppuxpp)+tf.square(uxppuypp)+tf.square(uyppuypp)+p_sign)
+    uxppuxpp = up[:,2]
+    uxppuypp = up[:,3]
+    uyppuypp = up[:,4]
+    return tf.reduce_sum(tf.square(uxppuxpp)+tf.square(uxppuypp)+tf.square(uyppuypp))
  # note there is no point where the pressure is close to zero, so we neglect it in the mean field model
 
 @tf.function

@@ -70,7 +70,7 @@ class FourierResidualLayer32(keras.layers.Layer):
 class ResidualLayer(keras.layers.Layer):
     # Chris O'Neill, University of Calgary 2023
     # a simple residual block
-    def __init__(self,units,activation='tanh',name='Dense',trainable=True,dtype=tf.float64,Dense=None):
+    def __init__(self,units,activation='tanh',name='Dense',trainable=True,dtype=tf.float64,Dense=None,Residual=None):
         super().__init__()
         self.units = units
         if Dense==None:
@@ -78,16 +78,27 @@ class ResidualLayer(keras.layers.Layer):
         else:
             self.Dense = Dense
 
+
+    def build(self,input_shape):
+        if (input_shape==self.units):
+            self.Residual = lambda inputs: inputs
+        elif (input_shape[1]<self.units):                                  
+            self.Residual = lambda inputs: tf.concat((inputs,tf.zeros((tf.shape(inputs)[0],self.units-input_shape[1]),tf.float64)),axis=1)
+        else:
+            self.Residual = lambda inputs: inputs[:,0:self.units]
+
     def get_config(self):
         config = super().get_config()
         config.update({
             "units":self.units,
             "Dense":self.Dense,
+            "Residual":self.Residual,
         })
         return config
       
     def call(self,inputs):
-        return self.Dense(inputs)+inputs
+        return self.Dense(inputs)+self.Residual(inputs)
+
     
 class ProductResidualLayer64(keras.layers.Layer):
     # Chris O'Neill, University of Calgary 2023
@@ -273,17 +284,13 @@ class FourierEmbeddingLayer(keras.layers.Layer):
 class CylindricalEmbeddingLayer(keras.layers.Layer):
     def __init__(self,*args,**kwargs):
         super(CylindricalEmbeddingLayer,self).__init__(*args,**kwargs)
-
-
-    def get_config(self):
-        config = super().get_config()
-        config.update()
-        return config
-      
-          
+     
     def call(self,inputs):
         inp_shape = tf.shape(inputs)
-        return tf.concat((inputs,tf.reshape(tf.sqrt(tf.square(inputs[:,0])+tf.square(inputs[:,1])),(inp_shape[0],1)),tf.reshape(tf.atan2(inputs[:,1],inputs[:,0]),(inp_shape[0],1))),axis=1)
+        r2 = tf.reshape(tf.square(inputs[:,0])+tf.square(inputs[:,1]),(inp_shape[0],1))
+        #theta = tf.reshape(tf.atan2(inputs[:,1],inputs[:,0]),(inp_shape[0],1))
+        # tf.reshape(tf.multiply(inputs[:,0],inputs[:,1]),(inp_shape[0],1)),tf.reshape(tf.multiply(inputs[:,0],tf.multiply(inputs[:,0],inputs[:,1])),(inp_shape[0],1)),r,tf.square(r)
+        return tf.concat((inputs,r2),axis=1)
 
 class AdjustableFourierTransformLayer(keras.layers.Layer):
     # Chris O'Neill, University of Calgary 2023

@@ -125,21 +125,21 @@ for mn in range(mode_number_array.size):
             nu_mol = 0.0066667
             
             # velocity fourier modes
-            phi_xr_pred = np.array(predFile['pred'][:,0])*MAX_phi_xr
-            phi_xi_pred = np.array(predFile['pred'][:,1])*MAX_phi_xi
-            phi_yr_pred = np.array(predFile['pred'][:,2])*MAX_phi_yr
-            phi_yi_pred = np.array(predFile['pred'][:,3])*MAX_phi_yi
+            phi_xr_pred = np.array(predFile['pred_grid'][:,0])*MAX_phi_xr
+            phi_xi_pred = np.array(predFile['pred_grid'][:,1])*MAX_phi_xi
+            phi_yr_pred = np.array(predFile['pred_grid'][:,2])*MAX_phi_yr
+            phi_yi_pred = np.array(predFile['pred_grid'][:,3])*MAX_phi_yi
             
                 # fourier coefficients of the fluctuating field
-            tau_xx_r_pred = np.array(predFile['pred'][:,4])*MAX_tau_xx_r
-            tau_xx_i_pred = np.array(predFile['pred'][:,5])*MAX_tau_xx_i
-            tau_xy_r_pred = np.array(predFile['pred'][:,6])*MAX_tau_xy_r
-            tau_xy_i_pred = np.array(predFile['pred'][:,7])*MAX_tau_xy_i
-            tau_yy_r_pred = np.array(predFile['pred'][:,8])*MAX_tau_yy_r
-            tau_yy_i_pred = np.array(predFile['pred'][:,9])*MAX_tau_yy_i
+            tau_xx_r_pred = np.array(predFile['pred_grid'][:,4])*MAX_tau_xx_r
+            tau_xx_i_pred = np.array(predFile['pred_grid'][:,5])*MAX_tau_xx_i
+            tau_xy_r_pred = np.array(predFile['pred_grid'][:,6])*MAX_tau_xy_r
+            tau_xy_i_pred = np.array(predFile['pred_grid'][:,7])*MAX_tau_xy_i
+            tau_yy_r_pred = np.array(predFile['pred_grid'][:,8])*MAX_tau_yy_r
+            tau_yy_i_pred = np.array(predFile['pred_grid'][:,9])*MAX_tau_yy_i
             # unknowns, pressure fourier modes
-            psi_r_pred = np.array(predFile['pred'][:,10])*MAX_psi
-            psi_i_pred = np.array(predFile['pred'][:,11])*MAX_psi
+            psi_r_pred = np.array(predFile['pred_grid'][:,10])*MAX_psi
+            psi_i_pred = np.array(predFile['pred_grid'][:,11])*MAX_psi
             # compute the estimated reynolds stress
 
             #upvp_pred = -np.multiply(np.reshape(nu_pred+nu_mol,[nu_pred.shape[0],1]),dudy+dvdx)

@@ -47,6 +47,8 @@ for node_index in range(len(node_list)):
                 reynoldsStressFile = h5py.File(data_dir+'reynoldsStress.mat','r')
 
                 predfilename,epoch_number = find_highest_numbered_file(output_dir+case_name+'_S'+str(supersample_factor)+'_L'+str(layers)+'N'+str(nodes)+'_ep','[0-9]*','_pred.mat')
+                if predfilename == None:
+                    continue
                 predFile =  h5py.File(predfilename,'r')
 
                 figures_folder = output_dir+'figures/'
