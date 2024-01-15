@@ -5,7 +5,7 @@
 #SBATCH --time=0-11:30
 #SBATCH --mail-user=christopher.mark.oneill@gmail.com
 #SBATCH --mail-type=ALL
-#SBATCH --output=/home/coneill/sync/logs/qres_S32_m001-%A.out
+#SBATCH --output=/home/coneill/sync/logs/dense_large_S1_m003-%A.out
 
 # ---------------------------------------------------------------------
 echo "Current working directory: `pwd`"
@@ -18,11 +18,11 @@ cd $SLURM_TMPDIR
 module load python/3.10
 source /home/coneill/sync/venv/tf1/bin/activate
 
-python /home/coneill/sync/code/pinns_data_assimilation/training_scripts/mazi_fixed_grid/mfg_qres_mean_large.py 1 32 11
+python /home/coneill/sync/code/pinns_data_assimilation/training_scripts/mazi_fixed_grid/mfg_dense_mean_large.py 3 1 11
 
 
 # ---------------------------------------------------------------------
 echo "Job finished with exit code $? at: `date`"
 # ---------------------------------------------------------------------
 
-sbatch /home/coneill/sync/code/pinns_data_assimilation/slurm/mazi_fixed_grid/qres/S32_m001.sh
+sbatch /home/coneill/sync/code/pinns_data_assimilation/slurm/mazi_fixed_grid/dense/d_lg_S1_m003.sh

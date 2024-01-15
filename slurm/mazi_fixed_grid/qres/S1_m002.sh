@@ -25,4 +25,4 @@ python /home/coneill/sync/code/pinns_data_assimilation/training_scripts/mazi_fix
 echo "Job finished with exit code $? at: `date`"
 # ---------------------------------------------------------------------
 
-sbatch /home/coneill/sync/code/slurm/mazi_fixed_grid/qres/S1_m002.sh
+sbatch /home/coneill/sync/code/pinns_data_assimilation/slurm/mazi_fixed_grid/qres/S1_m002.sh
