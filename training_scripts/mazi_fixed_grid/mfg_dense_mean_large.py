@@ -9,8 +9,6 @@ import h5py
 from smt.sampling_methods import LHS
 
 keras.backend.set_floatx('float64')
-
-
 import numpy as np
 
 from datetime import datetime
@@ -125,45 +123,9 @@ def plot_err():
             plot.savefig(fig_dir+'ep'+str(training_steps)+plot_save_exts[i],dpi=300)
         plot.close(1)
 
-start_time = datetime.now()
-start_timestamp = datetime.strftime(start_time,'%Y%m%d%H%M%S')
-
-node_name = platform.node()
-
-assert len(sys.argv)==4
-
-job_number = int(sys.argv[1])
-supersample_factor = int(sys.argv[2])
-job_hours = int(sys.argv[3])
-
-global job_name 
-job_name = 'mfg_dense_large{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 
-job_duration = timedelta(hours=job_hours,minutes=0)
-end_time = start_time+job_duration
 
-LOCAL_NODE = 'DESKTOP-AMLVDAF'
-if node_name==LOCAL_NODE:
-    import matplotlib
-    import matplotlib.pyplot as plot
-    useGPU=False    
-    SLURM_TMPDIR='C:/projects/pinns_narval/sync/'
-    HOMEDIR = 'C:/projects/pinns_narval/sync/'
-    sys.path.append('C:/projects/pinns_local/code/')
-else:
-    # parameters for running on compute canada   
-    useGPU=False
-    HOMEDIR = '/home/coneill/sync/'
-    SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
-    sys.path.append(HOMEDIR+'code/')
-
-#from pinns_data_assimilation.lib.LBFGS_example import function_factory
-from pinns_data_assimilation.lib.layers import ResidualLayer
-from pinns_data_assimilation.lib.file_util import find_highest_numbered_file
-
-
-from pinns_data_assimilation.lib.downsample import compute_downsample_inds_center
 
 # plotting functions
 # save and load functions
@@ -435,8 +397,8 @@ def boundary_points_function(cyl,inlet,inside,outside):
 def compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters):
     y_pred = model_RANS(x,training=True)
     data_loss = ScalingParameters.data_loss_coefficient*tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:5]-y),axis=0),axis=0) 
-    physics_loss = ScalingParameters.physics_loss_coefficient*RANS_physics_loss(model_RANS,ScalingParameters,colloc_x)
-    boundary_loss = ScalingParameters.boundary_loss_coefficient*RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple)
+    physics_loss = tf.cast(0.0,tf.float64)#ScalingParameters.physics_loss_coefficient*RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) #
+    boundary_loss = tf.cast(0.0,tf.float64)#ScalingParameters.boundary_loss_coefficient*RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple)
 
     total_loss = data_loss + physics_loss + boundary_loss
     return total_loss, data_loss, physics_loss, boundary_loss
@@ -572,8 +534,48 @@ def train_LBFGS(model,x,y,colloc_x,boundary_tuple,ScalingParameters):
     return f
 
 
+start_time = datetime.now()
+start_timestamp = datetime.strftime(start_time,'%Y%m%d%H%M%S')
+
+node_name = platform.node()
+
+assert len(sys.argv)==4
+
+job_number = int(sys.argv[1])
+supersample_factor = int(sys.argv[2])
+job_hours = int(sys.argv[3])
+
+global job_name 
+job_name = 'mfg_dense_large{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 
+job_duration = timedelta(hours=job_hours,minutes=0)
+end_time = start_time+job_duration
+
+LOCAL_NODE = 'DESKTOP-AMLVDAF'
+if node_name==LOCAL_NODE:
+    import matplotlib
+    import matplotlib.pyplot as plot
+    useGPU=False    
+    SLURM_TMPDIR='C:/projects/pinns_narval/sync/'
+    HOMEDIR = 'C:/projects/pinns_narval/sync/'
+    sys.path.append('C:/projects/pinns_local/code/')
+else:
+    # parameters for running on compute canada   
+    useGPU=False
+    HOMEDIR = '/home/coneill/sync/'
+    SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
+    sys.path.append(HOMEDIR+'code/')
+
+
+
+#from pinns_data_assimilation.lib.LBFGS_example import function_factory
+from pinns_data_assimilation.lib.layers import ResidualLayer
+from pinns_data_assimilation.lib.layers import QresBlock
+from pinns_data_assimilation.lib.file_util import find_highest_numbered_file
+
+
+from pinns_data_assimilation.lib.downsample import compute_downsample_inds_center
 
 from pinns_data_assimilation.lib.file_util import create_directory_if_not_exists
 
@@ -702,10 +704,10 @@ ScalingParameters.MAX_p= MAX_p # estimated maximum pressure, we should
 ScalingParameters.batch_size = 32
 ScalingParameters.colloc_batch_size = 32
 ScalingParameters.boundary_batch_size = 32
-ScalingParameters.physics_loss_coefficient = np.float64(0.0)
-ScalingParameters.boundary_loss_coefficient = np.float64(0.0)
+ScalingParameters.physics_loss_coefficient = np.float64(1.0)
+ScalingParameters.boundary_loss_coefficient = np.float64(1.0)
 ScalingParameters.data_loss_coefficient = np.float64(1.0)
-ScalingParameters.pressure_loss_coefficient=np.float64(0.0)
+
 
 boundary_tuple = boundary_points_function(1080,2000,500,10000)
 global colloc_vector
@@ -795,6 +797,10 @@ if True:
             colloc_vector = colloc_points_function(20000,40000,10000)
             func = train_LBFGS(model_RANS,i_train,o_train,colloc_vector,boundary_tuple,ScalingParameters)
             init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
+
+        if node_name==LOCAL_NODE:
+            plot_err()
+            plot_NS_residual()
 
         last_epoch_time = datetime.now()
 
