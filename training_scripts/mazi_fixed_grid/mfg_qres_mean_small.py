@@ -151,7 +151,7 @@ def save_custom():
 
 def load_custom():
     checkpoint_filename,training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','_model.h5')
-    model_RANS = keras.models.load_model(checkpoint_filename,custom_objects={})
+    model_RANS = keras.models.load_model(checkpoint_filename,custom_objects={'QresBlock':QresBlock})
     model_RANS.summary()
     print('Model Loaded. Epoch',str(training_steps))
     #optimizer.build(model_RANS.trainable_variables)
@@ -507,7 +507,7 @@ supersample_factor = int(sys.argv[2])
 job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_dense_small{:03d}_S{:d}'.format(job_number,supersample_factor)
+job_name = 'mfg_qres_small{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 
 job_duration = timedelta(hours=job_hours,minutes=0)
@@ -694,9 +694,9 @@ else:
     training_steps = 0
     with tf.device(tf_device_string):        
         inputs = keras.Input(shape=(2,),name='coordinates')
-        lo = keras.layers.Dense(100,activation='tanh')(inputs)
+        lo = QresBlock(70)(inputs)
         for i in range(9):
-            lo = keras.layers.Dense(100,activation='tanh')(lo)
+            lo = QresBlock(70)(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         model_RANS.summary()
@@ -716,7 +716,6 @@ ScalingParameters.batch_size=32
 ScalingParameters.boundary_batch_size=32
 ScalingParameters.colloc_batch_size=256
 history_list = []
-
 
 if True:
 
