@@ -754,9 +754,7 @@ history_list = []
 
 
 
-plot_err()
-plot_NS_residual()
-exit()
+
 
 if True:
 
