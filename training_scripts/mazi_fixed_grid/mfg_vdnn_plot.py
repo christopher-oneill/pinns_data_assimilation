@@ -16,9 +16,9 @@ from pinns_data_assimilation.lib.file_util import create_directory_if_not_exists
 
 output_base_dir = 'C:/projects/pinns_narval/sync/output/'
 data_dir = 'C:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
-case_prefix = 'mfg_vdnn_mean'
+case_prefix = 'mfg_vdnn2_mean'
 
-supersample_factor_list = [1,4,8,16,32]
+supersample_factor_list = [2]
 
 node_list = [100]
 layer_list = [10]

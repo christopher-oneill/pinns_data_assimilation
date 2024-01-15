@@ -9,21 +9,84 @@ class QresBlock(keras.layers.Layer):
     # quadratic residual block from:
     # Bu, J., & Karpatne, A. (2021). Quadratic residual networks: A new class of neural networks for solving forward and inverse problems in physics involving pdes. In Proceedings of the 2021 SIAM International Conference on Data Mining (SDM) (pp. 675-683). Society for Industrial and Applied Mathematics.
 
-    def __init__(self,units):
+    def __init__(self,units,**kwargs):
         super().__init__()
         self.units = units
+        self.built=False
+        if 'w1' in kwargs:
+            self.w1 = tf.Variable(initial_value=tf.cast(kwargs['w1'],tf.float64),dtype=tf.float64,trainable=True,name='w1')
+            self.w2 = tf.Variable(initial_value=tf.cast(kwargs['w2'],tf.float64),dtype=tf.float64,trainable=True,name='w2')
+            self.b1 = tf.Variable(initial_value=tf.cast(kwargs['b1'],tf.float64),dtype=tf.float64,trainable=True,name='b1')
+            self.built=True
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "units":self.units,
+            "w1":self.w1.numpy(),
+            "w2":self.w2.numpy(),
+            "b1":self.b1.numpy(),
+        })
+        return config
 
     def build(self, input_shape):
-        self.w_init = tf.random_normal_initializer()
-        self.w1 = tf.Variable(initial_value=self.w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True,name='w1')
-        self.w2 = tf.Variable(initial_value=self.w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True,name='w2')
-        self.b_init = tf.zeros_initializer()
-        self.b1 = tf.Variable(initial_value=self.b_init(shape=(self.units,),dtype=tf.float64),trainable=True,name='b1')    
+        if self.built==False:
+            w_init = tf.random_normal_initializer()
+            self.w1 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True,name='w1')
+            self.w2 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True,name='w2')
+            self.b1 = tf.Variable(initial_value=w_init(shape=(self.units,),dtype=tf.float64),trainable=True,name='b1')    
     
     def call(self,inputs):
         self.xw1 = tf.matmul(inputs,self.w1)
         return tf.keras.activations.tanh(tf.multiply(self.xw1,tf.matmul(inputs,self.w2))+self.xw1+self.b1)
     
+
+class QresBlock2(keras.layers.Layer):
+    # an updated quadratic residual block with skip connection
+
+    def __init__(self,units,**kwargs):
+        super().__init__()
+        self.units = units
+        self.built=False
+        if 'w1' in kwargs:
+            self.w1 = tf.Variable(initial_value=tf.cast(kwargs['w1'],tf.float64),dtype=tf.float64,trainable=True,name='w1')
+            self.w2 = tf.Variable(initial_value=tf.cast(kwargs['w2'],tf.float64),dtype=tf.float64,trainable=True,name='w2')
+            self.b1 = tf.Variable(initial_value=tf.cast(kwargs['b1'],tf.float64),dtype=tf.float64,trainable=True,name='b1')
+            if (tf.shape(self.w1)[0]==self.units):
+                self.Residual = lambda inputs: inputs
+            elif (tf.shape(self.w1)[0]<self.units):                                  
+                self.Residual = lambda inputs: tf.concat((inputs,tf.zeros((tf.shape(inputs)[0],int(self.units)-tf.shape(self.w1)[0]),tf.float64)),axis=1)
+            else:
+                self.Residual = lambda inputs: inputs[:,0:self.units]
+            self.built=True
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "units":self.units,
+            "w1":self.w1.numpy(),
+            "w2":self.w2.numpy(),
+            "b1":self.b1.numpy(),
+            "Residual":self.Residual,
+        })
+        return config
+
+    def build(self, input_shape):
+        if self.built==False:
+            w_init = tf.random_normal_initializer()
+            self.w1 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True,name='w1')
+            self.w2 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True,name='w2')
+            self.b1 = tf.Variable(initial_value=w_init(shape=(self.units,),dtype=tf.float64),trainable=True,name='b1')
+            if (input_shape[1]==self.units):
+                self.Residual = lambda inputs: inputs
+            elif (input_shape[1]<self.units):                                  
+                self.Residual = lambda inputs: tf.concat((inputs,tf.zeros((tf.shape(inputs)[0],int(self.units)-input_shape[1]),tf.float64)),axis=1)
+            else:
+                self.Residual = lambda inputs: inputs[:,0:self.units]
+    
+    def call(self,inputs):
+        self.xw1 = tf.matmul(inputs,self.w1)
+        return tf.keras.activations.tanh(tf.multiply(self.xw1,tf.matmul(inputs,self.w2))+self.xw1+self.b1)+self.Residual(inputs)
     
 class FourierResidualLayer64(keras.layers.Layer):
     # Chris O'Neill, University of Calgary 2023
@@ -51,10 +114,6 @@ class FourierResidualLayer32(keras.layers.Layer):
         super().__init__()
         self.units = units
 
-    def __init__(self,units):
-        super().__init__()
-        self.units = units
-
     def build(self, input_shape):
         self.w1_init = tf.random_normal_initializer()
         self.w2_init = tf.random_uniform_initializer(0,2*np.pi*40) # initialization of frequencies needs to be customized per problem.
@@ -72,7 +131,7 @@ class ResidualLayer(keras.layers.Layer):
     # a simple residual block
     def __init__(self,units,activation='tanh',name='Dense',trainable=True,dtype=tf.float64,Dense=None,Residual=None):
         super().__init__()
-        self.units = units
+        self.units = int(units)
         if Dense==None:
             self.Dense  = keras.layers.Dense(self.units,activation=activation,name=name,trainable=trainable,dtype=dtype)
         else:
@@ -80,10 +139,10 @@ class ResidualLayer(keras.layers.Layer):
 
 
     def build(self,input_shape):
-        if (input_shape==self.units):
+        if (input_shape[1]==self.units):
             self.Residual = lambda inputs: inputs
         elif (input_shape[1]<self.units):                                  
-            self.Residual = lambda inputs: tf.concat((inputs,tf.zeros((tf.shape(inputs)[0],self.units-input_shape[1]),tf.float64)),axis=1)
+            self.Residual = lambda inputs: tf.concat((inputs,tf.zeros((tf.shape(inputs)[0],int(self.units)-input_shape[1]),tf.float64)),axis=1)
         else:
             self.Residual = lambda inputs: inputs[:,0:self.units]
 
