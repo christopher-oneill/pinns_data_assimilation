@@ -16,7 +16,7 @@ from pinns_data_assimilation.lib.file_util import create_directory_if_not_exists
 
 output_base_dir = 'C:/projects/pinns_narval/sync/output/'
 data_dir = 'C:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
-case_prefix = 'mfg_dense_small'
+case_prefix = 'mfg_qres_large'
 
 supersample_factor_list = [1,16,32]
 

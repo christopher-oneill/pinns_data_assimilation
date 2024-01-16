@@ -681,10 +681,13 @@ uxuy = np.delete(uxuy,cylinder_mask,axis=0)
 uyuy = np.delete(uyuy,cylinder_mask,axis=0)
 
 
+# for LBFGS we don't need to duplicate since all points and collocs are evaluated in a single step
+o_train_LBFGS = np.stack((ux/MAX_ux,uy/MAX_uy,uxux/MAX_uxux,uxuy/MAX_uxuy,uyuy/MAX_uyuy),axis=1)
+i_train_LBFGS = np.stack((x/MAX_x,y/MAX_x),axis=1)
 
 # copy the arrays if supersample factor is >1 so that the data size is approximately consistent
-o_train = np.stack((np.concatenate([ux for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_ux,np.concatenate([uy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uy,np.concatenate([uxux for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uxux,np.concatenate([uxuy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uxuy,np.concatenate([uyuy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uyuy),axis=1)
-i_train = np.stack((np.concatenate([x for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_x, np.concatenate([y for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_x),axis=1)
+o_train_backprop = np.stack((np.concatenate([ux for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_ux,np.concatenate([uy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uy,np.concatenate([uxux for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uxux,np.concatenate([uxuy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uxuy,np.concatenate([uyuy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uyuy),axis=1)
+i_train_backprop = np.stack((np.concatenate([x for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_x, np.concatenate([y for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_x),axis=1)
 
 fs=10.0
 # create a dummy object to contain all the scaling parameters
@@ -775,7 +778,7 @@ if True:
     L_iter = 0
     boundary_tuple = boundary_points_function(1080,2000,500,10000)
     colloc_vector = colloc_points_function(20000,40000,10000)
-    func = train_LBFGS(model_RANS,i_train,o_train,colloc_vector,boundary_tuple,ScalingParameters)
+    func = train_LBFGS(model_RANS,i_train_LBFGS,o_train_LBFGS,colloc_vector,boundary_tuple,ScalingParameters)
     init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
             
     while True:
@@ -801,7 +804,7 @@ if True:
         if np.mod(L_iter,10)==0:
             save_custom()
             colloc_vector = colloc_points_function(20000,40000,10000)
-            func = train_LBFGS(model_RANS,i_train,o_train,colloc_vector,boundary_tuple,ScalingParameters)
+            func = train_LBFGS(model_RANS,i_train_LBFGS,o_train_LBFGS,colloc_vector,boundary_tuple,ScalingParameters)
             init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
 
         if node_name == LOCAL_NODE:
