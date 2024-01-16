@@ -397,8 +397,8 @@ def boundary_points_function(cyl,inlet,inside,outside):
 def compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters):
     y_pred = model_RANS(x,training=True)
     data_loss = ScalingParameters.data_loss_coefficient*tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:5]-y),axis=0),axis=0) 
-    physics_loss = tf.cast(0.0,tf.float64)#ScalingParameters.physics_loss_coefficient*RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) #
-    boundary_loss = tf.cast(0.0,tf.float64)#ScalingParameters.boundary_loss_coefficient*RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple)
+    physics_loss = ScalingParameters.physics_loss_coefficient*RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) #tf.cast(0.0,tf.float64)#
+    boundary_loss = ScalingParameters.boundary_loss_coefficient*RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple)
 
     total_loss = data_loss + physics_loss + boundary_loss
     return total_loss, data_loss, physics_loss, boundary_loss
@@ -559,11 +559,13 @@ if node_name==LOCAL_NODE:
     useGPU=False    
     SLURM_TMPDIR='C:/projects/pinns_narval/sync/'
     HOMEDIR = 'C:/projects/pinns_narval/sync/'
+    PROJECTDIR = HOMEDIR
     sys.path.append('C:/projects/pinns_local/code/')
 else:
     # parameters for running on compute canada   
     useGPU=False
     HOMEDIR = '/home/coneill/sync/'
+    PROJECTDIR = '/home/coneill/projects/def-martinuz/coneill/'
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     sys.path.append(HOMEDIR+'code/')
 
@@ -582,7 +584,7 @@ from pinns_data_assimilation.lib.file_util import create_directory_if_not_exists
 # read the data
 base_dir = HOMEDIR+'data/mazi_fixed_grid/'
 global savedir
-savedir = HOMEDIR+'output/'+job_name+'/'
+savedir = PROJECTDIR+'output/'+job_name+'/'
 create_directory_if_not_exists(savedir)
 global fig_dir
 fig_dir = savedir + 'figures/'
