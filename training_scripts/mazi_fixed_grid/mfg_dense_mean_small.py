@@ -688,7 +688,7 @@ optimizer = keras.optimizers.Adam(learning_rate=1E-4)
 
 from pinns_data_assimilation.lib.file_util import get_filepaths_with_glob
 
-checkpoint_files = get_filepaths_with_glob(HOMEDIR+'/output/'+job_name+'/',job_name+'_ep*_model.h5')
+checkpoint_files = get_filepaths_with_glob(PROJECTDIR+'/output/'+job_name+'/',job_name+'_ep*_model.h5')
 
 if len(checkpoint_files)>0:
     with tf.device(tf_device_string):
@@ -714,10 +714,6 @@ d_ts = 100
 global saveFig
 saveFig=True
 
-ScalingParameters.data_loss_coefficient=1.0
-ScalingParameters.batch_size=32
-ScalingParameters.boundary_batch_size=32
-ScalingParameters.colloc_batch_size=256
 history_list = []
 
 
@@ -725,8 +721,6 @@ if True:
 
     last_epoch_time = datetime.now()
     average_epoch_time=timedelta(minutes=10)
-    ScalingParameters.physics_loss_coefficient=1.0
-    ScalingParameters.boundary_loss_coefficient=1.0
     # LBFGS
     import tensorflow_probability as tfp
     L_iter = 0

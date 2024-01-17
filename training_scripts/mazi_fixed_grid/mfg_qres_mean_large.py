@@ -712,10 +712,9 @@ ScalingParameters.MAX_p= MAX_p # estimated maximum pressure, we should
 ScalingParameters.batch_size = 32
 ScalingParameters.colloc_batch_size = 32
 ScalingParameters.boundary_batch_size = 32
-ScalingParameters.physics_loss_coefficient = np.float64(0.0)
-ScalingParameters.boundary_loss_coefficient = np.float64(0.0)
+ScalingParameters.physics_loss_coefficient = np.float64(1.0)
+ScalingParameters.boundary_loss_coefficient = np.float64(1.0)
 ScalingParameters.data_loss_coefficient = np.float64(1.0)
-ScalingParameters.pressure_loss_coefficient=np.float64(0.0)
 
 boundary_tuple = boundary_points_function(1080,2000,500,10000)
 global colloc_vector
@@ -731,7 +730,7 @@ optimizer = keras.optimizers.Adam(learning_rate=1E-4)
 from pinns_data_assimilation.lib.file_util import get_filepaths_with_glob
 from pinns_data_assimilation.lib.layers import QresBlock
 
-checkpoint_files = get_filepaths_with_glob(HOMEDIR+'/output/'+job_name+'/',job_name+'_ep*_model.h5')
+checkpoint_files = get_filepaths_with_glob(PROJECTDIR+'/output/'+job_name+'/',job_name+'_ep*_model.h5')
 
 if len(checkpoint_files)>0:
     with tf.device(tf_device_string):
@@ -757,15 +756,8 @@ d_ts = 100
 global saveFig
 saveFig=True
 
-ScalingParameters.data_loss_coefficient=1.0
-ScalingParameters.batch_size=32
-ScalingParameters.boundary_batch_size=32
-ScalingParameters.colloc_batch_size=256
+
 history_list = []
-
-
-
-
 
 if True:
 

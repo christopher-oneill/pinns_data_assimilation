@@ -13,6 +13,11 @@ class QresBlock(keras.layers.Layer):
         super().__init__()
         self.units = units
         self.built=False
+
+        if 'activation' in kwargs:
+            self.activation = kwargs['activation']
+        else:
+            self.activation =  tf.keras.activations.tanh
         if 'w1' in kwargs:
             self.w1 = tf.Variable(initial_value=tf.cast(kwargs['w1'],tf.float64),dtype=tf.float64,trainable=True,name='w1')
             self.w2 = tf.Variable(initial_value=tf.cast(kwargs['w2'],tf.float64),dtype=tf.float64,trainable=True,name='w2')
@@ -23,6 +28,7 @@ class QresBlock(keras.layers.Layer):
         config = super().get_config()
         config.update({
             "units":self.units,
+            "activation":self.activation,
             "w1":self.w1.numpy(),
             "w2":self.w2.numpy(),
             "b1":self.b1.numpy(),
@@ -38,7 +44,7 @@ class QresBlock(keras.layers.Layer):
     
     def call(self,inputs):
         self.xw1 = tf.matmul(inputs,self.w1)
-        return tf.keras.activations.tanh(tf.multiply(self.xw1,tf.matmul(inputs,self.w2))+self.xw1+self.b1)
+        return self.activation(tf.multiply(self.xw1,tf.matmul(inputs,self.w2))+self.xw1+self.b1)
     
 
 class QresBlock2(keras.layers.Layer):
