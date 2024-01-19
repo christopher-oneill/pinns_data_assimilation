@@ -15,7 +15,10 @@ class QresBlock(keras.layers.Layer):
         self.built=False
 
         if 'activation' in kwargs:
-            self.activation = kwargs['activation']
+            if type(kwargs['activation'])==str:
+                self.activation = tf.keras.activations.deserialize(kwargs['activation'])
+            else:
+                self.activation = kwargs['activation']
         else:
             self.activation =  tf.keras.activations.tanh
         if 'w1' in kwargs:

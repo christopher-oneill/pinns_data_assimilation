@@ -9,8 +9,6 @@ import h5py
 from smt.sampling_methods import LHS
 
 keras.backend.set_floatx('float64')
-
-
 import numpy as np
 
 from datetime import datetime
@@ -126,6 +124,9 @@ def plot_err():
         plot.close(1)
 
 
+
+
+
 # plotting functions
 # save and load functions
 
@@ -150,7 +151,7 @@ def save_custom():
 
 def load_custom():
     checkpoint_filename,training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','_model.h5')
-    model_RANS = keras.models.load_model(checkpoint_filename,custom_objects={'QresBlock':QresBlock})
+    model_RANS = keras.models.load_model(checkpoint_filename,custom_objects={})
     model_RANS.summary()
     print('Model Loaded. Epoch',str(training_steps))
     #optimizer.build(model_RANS.trainable_variables)
@@ -397,7 +398,7 @@ def compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters):
     y_pred = model_RANS(x,training=True)
     data_loss = ScalingParameters.data_loss_coefficient*tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:5]-y),axis=0),axis=0) 
     physics_loss = tf.cast(0.0,tf.float64)#ScalingParameters.physics_loss_coefficient*RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) #tf.cast(0.0,tf.float64)#
-    boundary_loss = tf.cast(0.0,tf.float64)#ScalingParameters.boundary_loss_coefficient*RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple) 
+    boundary_loss = tf.cast(0.0,tf.float64)#ScalingParameters.boundary_loss_coefficient*RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple)
 
     total_loss = data_loss + physics_loss + boundary_loss
     return total_loss, data_loss, physics_loss, boundary_loss
@@ -533,29 +534,15 @@ def train_LBFGS(model,x,y,colloc_x,boundary_tuple,ScalingParameters):
     return f
 
 
-
-
-
-
-
-
 start_time = datetime.now()
 start_timestamp = datetime.strftime(start_time,'%Y%m%d%H%M%S')
 
 node_name = platform.node()
 
-assert len(sys.argv)==4
 
-job_number = int(sys.argv[1])
-supersample_factor = int(sys.argv[2])
-job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_qres_large{:03d}_S{:d}'.format(job_number,supersample_factor)
-
-
-job_duration = timedelta(hours=job_hours,minutes=0)
-end_time = start_time+job_duration
+job_name = 'mfg_res_mean11a_002'
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
@@ -574,15 +561,17 @@ else:
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     sys.path.append(HOMEDIR+'code/')
 
+
+
 #from pinns_data_assimilation.lib.LBFGS_example import function_factory
 from pinns_data_assimilation.lib.layers import ResidualLayer
+from pinns_data_assimilation.lib.layers import QresBlock
 from pinns_data_assimilation.lib.file_util import find_highest_numbered_file
-from pinns_data_assimilation.lib.file_util import create_directory_if_not_exists
+
 
 from pinns_data_assimilation.lib.downsample import compute_downsample_inds_center
 
-
-
+from pinns_data_assimilation.lib.file_util import create_directory_if_not_exists
 
 # read the data
 base_dir = HOMEDIR+'data/mazi_fixed_grid/'
@@ -655,7 +644,7 @@ p_grid = np.reshape(p,X_grid.shape)/MAX_p
 global o_test_grid
 o_test_grid = np.reshape(np.hstack((ux.reshape(-1,1)/MAX_ux,uy.reshape(-1,1)/MAX_uy,uxux.reshape(-1,1)/MAX_uxux,uxuy.reshape(-1,1)/MAX_uxuy,uyuy.reshape(-1,1)/MAX_uyuy)),[X_grid.shape[0],X_grid.shape[1],5])
 
-
+supersample_factor=1
 # if we are downsampling and then upsampling, downsample the source data
 if supersample_factor>1:
     n_x = np.array(configFile['x_grid']).size
@@ -679,7 +668,6 @@ uy = np.delete(uy,cylinder_mask,axis=0)
 uxux = np.delete(uxux,cylinder_mask,axis=0)
 uxuy = np.delete(uxuy,cylinder_mask,axis=0)
 uyuy = np.delete(uyuy,cylinder_mask,axis=0)
-
 
 # for LBFGS we don't need to duplicate since all points and collocs are evaluated in a single step
 o_train_LBFGS = np.stack((ux/MAX_ux,uy/MAX_uy,uxux/MAX_uxux,uxuy/MAX_uxuy,uyuy/MAX_uyuy),axis=1)
@@ -716,6 +704,7 @@ ScalingParameters.physics_loss_coefficient = np.float64(1.0)
 ScalingParameters.boundary_loss_coefficient = np.float64(1.0)
 ScalingParameters.data_loss_coefficient = np.float64(1.0)
 
+
 boundary_tuple = boundary_points_function(1080,2000,500,10000)
 global colloc_vector
 colloc_vector = colloc_points_function(20000,40000,10000)
@@ -728,10 +717,9 @@ tf_device_string ='/CPU:0'
 optimizer = keras.optimizers.Adam(learning_rate=1E-4)
 
 from pinns_data_assimilation.lib.file_util import get_filepaths_with_glob
-from pinns_data_assimilation.lib.layers import QresBlock
+from pinns_data_assimilation.lib.layers import QresBlock2
 
-checkpoint_files = get_filepaths_with_glob(PROJECTDIR+'/output/'+job_name+'/',job_name+'_ep*_model.h5')
-print(checkpoint_files)
+checkpoint_files = get_filepaths_with_glob(HOMEDIR+'/output/'+job_name+'/',job_name+'_ep*_model.h5')
 
 if len(checkpoint_files)>0:
     with tf.device(tf_device_string):
@@ -740,9 +728,11 @@ else:
     training_steps = 0
     with tf.device(tf_device_string):        
         inputs = keras.Input(shape=(2,),name='coordinates')
-        lo = QresBlock(70)(inputs)
-        for i in range(9):
-            lo = QresBlock(70)(lo)
+        lo = QresBlock2(71,activation=keras.activations.tanh)(inputs)
+        for i in range(4):
+            lo = QresBlock2(71,activation=keras.activations.tanh)(lo)
+        for i in range(5):
+            lo = QresBlock(71,activation=keras.activations.tanh)(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         model_RANS.summary()
@@ -757,9 +747,15 @@ d_ts = 100
 global saveFig
 saveFig=True
 
-
-
+ScalingParameters.data_loss_coefficient=1.0
+ScalingParameters.batch_size=32
+ScalingParameters.boundary_batch_size=32
+ScalingParameters.colloc_batch_size=256
 history_list = []
+
+
+
+
 
 if True:
 
@@ -784,16 +780,11 @@ if True:
         init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables) # we need to reasign the parameters otherwise we start from the beginning each time
         training_steps = training_steps + LBFGS_epochs
         L_iter = L_iter+1
-        
-        save_custom()
+            
         # after training, the final optimized parameters are still in results.position
         # so we have to manually put them back to the model
  
         # check if we are out of time
-        average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
-        if (datetime.now()+average_epoch_time)>end_time:
-            save_custom()
-            exit()
 
 
         if np.mod(L_iter,10)==0:
@@ -802,9 +793,9 @@ if True:
             func = train_LBFGS(model_RANS,i_train_LBFGS,o_train_LBFGS,colloc_vector,boundary_tuple,ScalingParameters)
             init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
 
-        if node_name == LOCAL_NODE:
+        if node_name==LOCAL_NODE:
             plot_err()
             plot_NS_residual()
 
-        last_epoch_time = datetime.now()
+
 
