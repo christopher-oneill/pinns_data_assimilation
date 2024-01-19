@@ -396,8 +396,8 @@ def boundary_points_function(cyl,inlet,inside,outside):
 def compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters):
     y_pred = model_RANS(x,training=True)
     data_loss = ScalingParameters.data_loss_coefficient*tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:5]-y),axis=0),axis=0) 
-    physics_loss = tf.cast(0.0,tf.float64)#ScalingParameters.physics_loss_coefficient*RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) #tf.cast(0.0,tf.float64)#
-    boundary_loss = tf.cast(0.0,tf.float64)#ScalingParameters.boundary_loss_coefficient*RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple) 
+    physics_loss = ScalingParameters.physics_loss_coefficient*RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) #tf.cast(0.0,tf.float64)#
+    boundary_loss = ScalingParameters.boundary_loss_coefficient*RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple) 
 
     total_loss = data_loss + physics_loss + boundary_loss
     return total_loss, data_loss, physics_loss, boundary_loss
@@ -785,7 +785,6 @@ if True:
         training_steps = training_steps + LBFGS_epochs
         L_iter = L_iter+1
         
-        save_custom()
         # after training, the final optimized parameters are still in results.position
         # so we have to manually put them back to the model
  
