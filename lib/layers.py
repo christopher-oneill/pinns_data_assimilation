@@ -14,6 +14,11 @@ class QresBlock(keras.layers.Layer):
         self.units = units
         self.built=False
 
+        if 'dtype' in kwargs:
+            self.u_dtype=kwargs['dtype']
+        else:
+            self.u_dtype=tf.float64
+
         if 'activation' in kwargs:
             if type(kwargs['activation'])==str:
                 self.activation = tf.keras.activations.deserialize(kwargs['activation'])
@@ -22,9 +27,9 @@ class QresBlock(keras.layers.Layer):
         else:
             self.activation =  tf.keras.activations.tanh
         if 'w1' in kwargs:
-            self.w1 = tf.Variable(initial_value=tf.cast(kwargs['w1'],tf.float64),dtype=tf.float64,trainable=True,name='w1')
-            self.w2 = tf.Variable(initial_value=tf.cast(kwargs['w2'],tf.float64),dtype=tf.float64,trainable=True,name='w2')
-            self.b1 = tf.Variable(initial_value=tf.cast(kwargs['b1'],tf.float64),dtype=tf.float64,trainable=True,name='b1')
+            self.w1 = tf.Variable(initial_value=tf.cast(kwargs['w1'],self.u_dtype),dtype=self.u_dtype,trainable=True,name='w1')
+            self.w2 = tf.Variable(initial_value=tf.cast(kwargs['w2'],self.u_dtype),dtype=self.u_dtype,trainable=True,name='w2')
+            self.b1 = tf.Variable(initial_value=tf.cast(kwargs['b1'],self.u_dtype),dtype=self.u_dtype,trainable=True,name='b1')
             self.built=True
 
     def get_config(self):
@@ -35,15 +40,16 @@ class QresBlock(keras.layers.Layer):
             "w1":self.w1.numpy(),
             "w2":self.w2.numpy(),
             "b1":self.b1.numpy(),
+            "dtype":self.u_dtype,
         })
         return config
 
     def build(self, input_shape):
         if self.built==False:
             w_init = tf.random_normal_initializer()
-            self.w1 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True,name='w1')
-            self.w2 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True,name='w2')
-            self.b1 = tf.Variable(initial_value=w_init(shape=(self.units,),dtype=tf.float64),trainable=True,name='b1')    
+            self.w1 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=self.u_dtype),trainable=True,name='w1')
+            self.w2 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=self.u_dtype),trainable=True,name='w2')
+            self.b1 = tf.Variable(initial_value=w_init(shape=(self.units,),dtype=self.u_dtype),trainable=True,name='b1')    
     
     def call(self,inputs):
         self.xw1 = tf.matmul(inputs,self.w1)
@@ -57,14 +63,18 @@ class QresBlock2(keras.layers.Layer):
         super().__init__()
         self.units = units
         self.built=False
+        if 'dtype' in kwargs:
+            self.u_dtype = kwargs['dtype']
+        else:
+            self.u_dtype = tf.float64
         if 'w1' in kwargs:
-            self.w1 = tf.Variable(initial_value=tf.cast(kwargs['w1'],tf.float64),dtype=tf.float64,trainable=True,name='w1')
-            self.w2 = tf.Variable(initial_value=tf.cast(kwargs['w2'],tf.float64),dtype=tf.float64,trainable=True,name='w2')
-            self.b1 = tf.Variable(initial_value=tf.cast(kwargs['b1'],tf.float64),dtype=tf.float64,trainable=True,name='b1')
+            self.w1 = tf.Variable(initial_value=tf.cast(kwargs['w1'],self.u_dtype),dtype=self.u_dtype,trainable=True,name='w1')
+            self.w2 = tf.Variable(initial_value=tf.cast(kwargs['w2'],self.u_dtype),dtype=self.u_dtype,trainable=True,name='w2')
+            self.b1 = tf.Variable(initial_value=tf.cast(kwargs['b1'],self.u_dtype),dtype=self.u_dtype,trainable=True,name='b1')
             if (tf.shape(self.w1)[0]==self.units):
                 self.Residual = lambda inputs: inputs
             elif (tf.shape(self.w1)[0]<self.units):                                  
-                self.Residual = lambda inputs: tf.concat((inputs,tf.zeros((tf.shape(inputs)[0],int(self.units)-tf.shape(self.w1)[0]),tf.float64)),axis=1)
+                self.Residual = lambda inputs: tf.concat((inputs,tf.zeros((tf.shape(inputs)[0],int(self.units)-tf.shape(self.w1)[0]),self.u_dtype)),axis=1)
             else:
                 self.Residual = lambda inputs: inputs[:,0:self.units]
             self.built=True
@@ -77,19 +87,20 @@ class QresBlock2(keras.layers.Layer):
             "w2":self.w2.numpy(),
             "b1":self.b1.numpy(),
             "Residual":self.Residual,
+            "dtype":self.u_dtype,
         })
         return config
 
     def build(self, input_shape):
         if self.built==False:
             w_init = tf.random_normal_initializer()
-            self.w1 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True,name='w1')
-            self.w2 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=tf.float64),trainable=True,name='w2')
-            self.b1 = tf.Variable(initial_value=w_init(shape=(self.units,),dtype=tf.float64),trainable=True,name='b1')
+            self.w1 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=self.u_dtype),trainable=True,name='w1')
+            self.w2 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=self.u_dtype),trainable=True,name='w2')
+            self.b1 = tf.Variable(initial_value=w_init(shape=(self.units,),dtype=self.u_dtype),trainable=True,name='b1')
             if (input_shape[1]==self.units):
                 self.Residual = lambda inputs: inputs
             elif (input_shape[1]<self.units):                                  
-                self.Residual = lambda inputs: tf.concat((inputs,tf.zeros((tf.shape(inputs)[0],int(self.units)-input_shape[1]),tf.float64)),axis=1)
+                self.Residual = lambda inputs: tf.concat((inputs,tf.zeros((tf.shape(inputs)[0],int(self.units)-input_shape[1]),self.u_dtype)),axis=1)
             else:
                 self.Residual = lambda inputs: inputs[:,0:self.units]
     
