@@ -617,7 +617,7 @@ node_name = platform.node()
 
 
 global job_name 
-job_name = 'mfg_res_mean11a_003d'
+job_name = 'mfg_res_mean11a_003f'
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
@@ -727,7 +727,7 @@ i_test_large = np.stack((X_grid_large.ravel(),Y_grid_large.ravel()),axis=1)/MAX_
 global o_test_grid
 o_test_grid = np.reshape(np.hstack((ux.reshape(-1,1)/MAX_ux,uy.reshape(-1,1)/MAX_uy,uxux.reshape(-1,1)/MAX_uxux,uxuy.reshape(-1,1)/MAX_uxuy,uyuy.reshape(-1,1)/MAX_uyuy)),[X_grid.shape[0],X_grid.shape[1],5])
 
-supersample_factor=8
+supersample_factor=32
 # if we are downsampling and then upsampling, downsample the source data
 if supersample_factor>1:
     n_x = np.array(configFile['x_grid']).size
@@ -818,7 +818,7 @@ else:
         for i in range(4):
             lo = QresBlock2(30,activation=keras.activations.tanh,dtype=tf_dtype)(lo)
         for i in range(5):
-            lo = QresBlock(70,activation=keras.activations.tanh,dtype=tf_dtype)(lo)
+            lo = QresBlock(100,activation=keras.activations.tanh,dtype=tf_dtype)(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         model_RANS.summary()
@@ -837,12 +837,12 @@ history_list = []
 
 
 
+
 plot_err()
 plot_NS_residual()
 plot_large()
 plot_NS_large()
 exit()
-
 
 
 if True:
