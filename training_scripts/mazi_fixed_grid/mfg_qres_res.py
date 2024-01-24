@@ -614,10 +614,17 @@ start_timestamp = datetime.strftime(start_time,'%Y%m%d%H%M%S')
 
 node_name = platform.node()
 
+assert len(sys.argv)==4
 
+job_number = int(sys.argv[1])
+supersample_factor = int(sys.argv[2])
+job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_res_mean11a_003g'
+job_name = 'mfg_qres_res_{:03d}_S{:d}'.format(job_number,supersample_factor)
+
+job_duration = timedelta(hours=job_hours,minutes=0)
+end_time = start_time+job_duration
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
@@ -726,7 +733,7 @@ i_test_large = np.stack((X_grid_large.ravel(),Y_grid_large.ravel()),axis=1)/MAX_
 global o_test_grid
 o_test_grid = np.reshape(np.hstack((ux.reshape(-1,1)/MAX_ux,uy.reshape(-1,1)/MAX_uy,uxux.reshape(-1,1)/MAX_uxux,uxuy.reshape(-1,1)/MAX_uxuy,uyuy.reshape(-1,1)/MAX_uyuy)),[X_grid.shape[0],X_grid.shape[1],5])
 
-supersample_factor=32
+
 # if we are downsampling and then upsampling, downsample the source data
 if supersample_factor>1:
     n_x = np.array(configFile['x_grid']).size
@@ -864,7 +871,10 @@ if True:
         # so we have to manually put them back to the model
  
         # check if we are out of time
-
+        average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
+        if (datetime.now()+average_epoch_time)>end_time:
+            save_model()
+            exit()
 
         if np.mod(L_iter,10)==0:
             save_model()
