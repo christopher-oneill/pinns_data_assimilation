@@ -16,10 +16,10 @@ from pinns_data_assimilation.lib.file_util import create_directory_if_not_exists
 
 output_base_dir = 'C:/projects/pinns_narval/sync/output/'
 data_dir = 'C:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
-case_prefix_list = ['mfg_dense_large','mfg_dense_small','mfg_qres_large','mfg_qres_small']
+case_prefix_list = ['mfg_qres_res_']#['mfg_dense_large','mfg_dense_small','mfg_qres_large','mfg_qres_small']
 
 
-supersample_factor_list = [1,16,32]
+supersample_factor_list = [1,4,8,16,32,64]
 
 for case_prefix in case_prefix_list:
     for m in range(len(supersample_factor_list)):

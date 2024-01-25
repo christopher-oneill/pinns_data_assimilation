@@ -846,6 +846,7 @@ history_list = []
 
 
 
+
 if True:
     last_epoch_time = datetime.now()
     average_epoch_time=timedelta(minutes=10)
@@ -873,6 +874,7 @@ if True:
         # check if we are out of time
         average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
         if (datetime.now()+average_epoch_time)>end_time:
+            save_pred()
             save_model()
             exit()
 
