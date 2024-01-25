@@ -614,17 +614,10 @@ start_timestamp = datetime.strftime(start_time,'%Y%m%d%H%M%S')
 
 node_name = platform.node()
 
-assert len(sys.argv)==4
 
-job_number = int(sys.argv[1])
-supersample_factor = int(sys.argv[2])
-job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_qres_res_{:03d}_S{:d}'.format(job_number,supersample_factor)
-
-job_duration = timedelta(hours=job_hours,minutes=0)
-end_time = start_time+job_duration
+job_name = 'mfg_res_mean11a_003h'
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
@@ -637,6 +630,7 @@ if node_name==LOCAL_NODE:
     sys.path.append('C:/projects/pinns_local/code/')
 else:
     # parameters for running on compute canada   
+    useGPU=False
     HOMEDIR = '/home/coneill/sync/'
     PROJECTDIR = '/home/coneill/projects/def-martinuz/coneill/'
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
@@ -733,7 +727,7 @@ i_test_large = np.stack((X_grid_large.ravel(),Y_grid_large.ravel()),axis=1)/MAX_
 global o_test_grid
 o_test_grid = np.reshape(np.hstack((ux.reshape(-1,1)/MAX_ux,uy.reshape(-1,1)/MAX_uy,uxux.reshape(-1,1)/MAX_uxux,uxuy.reshape(-1,1)/MAX_uxuy,uyuy.reshape(-1,1)/MAX_uyuy)),[X_grid.shape[0],X_grid.shape[1],5])
 
-
+supersample_factor=32
 # if we are downsampling and then upsampling, downsample the source data
 if supersample_factor>1:
     n_x = np.array(configFile['x_grid']).size
@@ -802,14 +796,14 @@ colloc_vector = colloc_points_function(5000,15000,3000)
 global training_steps
 global model_RANS
 # model creation
-tf_device_string ='/GPU:0'
+tf_device_string ='/CPU:0'
 
 optimizer = keras.optimizers.Adam(learning_rate=1E-4)
 
 from pinns_data_assimilation.lib.file_util import get_filepaths_with_glob
 from pinns_data_assimilation.lib.layers import QresBlock2
 
-checkpoint_files = get_filepaths_with_glob(PROJECTDIR+'/output/'+job_name+'/',job_name+'_ep*_model.h5')
+checkpoint_files = get_filepaths_with_glob(HOMEDIR+'/output/'+job_name+'/',job_name+'_ep*_model.h5')
 
 if len(checkpoint_files)>0:
     with tf.device(tf_device_string):
@@ -824,7 +818,7 @@ else:
         for i in range(4):
             lo = QresBlock2(30,activation=keras.activations.tanh,dtype=tf_dtype)(lo)
         for i in range(5):
-            lo = QresBlock(100,activation=keras.activations.tanh,dtype=tf_dtype)(lo)
+            lo = QresBlock(140,activation=keras.activations.tanh,dtype=tf_dtype)(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         model_RANS.summary()
@@ -844,6 +838,11 @@ history_list = []
 
 
 
+#plot_err()
+#plot_NS_residual()
+#plot_large()
+#plot_NS_large()
+#exit()
 
 
 if True:
@@ -852,8 +851,8 @@ if True:
     # LBFGS
     import tensorflow_probability as tfp
     L_iter = 0
-    boundary_tuple = boundary_points_function(720,1000,200,5000)
-    colloc_vector = colloc_points_function(20000,30000,10000) # one A100 max = 60k?
+    boundary_tuple = boundary_points_function(360,300,200,500)
+    colloc_vector = colloc_points_function(3000,10000,1000)
     func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
     init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
             
@@ -871,17 +870,15 @@ if True:
         # so we have to manually put them back to the model
  
         # check if we are out of time
-        average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
-        if (datetime.now()+average_epoch_time)>end_time:
-            save_model()
-            exit()
-
+        
+        boundary_tuple = boundary_points_function(360,300,200,500)
+        colloc_vector = colloc_points_function(3000,10000,1000)
+        func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
+        init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
+        
         if np.mod(L_iter,10)==0:
             save_model()
-            boundary_tuple = boundary_points_function(720,1000,200,5000)
-            colloc_vector = colloc_points_function(20000,30000,10000)
-            func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
-            init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
+
 
         #if node_name==LOCAL_NODE:
         #    save_pred()

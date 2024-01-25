@@ -838,11 +838,11 @@ history_list = []
 
 
 
-plot_err()
-plot_NS_residual()
-plot_large()
-plot_NS_large()
-exit()
+#plot_err()
+#plot_NS_residual()
+#plot_large()
+#plot_NS_large()
+#exit()
 
 
 if True:
@@ -851,8 +851,8 @@ if True:
     # LBFGS
     import tensorflow_probability as tfp
     L_iter = 0
-    boundary_tuple = boundary_points_function(360,300,200,500)
-    colloc_vector = colloc_points_function(3000,10000,1000)
+    boundary_tuple = boundary_points_function(360,1000,200,5000)
+    colloc_vector = colloc_points_function(20000,20000,10000)
     func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
     init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
             
@@ -870,19 +870,21 @@ if True:
         # so we have to manually put them back to the model
  
         # check if we are out of time
-
-
+        
+        
+        
         if np.mod(L_iter,10)==0:
             save_model()
-            boundary_tuple = boundary_points_function(360,300,200,500)
-            colloc_vector = colloc_points_function(3000,10000,1000)
+            boundary_tuple = boundary_points_function(360,1000,200,5000)
+            colloc_vector = colloc_points_function(20000,20000,10000)
             func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
             init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
 
-        #if node_name==LOCAL_NODE:
-        #    save_pred()
-        #    plot_err()
-        #    plot_NS_residual()
+
+        if node_name==LOCAL_NODE:
+            #save_pred()
+            plot_err()
+            plot_NS_residual()
 
 
 
