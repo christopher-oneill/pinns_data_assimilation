@@ -380,16 +380,14 @@ def RANS_physics_loss(model_RANS,ScalingParameters,colloc_points,): # def custom
 
 @tf.function
 def RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple):
-    (BC_p,BC_wall,BC_inlet,BC_cylinder_inside_pts,BC_outside_pts) = boundary_tuple
+    (BC_p,BC_wall,BC_cylinder_inside_pts) = boundary_tuple
 
 
     BC_pressure_loss = BC_RANS_reynolds_stress_pressure(model_RANS,BC_p) 
     BC_wall_loss = BC_RANS_wall(model_RANS,ScalingParameters,BC_wall)
     BC_cylinder_inside_loss = BC_cylinder_inside(model_RANS,ScalingParameters,BC_cylinder_inside_pts)
-    BC_stress_outside_loss = BC_RANS_no_stresses(model_RANS,BC_outside_pts)
-    BC_inlet_loss = BC_RANS_inlet(model_RANS,ScalingParameters,BC_inlet)
                        
-    boundary_loss = (BC_wall_loss + BC_pressure_loss + BC_inlet_loss + BC_cylinder_inside_loss + BC_stress_outside_loss) #  + BC_wall2 +   + BC_cylinder_inside_loss + BC_inlet_loss2
+    boundary_loss = (BC_wall_loss + BC_pressure_loss + BC_cylinder_inside_loss) #  + BC_wall2 +   + BC_cylinder_inside_loss + BC_inlet_loss2
     return boundary_loss
 
 
@@ -397,22 +395,16 @@ def RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple):
 
 # define the collocation points
 
-def colloc_points_function(a,b,c):
-    colloc_limits1 = np.array([[-10.0,10.0],[-10.0,10.0]])
-    colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-    colloc_lhs1 = colloc_sample_lhs1(a)
-
-
-
+def colloc_points_function(a,b):
     colloc_limits2 = np.array([[-2.0,10.0],[-2.0,2.0]])
     colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
-    colloc_lhs2 = colloc_sample_lhs2(b)
+    colloc_lhs2 = colloc_sample_lhs2(a)
 
     colloc_limits3 = np.array([[-1.0,2.0],[-1.0,1.0]])
     colloc_sample_lhs3 = LHS(xlimits=colloc_limits3)
-    colloc_lhs3 = colloc_sample_lhs3(c)
+    colloc_lhs3 = colloc_sample_lhs3(b)
 
-    colloc_merged = np.vstack((colloc_lhs1,colloc_lhs2,colloc_lhs3))
+    colloc_merged = np.vstack((colloc_lhs2,colloc_lhs3))
 
 
     # remove points inside the cylinder
@@ -427,7 +419,7 @@ def colloc_points_function(a,b,c):
     return tf.cast(f_colloc_train,tf_dtype)
 
 
-def boundary_points_function(cyl,inlet,inside,outside):
+def boundary_points_function(cyl,inside):
     # define boundary condition points
     theta = np.linspace(0,2*np.pi,cyl)
     ns_BC_x = 0.5*d*np.cos(theta)/ScalingParameters.MAX_x # we beed to normalize the boundary conditions as well
@@ -437,11 +429,6 @@ def boundary_points_function(cyl,inlet,inside,outside):
     p_BC_x = np.array([10.0,10.0,0.0])/ScalingParameters.MAX_x
     p_BC_y = np.array([-2.0,2.0,0.0])/ScalingParameters.MAX_y
     p_BC_vec = np.hstack((p_BC_x.reshape(-1,1),p_BC_y.reshape(-1,1)))
-
-    # inlet top and bottom
-    inlet_BC_x = np.concatenate((-10.0*np.ones([inlet,])/ScalingParameters.MAX_x,np.linspace(-10,10,inlet)/ScalingParameters.MAX_x,np.linspace(-10,10,inlet)/ScalingParameters.MAX_x,),axis=0)
-    inlet_BC_y = np.concatenate((np.linspace(-10.0,10.0,inlet)/ScalingParameters.MAX_y,10.0*np.ones([inlet,])/ScalingParameters.MAX_y,-10.0*np.ones([inlet,])/ScalingParameters.MAX_y),axis=0)
-    inlet_BC_vec = np.hstack((inlet_BC_x.reshape(-1,1),inlet_BC_y.reshape(-1,1)))
 
     # random points inside the cylinder
     cylinder_inside_limits1 = np.array([[-0.5,0.5],[-0.5,0.5]])
@@ -454,16 +441,7 @@ def boundary_points_function(cyl,inlet,inside,outside):
     cylinder_inside_vec[:,1] = cylinder_inside_vec[:,1]/ScalingParameters.MAX_y
 
     # random points outside the domain for no reynolds stress condition
-    domain_outside_limits = np.array([[-10.0,10.0],[-10.0,10.0]])
-    domain_outside_LHS = LHS(xlimits=domain_outside_limits)
-    domain_outside_vec = domain_outside_LHS(outside)
-    domain_inside_points_a = np.greater(domain_outside_vec[:,0],-2.0)
-    domain_inside_points_b = np.less(np.abs(domain_outside_vec[:,1]),2.5)
-    domain_inside_points = np.multiply(domain_inside_points_a,domain_inside_points_b)
-    domain_outside_vec = np.delete(domain_outside_vec,np.nonzero(domain_inside_points),axis=0)
-    domain_outside_vec[:,0] = domain_outside_vec[:,0]/ScalingParameters.MAX_x
-    domain_outside_vec[:,1] = domain_outside_vec[:,1]/ScalingParameters.MAX_y
-    boundary_tuple = (tf.cast(p_BC_vec,tf_dtype),tf.cast(cyl_BC_vec,tf_dtype),tf.cast(inlet_BC_vec,tf_dtype),tf.cast(cylinder_inside_vec,tf_dtype),tf.cast(domain_outside_vec,tf_dtype))
+    boundary_tuple = (tf.cast(p_BC_vec,tf_dtype),tf.cast(cyl_BC_vec,tf_dtype),tf.cast(cylinder_inside_vec,tf_dtype))
     return boundary_tuple
 
 # training functions
@@ -621,7 +599,7 @@ supersample_factor = int(sys.argv[2])
 job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_qres_res_{:03d}_S{:d}'.format(job_number,supersample_factor)
+job_name = 'mfg_boundary_test_{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 job_duration = timedelta(hours=job_hours,minutes=0)
 end_time = start_time+job_duration
@@ -710,7 +688,16 @@ uxuy[cylinder_mask] = 0.0
 uyuy[cylinder_mask] = 0.0
 
 MAX_x = np.max(X_grid)
+MIN_x = np.min(X_grid)
 MAX_y = np.max(Y_grid)
+MIN_y = np.min(Y_grid)
+
+print('MAX_x: ',MAX_x)
+print('MIN_x: ',MIN_x)
+print('MAX_y: ',MAX_y)
+print('MAX_x: ',MIN_y)
+
+
 x_test = 1.0*x/MAX_x
 y_test = 1.0*y/MAX_x
 global i_test
@@ -734,6 +721,18 @@ global o_test_grid
 o_test_grid = np.reshape(np.hstack((ux.reshape(-1,1)/MAX_ux,uy.reshape(-1,1)/MAX_uy,uxux.reshape(-1,1)/MAX_uxux,uxuy.reshape(-1,1)/MAX_uxuy,uyuy.reshape(-1,1)/MAX_uyuy)),[X_grid.shape[0],X_grid.shape[1],5])
 
 
+# copy inlet data
+inds_inlet_data = np.concatenate((np.nonzero(x==MIN_x)[0],np.nonzero(y==MAX_y)[0],np.nonzero(y==MIN_y)[0]),axis=0)
+
+inlet_x = x[inds_inlet_data]
+inlet_x = x[inds_inlet_data]
+inlet_y = y[inds_inlet_data]
+inlet_ux = ux[inds_inlet_data]
+inlet_uy = uy[inds_inlet_data]
+inlet_uxux = uxux[inds_inlet_data]
+inlet_uxuy = uxuy[inds_inlet_data]
+inlet_uyuy = uyuy[inds_inlet_data]
+
 # if we are downsampling and then upsampling, downsample the source data
 if supersample_factor>1:
     n_x = np.array(configFile['x_grid']).size
@@ -749,7 +748,6 @@ if supersample_factor>1:
     cylinder_mask = cylinder_mask[downsample_inds]
 
 # remove the inside quantities
-
 x = np.delete(x,cylinder_mask,axis=0)
 y = np.delete(y,cylinder_mask,axis=0)
 ux = np.delete(ux,cylinder_mask,axis=0)
@@ -757,6 +755,16 @@ uy = np.delete(uy,cylinder_mask,axis=0)
 uxux = np.delete(uxux,cylinder_mask,axis=0)
 uxuy = np.delete(uxuy,cylinder_mask,axis=0)
 uyuy = np.delete(uyuy,cylinder_mask,axis=0)
+
+# re append the inlet data
+x = np.concatenate((x,inlet_x),axis=0)
+y = np.concatenate((y,inlet_y),axis=0)
+ux = np.concatenate((ux,inlet_ux),axis=0)
+uy = np.concatenate((uy,inlet_uy),axis=0)
+uxux = np.concatenate((uxux,inlet_uxux),axis=0)
+uxuy = np.concatenate((uxuy,inlet_uxuy),axis=0)
+uyuy = np.concatenate((uyuy,inlet_uyuy),axis=0)
+
 
 # for LBFGS we don't need to duplicate since all points and collocs are evaluated in a single step
 o_train_LBFGS = np.stack((ux/MAX_ux,uy/MAX_uy,uxux/MAX_uxux,uxuy/MAX_uxuy,uyuy/MAX_uyuy),axis=1)
@@ -796,8 +804,8 @@ ScalingParameters.data_loss_coefficient = tf.cast(1.0,tf_dtype)
 
 
 global colloc_vector
-boundary_tuple = boundary_points_function(360,500,200,3000)
-colloc_vector = colloc_points_function(5000,15000,3000)
+boundary_tuple = boundary_points_function(360,200)
+colloc_vector = colloc_points_function(40000,20000)
 
 global training_steps
 global model_RANS
@@ -843,19 +851,14 @@ history_list = []
 
 
 
-if node_name==LOCAL_NODE:
-    plot_err()
-    plot_large()
-    plot_NS_residual()
-    plot_NS_large()
-else:
+if True:
     last_epoch_time = datetime.now()
     average_epoch_time=timedelta(minutes=10)
     # LBFGS
     import tensorflow_probability as tfp
     L_iter = 0
-    boundary_tuple = boundary_points_function(720,1000,200,5000)
-    colloc_vector = colloc_points_function(20000,30000,10000) # one A100 max = 60k?
+    boundary_tuple = boundary_points_function(720,200)
+    colloc_vector = colloc_points_function(40000,20000) # one A100 max = 60k?
     func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
     init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
             
@@ -881,8 +884,8 @@ else:
 
         if np.mod(L_iter,10)==0:
             save_model()
-            boundary_tuple = boundary_points_function(720,1000,200,5000)
-            colloc_vector = colloc_points_function(20000,30000,10000)
+            boundary_tuple = boundary_points_function(720,200)
+            colloc_vector = colloc_points_function(40000,20000)
             func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
             init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
 
