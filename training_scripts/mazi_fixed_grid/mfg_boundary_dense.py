@@ -599,7 +599,7 @@ supersample_factor = int(sys.argv[2])
 job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_boundary_test_{:03d}_S{:d}'.format(job_number,supersample_factor)
+job_name = 'mfg_boundary_dense_{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 job_duration = timedelta(hours=job_hours,minutes=0)
 end_time = start_time+job_duration
@@ -826,13 +826,9 @@ else:
     training_steps = 0
     with tf.device(tf_device_string):        
         inputs = keras.Input(shape=(2,),name='coordinates')
-        lo = QresBlock2(30,activation=keras.activations.tanh,dtype=tf_dtype)(inputs)
+        lo = keras.layers.Dense(100,activation='tanh',dtype=tf_dtype)(inputs)
         for i in range(10):
-            lo = QresBlock2(30,activation=keras.activations.tanh,dtype=tf_dtype)(lo)
-        for i in range(4):
-            lo = QresBlock2(30,activation=keras.activations.tanh,dtype=tf_dtype)(lo)
-        for i in range(5):
-            lo = QresBlock(100,activation=keras.activations.tanh,dtype=tf_dtype)(lo)
+            lo = keras.layers.Dense(100,activation='tanh',dtype=tf_dtype)(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         model_RANS.summary()

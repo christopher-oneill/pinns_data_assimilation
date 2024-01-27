@@ -599,7 +599,7 @@ supersample_factor = int(sys.argv[2])
 job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_boundary_test_{:03d}_S{:d}'.format(job_number,supersample_factor)
+job_name = 'mfg_boundary_test_local_{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 job_duration = timedelta(hours=job_hours,minutes=0)
 end_time = start_time+job_duration
@@ -805,7 +805,7 @@ ScalingParameters.data_loss_coefficient = tf.cast(1.0,tf_dtype)
 
 global colloc_vector
 boundary_tuple = boundary_points_function(360,200)
-colloc_vector = colloc_points_function(40000,20000)
+colloc_vector = colloc_points_function(10000,5000)
 
 global training_steps
 global model_RANS
@@ -851,7 +851,6 @@ history_list = []
 
 
 
-
 if True:
     last_epoch_time = datetime.now()
     average_epoch_time=timedelta(minutes=10)
@@ -859,7 +858,7 @@ if True:
     import tensorflow_probability as tfp
     L_iter = 0
     boundary_tuple = boundary_points_function(720,200)
-    colloc_vector = colloc_points_function(40000,20000) # one A100 max = 60k?
+    colloc_vector = colloc_points_function(10000,5000) # one A100 max = 60k?
     func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
     init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
             
