@@ -861,7 +861,7 @@ if True:
             
     while True:
         
-            
+        last_epoch_time = datetime.now()
         # train the model with L-BFGS solver
         results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=LBFGS_steps,f_relative_tolerance=1E-16,stopping_condition=tfp.optimizer.converged_all)
         func.assign_new_model_parameters(results.position)
