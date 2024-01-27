@@ -599,7 +599,7 @@ supersample_factor = int(sys.argv[2])
 job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_boundary_dense_{:03d}_S{:d}'.format(job_number,supersample_factor)
+job_name = 'mfg_boundary_qres_{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 job_duration = timedelta(hours=job_hours,minutes=0)
 end_time = start_time+job_duration
