@@ -396,11 +396,11 @@ def RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple):
 # define the collocation points
 
 def colloc_points_function(a,b):
-    colloc_limits2 = np.array([[-2.0,10.0],[-2.0,2.0]])
+    colloc_limits2 = np.array([[2.0,10.0],[-2.0,2.0]])
     colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
     colloc_lhs2 = colloc_sample_lhs2(a)
 
-    colloc_limits3 = np.array([[-1.0,2.0],[-1.0,1.0]])
+    colloc_limits3 = np.array([[-1.0,2.0],[-2.0,2.0]])
     colloc_sample_lhs3 = LHS(xlimits=colloc_limits3)
     colloc_lhs3 = colloc_sample_lhs3(b)
 
@@ -845,7 +845,12 @@ saveFig=True
 
 history_list = []
 
-
+if node_name == LOCAL_NODE:
+    plot_err()
+    plot_NS_residual()
+    plot_large()
+    plot_NS_large()
+    exit()
 
 
 if True:

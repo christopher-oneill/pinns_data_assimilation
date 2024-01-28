@@ -396,11 +396,11 @@ def RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple):
 # define the collocation points
 
 def colloc_points_function(a,b):
-    colloc_limits2 = np.array([[-2.0,10.0],[-2.0,2.0]])
+    colloc_limits2 = np.array([[4.0,10.0],[-2.0,2.0]])
     colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
     colloc_lhs2 = colloc_sample_lhs2(a)
 
-    colloc_limits3 = np.array([[-1.0,2.0],[-1.0,1.0]])
+    colloc_limits3 = np.array([[-2.0,4.0],[-2.0,2.0]])
     colloc_sample_lhs3 = LHS(xlimits=colloc_limits3)
     colloc_lhs3 = colloc_sample_lhs3(b)
 
@@ -599,7 +599,7 @@ supersample_factor = int(sys.argv[2])
 job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_boundary_qres_{:03d}_S{:d}'.format(job_number,supersample_factor)
+job_name = 'mfg_boundary_dense2_{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 job_duration = timedelta(hours=job_hours,minutes=0)
 end_time = start_time+job_duration
@@ -805,7 +805,7 @@ ScalingParameters.data_loss_coefficient = tf.cast(1.0,tf_dtype)
 
 global colloc_vector
 boundary_tuple = boundary_points_function(360,200)
-colloc_vector = colloc_points_function(40000,20000)
+colloc_vector = colloc_points_function(10000,50000)
 
 global training_steps
 global model_RANS
@@ -826,9 +826,9 @@ else:
     training_steps = 0
     with tf.device(tf_device_string):        
         inputs = keras.Input(shape=(2,),name='coordinates')
-        lo = QresBlock(71,activation=keras.activations.tanh,dtype=tf_dtype)(inputs)
+        lo = keras.layers.Dense(100,activation='tanh',dtype=tf_dtype)(inputs)
         for i in range(10):
-            lo = QresBlock(71,activation=keras.activations.tanh,dtype=tf_dtype)(lo)
+            lo = keras.layers.Dense(100,activation='tanh',dtype=tf_dtype)(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         model_RANS.summary()
@@ -845,12 +845,7 @@ saveFig=True
 
 history_list = []
 
-if node_name == LOCAL_NODE:
-    plot_err()
-    plot_NS_residual()
-    plot_large()
-    plot_NS_large()
-    exit()
+
 
 
 if True:
@@ -860,7 +855,7 @@ if True:
     import tensorflow_probability as tfp
     L_iter = 0
     boundary_tuple = boundary_points_function(720,200)
-    colloc_vector = colloc_points_function(40000,20000) # one A100 max = 60k?
+    colloc_vector = colloc_points_function(10000,50000) # one A100 max = 60k?
     func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
     init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
             
@@ -873,6 +868,7 @@ if True:
         init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables) # we need to reasign the parameters otherwise we start from the beginning each time
         training_steps = training_steps + LBFGS_epochs
         L_iter = L_iter+1
+            
         # after training, the final optimized parameters are still in results.position
         # so we have to manually put them back to the model
  
@@ -886,7 +882,7 @@ if True:
         if np.mod(L_iter,10)==0:
             save_model()
             boundary_tuple = boundary_points_function(720,200)
-            colloc_vector = colloc_points_function(40000,20000)
+            colloc_vector = colloc_points_function(10000,50000)
             func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
             init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
 

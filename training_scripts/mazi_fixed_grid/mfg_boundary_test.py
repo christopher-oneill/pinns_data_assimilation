@@ -849,6 +849,13 @@ saveFig=True
 
 history_list = []
 
+if node_name == LOCAL_NODE:
+    plot_err()
+    plot_NS_residual()
+    plot_large()
+    plot_NS_large()
+    exit()
+
 
 
 
