@@ -342,8 +342,9 @@ def RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,colloc_tensor):
     f_x = (ux*ux_x + uy*ux_y) + (uxux_x + uxuy_y) + p_x - (ScalingParameters.nu_mol)*(ux_xx+ux_yy)  #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
     f_y = (ux*uy_x + uy*uy_y) + (uxuy_x + uyuy_y) + p_y - (ScalingParameters.nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
     f_mass = ux_x + uy_y
+    f_cr = tf.multiply(tf.math.less(uxux,tf.cast(0.0,tf_dtype)),tf.abs(uxux))+tf.multiply(tf.math.less(uyuy,tf.cast(0.0,tf_dtype)),tf.abs(uyuy)) # tr(ReStress)>0 by defn
     
-    return f_x, f_y, f_mass
+    return f_x, f_y, f_mass, f_cr
 
 def batch_RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,colloc_tensor,batch_size=1000):
     n_batch = np.int64(np.ceil(colloc_tensor.shape[0]/(1.0*batch_size)))
@@ -368,11 +369,12 @@ def batch_RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,colloc_ten
 
 @tf.function
 def RANS_physics_loss(model_RANS,ScalingParameters,colloc_points,): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
-    mx,my,mass = RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,colloc_points)
+    mx,my,mass,cr = RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,colloc_points)
     physical_loss1 = tf.reduce_mean(tf.square(mx))
     physical_loss2 = tf.reduce_mean(tf.square(my))
     physical_loss3 = tf.reduce_mean(tf.square(mass))
-    physics_loss = physical_loss1 + physical_loss2 + physical_loss3
+    constraint_loss = tf.reduce_mean(tf.square(cr)) # non-negative reynolds stresses
+    physics_loss = physical_loss1 + physical_loss2 + physical_loss3 + constraint_loss
     return physics_loss
 
 
