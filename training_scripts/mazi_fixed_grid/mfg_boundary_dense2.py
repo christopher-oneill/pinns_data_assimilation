@@ -342,7 +342,7 @@ def RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,colloc_tensor):
     f_x = (ux*ux_x + uy*ux_y) + (uxux_x + uxuy_y) + p_x - (ScalingParameters.nu_mol)*(ux_xx+ux_yy)  #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
     f_y = (ux*uy_x + uy*uy_y) + (uxuy_x + uyuy_y) + p_y - (ScalingParameters.nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
     f_mass = ux_x + uy_y
-    f_cr = tf.multiply(tf.cast(tf.math.less(uxux,tf.cast(0.0,tf_dtype),tf.dtype)),tf.abs(uxux))+tf.multiply(tf.cast(tf.math.less(uyuy,tf.cast(0.0,tf_dtype)),tf_dtype),tf.abs(uyuy)) # tr(ReStress)>0 by defn
+    f_cr = tf.multiply(tf.cast(tf.math.less(uxux,tf.cast(0.0,tf_dtype),tf_dtype)),tf.abs(uxux))+tf.multiply(tf.cast(tf.math.less(uyuy,tf.cast(0.0,tf_dtype)),tf_dtype),tf.abs(uyuy)) # tr(ReStress)>0 by defn
     
     return f_x, f_y, f_mass, f_cr
 
