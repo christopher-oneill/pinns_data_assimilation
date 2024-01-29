@@ -284,6 +284,15 @@ def BC_RANS_wall(model_RANS,ScalingParameters,BC_points):
 
     return tf.reduce_sum(tf.square(ux)+tf.square(uy)+tf.square(uxppuxpp)+tf.square(uxppuypp)+tf.square(uyppuypp)) #+tf.square(grad_p_norm)
 
+@tf.function
+def BC_inlet_data(model_RANS,ScalingParameters,BC_points):
+    
+    inlet_coord = BC_points[:,0:2] # already normalized by MAX_x
+    inlet_data = BC_points[:,2:7] # already normalized per component
+
+    up = model_RANS(inlet_coord)
+    # knowns
+    return tf.reduce_sum(tf.reduce_mean(tf.square(up[:,0:5]-inlet_data),axis=0))
 
 @tf.function
 def RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,colloc_tensor):
@@ -342,7 +351,7 @@ def RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,colloc_tensor):
     f_x = (ux*ux_x + uy*ux_y) + (uxux_x + uxuy_y) + p_x - (ScalingParameters.nu_mol)*(ux_xx+ux_yy)  #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
     f_y = (ux*uy_x + uy*uy_y) + (uxuy_x + uyuy_y) + p_y - (ScalingParameters.nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
     f_mass = ux_x + uy_y
-    f_cr = tf.multiply(tf.cast(tf.math.less(uxux,tf.cast(0.0,tf_dtype),tf_dtype)),tf.abs(uxux))+tf.multiply(tf.cast(tf.math.less(uyuy,tf.cast(0.0,tf_dtype)),tf_dtype),tf.abs(uyuy)) # tr(ReStress)>0 by defn
+    f_cr = tf.multiply(tf.cast(tf.math.less(uxux,tf.cast(0.0,tf_dtype)),tf_dtype),tf.abs(uxux))+tf.multiply(tf.cast(tf.math.less(uyuy,tf.cast(0.0,tf_dtype)),tf_dtype),tf.abs(uyuy)) # tr(ReStress)>0 by defn
     
     return f_x, f_y, f_mass, f_cr
 
@@ -382,14 +391,15 @@ def RANS_physics_loss(model_RANS,ScalingParameters,colloc_points,): # def custom
 
 @tf.function
 def RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple):
-    (BC_p,BC_wall,BC_cylinder_inside_pts) = boundary_tuple
+    (BC_p,BC_wall,BC_cylinder_inside_pts,BC_inlet_pts) = boundary_tuple
 
 
     BC_pressure_loss = BC_RANS_reynolds_stress_pressure(model_RANS,BC_p) 
     BC_wall_loss = BC_RANS_wall(model_RANS,ScalingParameters,BC_wall)
     BC_cylinder_inside_loss = BC_cylinder_inside(model_RANS,ScalingParameters,BC_cylinder_inside_pts)
+    BC_inlet_loss = BC_inlet_data(model_RANS,ScalingParameters,BC_inlet_pts)
                        
-    boundary_loss = (BC_wall_loss + BC_pressure_loss + BC_cylinder_inside_loss) #  + BC_wall2 +   + BC_cylinder_inside_loss + BC_inlet_loss2
+    boundary_loss = (BC_wall_loss + BC_pressure_loss + BC_cylinder_inside_loss+tf.cast(10.0,tf_dtype)*BC_inlet_loss) #  + BC_wall2 +   + BC_cylinder_inside_loss + BC_inlet_loss2
     return boundary_loss
 
 
@@ -442,8 +452,11 @@ def boundary_points_function(cyl,inside):
     cylinder_inside_vec[:,0] = cylinder_inside_vec[:,0]/ScalingParameters.MAX_x
     cylinder_inside_vec[:,1] = cylinder_inside_vec[:,1]/ScalingParameters.MAX_y
 
+    # inlet BC coords and pts
+    inlet_vec = np.stack((inlet_x,inlet_y,inlet_ux,inlet_uy,inlet_uxux,inlet_uxuy,inlet_uyuy),axis=1)
+
     # random points outside the domain for no reynolds stress condition
-    boundary_tuple = (tf.cast(p_BC_vec,tf_dtype),tf.cast(cyl_BC_vec,tf_dtype),tf.cast(cylinder_inside_vec,tf_dtype))
+    boundary_tuple = (tf.cast(p_BC_vec,tf_dtype),tf.cast(cyl_BC_vec,tf_dtype),tf.cast(cylinder_inside_vec,tf_dtype),tf.cast(inlet_vec,tf_dtype))
     return boundary_tuple
 
 # training functions
@@ -726,14 +739,13 @@ o_test_grid = np.reshape(np.hstack((ux.reshape(-1,1)/MAX_ux,uy.reshape(-1,1)/MAX
 # copy inlet data
 inds_inlet_data = np.concatenate((np.nonzero(x==MIN_x)[0],np.nonzero(y==MAX_y)[0],np.nonzero(y==MIN_y)[0]),axis=0)
 
-inlet_x = x[inds_inlet_data]
-inlet_x = x[inds_inlet_data]
-inlet_y = y[inds_inlet_data]
-inlet_ux = ux[inds_inlet_data]
-inlet_uy = uy[inds_inlet_data]
-inlet_uxux = uxux[inds_inlet_data]
-inlet_uxuy = uxuy[inds_inlet_data]
-inlet_uyuy = uyuy[inds_inlet_data]
+inlet_x = x[inds_inlet_data]/MAX_x
+inlet_y = y[inds_inlet_data]/MAX_x
+inlet_ux = ux[inds_inlet_data]/MAX_ux
+inlet_uy = uy[inds_inlet_data]/MAX_uy
+inlet_uxux = uxux[inds_inlet_data]/MAX_uxux
+inlet_uxuy = uxuy[inds_inlet_data]/MAX_uxuy
+inlet_uyuy = uyuy[inds_inlet_data]/MAX_uyuy
 
 # if we are downsampling and then upsampling, downsample the source data
 if supersample_factor>1:
@@ -759,13 +771,13 @@ uxuy = np.delete(uxuy,cylinder_mask,axis=0)
 uyuy = np.delete(uyuy,cylinder_mask,axis=0)
 
 # re append the inlet data
-x = np.concatenate((x,inlet_x),axis=0)
-y = np.concatenate((y,inlet_y),axis=0)
-ux = np.concatenate((ux,inlet_ux),axis=0)
-uy = np.concatenate((uy,inlet_uy),axis=0)
-uxux = np.concatenate((uxux,inlet_uxux),axis=0)
-uxuy = np.concatenate((uxuy,inlet_uxuy),axis=0)
-uyuy = np.concatenate((uyuy,inlet_uyuy),axis=0)
+#x = np.concatenate((x,inlet_x),axis=0)
+#y = np.concatenate((y,inlet_y),axis=0)
+#ux = np.concatenate((ux,inlet_ux),axis=0)
+#uy = np.concatenate((uy,inlet_uy),axis=0)
+#uxux = np.concatenate((uxux,inlet_uxux),axis=0)
+#uxuy = np.concatenate((uxuy,inlet_uxuy),axis=0)
+#uyuy = np.concatenate((uyuy,inlet_uyuy),axis=0)
 
 
 # for LBFGS we don't need to duplicate since all points and collocs are evaluated in a single step
