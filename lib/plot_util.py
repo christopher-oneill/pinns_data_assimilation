@@ -382,3 +382,89 @@ def plot_boundary_points():
     plot.scatter(domain_outside_vec[:,0],domain_outside_vec[:,1],color='k',marker='.')
     plot.savefig(fig_dir+'BC_no_stress.png',dpi=300)
     plot.close(1)
+
+
+
+def plot_gradients():
+    global o_test_grid
+    global p_grid
+    global X_grid
+    global Y_grid
+
+
+    cylinder_mask = (np.power(X_grid,2.0)+np.power(Y_grid,2.0))<=np.power(d/2.0,2.0)
+
+    data_grads = np.zeros([o_test_grid.shape[0],o_test_grid.shape[1],14])
+
+    labels = ['ux_x','ux_y','uy_x','uy_y','uxux_x','uxuy_x','uxuy_y','uyuy_y','p_x','p_y','ux_xx','ux_yy','uy_xx','uy_yy']
+
+    # first derivatives of data
+    data_grads[:,:,0] = np.gradient(o_test_grid[:,:,0],X_grid[:,0],axis=0) # ux_x
+    data_grads[:,:,1] = np.gradient(o_test_grid[:,:,0],Y_grid[0,:],axis=1) # ux_y
+    data_grads[:,:,2] = np.gradient(o_test_grid[:,:,1],X_grid[:,0],axis=0) # uy_x
+    data_grads[:,:,3] = np.gradient(o_test_grid[:,:,1],Y_grid[0,:],axis=1) # uy_y
+    data_grads[:,:,4] = np.gradient(o_test_grid[:,:,2],X_grid[:,0],axis=0) # uxux_x
+    #data_uxux_y = np.gradient(o_test_grid[:,:,2],Y_grid[0,:],axis=1)
+    data_grads[:,:,5] = np.gradient(o_test_grid[:,:,3],X_grid[:,0],axis=0) # uxuy_x
+    data_grads[:,:,6] = np.gradient(o_test_grid[:,:,3],Y_grid[0,:],axis=1) # uxuy_y
+    #data_uyuy_x = np.gradient(o_test_grid[:,:,4],X_grid[:,0],axis=0)
+    data_grads[:,:,7] = np.gradient(o_test_grid[:,:,4],Y_grid[0,:],axis=1) # uyuy_y
+    data_grads[:,:,8] = np.gradient(p_grid,X_grid[:,0],axis=0) # p_x
+    data_grads[:,:,9] = np.gradient(p_grid,Y_grid[0,:],axis=1) # p_y
+
+    # second derivatives of data
+    data_grads[:,:,10] = np.gradient(data_grads[:,:,0],X_grid[:,0],axis=0) # ux_xx
+    data_grads[:,:,11] = np.gradient(data_grads[:,:,0],Y_grid[0,:],axis=1) # ux_yy
+    data_grads[:,:,12] = np.gradient(data_grads[:,:,2],X_grid[:,0],axis=0) # uy_xx
+    data_grads[:,:,13] = np.gradient(data_grads[:,:,2],Y_grid[0,:],axis=1) # uy_yy
+
+    data_grads[cylinder_mask,:]=np.NaN
+
+
+    NN_grads = RANS_gradients(model_RANS,ScalingParameters,i_test)
+    NN_grads_grid = 1.0*np.reshape(NN_grads,data_grads.shape)
+    NN_grads_grid[cylinder_mask,:]=np.NaN
+
+    for i in range(data_grads.shape[2]):
+        plot.figure(1)
+        plot.subplot(3,1,1)
+        plot.contourf(X_grid,Y_grid,data_grads[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        plot.subplot(3,1,2)
+        plot.contourf(X_grid,Y_grid,NN_grads_grid[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        plot.subplot(3,1,3)
+        plot.contourf(X_grid,Y_grid,data_grads[:,:,i]-NN_grads_grid[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        if saveFig:
+            plot.savefig(fig_dir+'ep'+str(training_steps)+'_gradients_'+labels[i]+'.png',dpi=300)
+        plot.close(1)
+    
+    # f_x = (ux*ux_x + uy*ux_y) + (uxux_x + uxuy_y) + p_x - (ScalingParameters.nu_mol)*(ux_xx+ux_yy) 
+    # f_y = (ux*uy_x + uy*uy_y) + (uxuy_x + uyuy_y) + p_y - (ScalingParameters.nu_mol)*(uy_xx+uy_yy)
+    # f_mass = ux_x + uy_y
+
+    f_x = (o_test_grid[:,0]*data_grads[:,0] + o_test_grid[:,1]*data_grads[:,1]) + (data_grads[:,4] + data_grads[:,5]) + data_grads[:,8] - (ScalingParameters.nu_mol)*(data_grads[:,10]+data_grads[:,11])  
+    f_y = (o_test_grid[:,0]*data_grads[:,2] + o_test_grid[:,1]*data_grads[:,3]) + (data_grads[:,6] + data_grads[:,7]) + data_grads[:,9] - (ScalingParameters.nu_mol)*(data_grads[:,12]+data_grads[:,13])
+    f_mass = data_grads[:,0] + data_grads[:,3]
+
+    plot.figure(1)
+    plot.subplot(3,1,1)
+    plot.contourf(X_grid,Y_grid,f_x,levels=21,norm=matplotlib.colors.CenteredNorm())
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.subplot(3,1,2)
+    plot.contourf(X_grid,Y_grid,f_y,levels=21,norm=matplotlib.colors.CenteredNorm())
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.subplot(3,1,3)
+    plot.contourf(X_grid,Y_grid,f_mass,levels=21,norm=matplotlib.colors.CenteredNorm())
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    if saveFig:
+        plot.savefig(fig_dir+'ep'+str(training_steps)+'_NS_residual_finite_difference.png',dpi=300)
+    plot.close(1)
+    

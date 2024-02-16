@@ -19,21 +19,58 @@ import sys
 import os
 import platform
 
+from scipy.interpolate import griddata
+
+def plot_inlet_contour():
+    global i_test_large
+    global X_grid_large
+    global Y_grid_large
+    global training_steps
+    global model_RANS
+    global ScalingParameters
+    plot_save_exts = ['_BC_inlet.png',]
+    cylinder_mask_large = (np.power(X_grid_large,2.0)+np.power(Y_grid_large,2.0))<=np.power(d/2.0,2.0)
+    pred_test_large = model_RANS.predict(i_test_large,batch_size=1000)
+    pred_test_large_grid = 1.0*np.reshape(pred_test_large,[X_grid_large.shape[0],X_grid_large.shape[1],6])
+    pred_test_large_grid[cylinder_mask_large,:] = np.NaN
+   
+    (BC_p,BC_wall,BC_cylinder_inside_pts,BC_inlet_pts) = boundary_tuple
+    for i in range(1):
+        plot.figure(1)
+        plot.contourf(X_grid_large,Y_grid_large,pred_test_large_grid[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        plot.scatter(BC_inlet_pts[:,0]*ScalingParameters.MAX_x,BC_inlet_pts[:,1]*ScalingParameters.MAX_y,1,'k','.')
+        plot.savefig(fig_dir+'ep'+str(training_steps)+plot_save_exts[i],dpi=300)
+        plot.close(1)
+
+
+def plot_inlet_profile():
+    (BC_p,BC_wall,BC_cylinder_inside_pts,BC_inlet_pts) = boundary_tuple
+    predicted_boundary = model_RANS.predict(BC_inlet_pts[:,0:2],batch_size=1000)
+    
+    plot_save_exts = ['_ux.png','_uy.png','_uxux.png','_uxuy.png','_uyuy.png',]
+    for i in range(5):
+        plot.figure(1)
+        plot.scatter(np.linspace(-1,1,BC_inlet_pts.shape[0]),BC_inlet_pts[:,2+i],1,'k','.')
+        plot.scatter(np.linspace(-1,1,predicted_boundary.shape[0]),predicted_boundary[:,i],1,'r','.')
+        plot.savefig(fig_dir+'ep'+str(training_steps)+'_BC_inlet_profile'+plot_save_exts[i],dpi=300)
+        plot.close(1)
 
 def plot_NS_residual():
     # NS residual
-    global X_grid
-    global Y_grid
+    global X_plot
+    global Y_plot
     global model_RANS
     global ScalingParameters
     global i_test
-    cylinder_mask = (np.power(X_grid,2.0)+np.power(Y_grid,2.0))<=np.power(d/2.0,2.0)
-    mx,my,mass = batch_RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,tf.cast(i_test,tf_dtype),1000)
-    mx = 1.0*np.reshape(mx,X_grid.shape)
+    cylinder_mask = (np.power(X_plot,2.0)+np.power(Y_plot,2.0))<=np.power(d/2.0,2.0)
+    mx,my,mass = batch_RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,tf.cast(tf.stack((X_plot.ravel()/MAX_x,Y_plot.ravel()/MAX_x),1),tf_dtype),1000)
+    mx = 1.0*np.reshape(mx,X_plot.shape)
     mx[cylinder_mask] = np.NaN
-    my = 1.0*np.reshape(my,X_grid.shape)
+    my = 1.0*np.reshape(my,X_plot.shape)
     my[cylinder_mask] = np.NaN
-    mass = 1.0*np.reshape(mass,X_grid.shape)
+    mass = 1.0*np.reshape(mass,X_plot.shape)
     mass[cylinder_mask] = np.NaN
 
     plot.figure(training_steps)
@@ -43,7 +80,7 @@ def plot_NS_residual():
     mx_max = np.nanpercentile(mx.ravel(),99.9)
     mx_level = np.max([abs(mx_min),abs(mx_max)])
     mx_levels = np.linspace(-mx_level,mx_level,21)
-    plot.contourf(X_grid,Y_grid,mx,levels=mx_levels,extend='both')
+    plot.contourf(X_plot,Y_plot,mx,levels=mx_levels,extend='both')
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.subplot(3,1,2)
@@ -51,7 +88,7 @@ def plot_NS_residual():
     my_max = np.nanpercentile(my.ravel(),99.9)
     my_level = np.max([abs(my_min),abs(my_max)])
     my_levels = np.linspace(-my_level,my_level,21)
-    plot.contourf(X_grid,Y_grid,my,levels=my_levels,extend='both')
+    plot.contourf(X_plot,Y_plot,my,levels=my_levels,extend='both')
     plot.set_cmap('bwr')
     plot.colorbar()
     plot.subplot(3,1,3)
@@ -59,7 +96,7 @@ def plot_NS_residual():
     mass_max = np.nanpercentile(mass.ravel(),99.9)
     mass_level = np.max([abs(mass_min),abs(mass_max)])
     mass_levels = np.linspace(-mass_level,mass_level,21)
-    plot.contourf(X_grid,Y_grid,mass,levels=mass_levels,extend='both')
+    plot.contourf(X_plot,Y_plot,mass,levels=mass_levels,extend='both')
     plot.set_cmap('bwr')
     plot.colorbar()
     if saveFig:
@@ -67,10 +104,9 @@ def plot_NS_residual():
 
 
 def plot_err():
-    global p_grid
-    global X_grid
-    global Y_grid
     global i_test
+    global X_plot
+    global Y_plot
     
     global o_test_grid
     global saveFig
@@ -80,49 +116,97 @@ def plot_err():
     global training_steps
     global ScalingParameters
 
-    cylinder_mask = (np.power(X_grid,2.0)+np.power(Y_grid,2.0))<=np.power(d/2.0,2.0)
+    cylinder_mask = (np.power(X_plot,2.0)+np.power(Y_plot,2.0))<=np.power(d/2.0,2.0)
 
-    o_test_grid_temp = np.zeros([X_grid.shape[0],X_grid.shape[1],6])
-    o_test_grid_temp[:,:,0:5] = 1.0*o_test_grid
-    o_test_grid_temp[:,:,5]=1.0*p_grid
+    o_test_grid_temp = 1.0*o_test_grid
     o_test_grid_temp[cylinder_mask,:] = np.NaN
 
-    pred_test = model_RANS(i_test[:],training=False)
-    
-    pred_test_grid = 1.0*np.reshape(pred_test,[X_grid.shape[0],X_grid.shape[1],6])
+    pred_test = model_RANS(i_test,training=False)
+    # interpolate the predicted data
+    pred_test_grid = np.zeros([X_plot.shape[0],X_plot.shape[1],o_test.shape[1]])
+    for c in range(o_test.shape[1]):
+        pred_test_grid[:,:,c] = np.reshape(griddata(i_test*ScalingParameters.MAX_x,pred_test[:,c],np.stack((X_plot.ravel(),Y_plot.ravel()),1)),X_plot.shape)
     pred_test_grid[cylinder_mask,:] = np.NaN
+
+    err_test = o_test-pred_test
+    # interpolate the error
+    err_test_grid = np.zeros([X_plot.shape[0],X_plot.shape[1],o_test.shape[1]])
+    for c in range(o_test.shape[1]):
+        err_test_grid[:,:,c] = np.reshape(griddata(i_test*ScalingParameters.MAX_x,err_test[:,c],np.stack((X_plot.ravel(),Y_plot.ravel()),1)),X_plot.shape)
+    err_test_grid[cylinder_mask,:] = np.NaN
 
     plot.close('all')
 
     i_train_plot = i_train_LBFGS*ScalingParameters.MAX_x
 
-    err_test = o_test_grid_temp-pred_test_grid
     plot_save_exts = ['_ux.png','_uy.png','_uxux.png','_uxuy.png','_uyuy.png','_p.png']
     # quantities
     for i in range(6):
         plot.figure(1)
-        plot.title('Full Resolution')
         plot.subplot(3,1,1)
-        plot.contourf(X_grid,Y_grid,o_test_grid_temp[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
+        plot.contourf(X_plot,Y_plot,o_test_grid_temp[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
         plot.set_cmap('bwr')
         plot.colorbar()
         if supersample_factor>1:
             plot.scatter(i_train_plot[:,0],i_train_plot[:,1],2,'k','.')
         
         plot.subplot(3,1,2)
-        plot.contourf(X_grid,Y_grid,pred_test_grid[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
+        plot.contourf(X_plot,Y_plot,pred_test_grid[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
         plot.set_cmap('bwr')
         plot.colorbar()
         plot.subplot(3,1,3)
-        e_test_min = np.nanpercentile(err_test[:,:,i].ravel(),0.1)
-        e_test_max = np.nanpercentile(err_test[:,:,i].ravel(),99.9)
+        e_test_min = np.nanpercentile(err_test_grid[:,:,i].ravel(),0.1)
+        e_test_max = np.nanpercentile(err_test_grid[:,:,i].ravel(),99.9)
         e_test_level = np.max([abs(e_test_min),abs(e_test_max)])
         e_test_levels = np.linspace(-e_test_level,e_test_level,21)
-        plot.contourf(X_grid,Y_grid,err_test[:,:,i],levels=e_test_levels,extend='both')
+        plot.contourf(X_plot,Y_plot,err_test_grid[:,:,i],levels=e_test_levels,extend='both')
         plot.set_cmap('bwr')
         plot.colorbar()
         if saveFig:
             plot.savefig(fig_dir+'ep'+str(training_steps)+plot_save_exts[i],dpi=300)
+        plot.close(1)
+
+    # also plot the profiles
+    profile_locations = np.linspace(-1.5,9.5,22) # spacing of 1.0
+    X_line_locations = X_plot[0,:]
+    X_distance_matrix = np.power(np.power(np.reshape(X_line_locations,[X_line_locations.size,1])-np.reshape(profile_locations,[1,profile_locations.size]),2.0),0.5)
+    # find index of closest data line
+    line_inds = np.argmin(X_distance_matrix,axis=0)
+    profile_locations = X_plot[0,line_inds]
+
+    #point_locations = np.linspace(-2,2,40)
+    #Y_line_locations = Y_plot[:,0]
+    #Y_distance_matrix = np.power(np.power(np.reshape(Y_line_locations,[Y_line_locations.size,1])-np.reshape(point_locations,[1,point_locations.size]),2.0),0.5)
+    #point_inds = np.argmin(Y_distance_matrix,axis=0)
+    point_locations = Y_plot[:,0]
+
+    plot_save_exts2 = ['_ux_profile.png','_uy_profile.png','_uxux_profile.png','_uxuy_profile.png','_uyuy_profile.png','_p_profile.png']
+    x_offset = np.array([-1,0,0,0,0,0])
+    x_scale = np.array([0.5,0.5,0.5,0.5,0.5,0.5])
+    err_scale = np.nanmax(np.abs(err_test_grid),axis=(0,1))
+    
+    for i in range(6):
+        plot.figure(1)
+        plot.subplot(3,1,1)
+        plot.contourf(X_plot,Y_plot,o_test_grid_temp[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
+        
+        plot.set_cmap('bwr')
+        plot.xlim(-2,10)
+        
+        plot.subplot(3,1,2)
+        for k in range(profile_locations.shape[0]):
+            plot.plot(np.zeros(point_locations.shape)+profile_locations[k],point_locations,'--k',linewidth=0.5)
+            plot.plot((o_test_grid_temp[:,line_inds[k],i]+x_offset[i])*x_scale[i]+profile_locations[k],point_locations,'-k',linewidth=0.5)
+            plot.plot((pred_test_grid[:,line_inds[k],i]+x_offset[i])*x_scale[i]+profile_locations[k],point_locations,'-r',linewidth=0.5)
+        plot.xlim(-2,10)
+        plot.subplot(3,1,3)
+        for k in range(profile_locations.shape[0]):
+            plot.plot(np.zeros(point_locations.shape)+profile_locations[k],point_locations,'--k',linewidth=0.5)
+            plot.plot((0.5/err_scale[i])*err_test_grid[:,line_inds[k],i]+profile_locations[k],point_locations,'-r',linewidth=0.5)
+        plot.text(4.5,1.7,"x-Scaled by (0.5/MaxErr). MaxErr={txterr:.4f}".format(txterr=err_scale[i]),fontsize=7.0)
+        plot.xlim(-2,10)
+        if saveFig:
+            plot.savefig(fig_dir+'ep'+str(training_steps)+plot_save_exts2[i],dpi=300)
         plot.close(1)
 
 def plot_large():
@@ -199,14 +283,6 @@ def plot_NS_large():
 # plotting functions
 # save and load functions
 
-def save_model():
-    global i_test
-    global savedir
-    global ScalingParameters
-    global training_steps
-    global model_RANS
-    model_RANS.save(savedir+job_name+'_ep'+str(np.uint(training_steps))+'_model.h5')
-
 def save_pred():
     global i_test
     global savedir
@@ -225,8 +301,13 @@ def save_pred():
         h5f.close()
 
 def load_custom():
-    checkpoint_filename,training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','_model.h5')
-    model_RANS = keras.models.load_model(checkpoint_filename,custom_objects={'QresBlock2':QresBlock2,'QresBlock':QresBlock,})
+    # get the model from the model file
+    model_file = get_filepaths_with_glob(PROJECTDIR+'/output/'+job_name+'/',job_name+'_model.h5')
+    model_RANS = keras.models.load_model(model_file[0],custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer})
+    # get the most recent set of weights
+    checkpoint_filename,training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','.weights.h5')
+    if checkpoint_filename is not None:
+        model_RANS.load_weights(checkpoint_filename)
     model_RANS.summary()
     print('Model Loaded. Epoch',str(training_steps))
     #optimizer.build(model_RANS.trainable_variables)
@@ -282,7 +363,7 @@ def BC_RANS_wall(model_RANS,ScalingParameters,BC_points):
     #p_y = dp[:,1]/ScalingParameters.MAX_y
     #grad_p_norm = p_x*tf.cos(wall_angle)+p_y*tf.sin(wall_angle)
 
-    return tf.reduce_sum(tf.square(ux)+tf.square(uy)+tf.square(uxppuxpp)+tf.square(uxppuypp)+tf.square(uyppuypp)) #+tf.square(grad_p_norm)
+    return tf.reduce_sum(tf.reduce_mean(tf.square(ux))+tf.reduce_mean(tf.square(uy))+tf.reduce_mean(tf.square(uxppuxpp))+tf.reduce_mean(tf.square(uxppuypp))+tf.reduce_mean(tf.square(uyppuypp))) #+tf.square(grad_p_norm)
 
 @tf.function
 def BC_inlet_data(model_RANS,ScalingParameters,BC_points):
@@ -391,15 +472,15 @@ def RANS_physics_loss(model_RANS,ScalingParameters,colloc_points,): # def custom
 
 @tf.function
 def RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple):
-    (BC_p,BC_wall,BC_cylinder_inside_pts,BC_inlet_pts) = boundary_tuple
+    (BC_p,BC_wall,BC_cylinder_inside_pts) = boundary_tuple
 
 
     BC_pressure_loss = BC_RANS_reynolds_stress_pressure(model_RANS,BC_p) 
     BC_wall_loss = BC_RANS_wall(model_RANS,ScalingParameters,BC_wall)
     BC_cylinder_inside_loss = BC_cylinder_inside(model_RANS,ScalingParameters,BC_cylinder_inside_pts)
-    BC_inlet_loss = BC_inlet_data(model_RANS,ScalingParameters,BC_inlet_pts)
+    #BC_inlet_loss = BC_inlet_data(model_RANS,ScalingParameters,BC_inlet_pts)
                        
-    boundary_loss = (BC_wall_loss + BC_pressure_loss + BC_cylinder_inside_loss+tf.cast(10.0,tf_dtype)*BC_inlet_loss) #  + BC_wall2 +   + BC_cylinder_inside_loss + BC_inlet_loss2
+    boundary_loss = (BC_wall_loss + BC_pressure_loss + BC_cylinder_inside_loss) #  + BC_wall2 +   + BC_cylinder_inside_loss + BC_inlet_loss2
     return boundary_loss
 
 
@@ -453,42 +534,38 @@ def boundary_points_function(cyl,inside):
     cylinder_inside_vec[:,1] = cylinder_inside_vec[:,1]/ScalingParameters.MAX_y
 
     # inlet BC coords and pts
-    inlet_vec = np.stack((inlet_x,inlet_y,inlet_ux,inlet_uy,inlet_uxux,inlet_uxuy,inlet_uyuy),axis=1)
+    #inlet_vec = np.stack((inlet_x,inlet_y,inlet_ux,inlet_uy,inlet_uxux,inlet_uxuy,inlet_uyuy),axis=1)
 
     # random points outside the domain for no reynolds stress condition
-    boundary_tuple = (tf.cast(p_BC_vec,tf_dtype),tf.cast(cyl_BC_vec,tf_dtype),tf.cast(cylinder_inside_vec,tf_dtype),tf.cast(inlet_vec,tf_dtype))
+    boundary_tuple = (tf.cast(p_BC_vec,tf_dtype),tf.cast(cyl_BC_vec,tf_dtype),tf.cast(cylinder_inside_vec,tf_dtype)) # tf.cast(inlet_vec,tf_dtype)
     return boundary_tuple
 
 # training functions
 
 @tf.function
-def compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters):
+def compute_loss_pre(x,y,colloc_x,boundary_tuple,ScalingParameters):
+    # pre training version with only data loss
     y_pred = model_RANS(x,training=True)
-    data_loss = ScalingParameters.data_loss_coefficient*tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:5]-y),axis=0),axis=0) 
-    physics_loss = ScalingParameters.physics_loss_coefficient*RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) #tf.cast(0.0,tf_dtype)#
-    boundary_loss = ScalingParameters.boundary_loss_coefficient*RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple)
+    data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:5]-y),axis=0),axis=0) 
+    physics_loss = tf.cast(0.0E-12,tf_dtype)
+    boundary_loss = tf.cast(0.0E-12,tf_dtype)
 
-    total_loss = data_loss + physics_loss + boundary_loss
+    total_loss = ScalingParameters.data_loss_coefficient*data_loss
     return total_loss, data_loss, physics_loss, boundary_loss
 
-# define the training functions
 @tf.function
-def train_step(x,y,colloc_x,boundary_tuple,ScalingParameters):
+def train_step_pre(x,y,colloc_x,boundary_tuple,ScalingParameters):
     with tf.GradientTape() as tape:
-        total_loss ,data_loss, physics_loss, boundary_loss = compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters)
+        total_loss ,data_loss, physics_loss, boundary_loss = compute_loss_pre(x,y,colloc_x,boundary_tuple,ScalingParameters)
 
     grads = tape.gradient(total_loss,model_RANS.trainable_weights)
     optimizer.apply_gradients(zip(grads,model_RANS.trainable_weights))
     return total_loss, data_loss, physics_loss, boundary_loss
 
-def fit_epoch(i_train,o_train,colloc_tuple,boundary_tuple,ScalingParameters):
+def fit_epoch_pre(i_train,o_train,colloc_vector,boundary_tuple,ScalingParameters):
     global training_steps
     batches = np.int64(np.ceil(i_train.shape[0]/(1.0*ScalingParameters.batch_size)))
-    # sort colloc_points by error
-    (colloc_grad,colloc_rand) = colloc_tuple
-    assert(colloc_grad.shape[0]==batches*ScalingParameters.colloc_batch_size)
-    assert(colloc_rand.shape[0]==batches*ScalingParameters.colloc_batch_size)
-    #i_sampled,o_sampled = data_sample_by_err(i_train,o_train,i_train.shape[0])
+
     i_sampled = i_train
     o_sampled = o_train
     
@@ -503,10 +580,161 @@ def fit_epoch(i_train,o_train,colloc_tuple,boundary_tuple,ScalingParameters):
         
         i_batch = i_sampled[(batch*ScalingParameters.batch_size):np.min([(batch+1)*ScalingParameters.batch_size,i_train.shape[0]]),:]
         o_batch = o_sampled[(batch*ScalingParameters.batch_size):np.min([(batch+1)*ScalingParameters.batch_size,o_train.shape[0]]),:]
-        colloc_grad_batch = colloc_grad[(batch*ScalingParameters.colloc_batch_size):np.min([(batch+1)*ScalingParameters.colloc_batch_size,colloc_grad.shape[0]]),:]
-        colloc_rand_batch = colloc_rand[(batch*ScalingParameters.colloc_batch_size):np.min([(batch+1)*ScalingParameters.colloc_batch_size,colloc_rand.shape[0]]),:]
 
-        loss_value, data_loss, physics_loss, boundary_loss = train_step(tf.cast(i_batch,tf_dtype),tf.cast(o_batch,tf_dtype),tf.cast(tf.concat((i_batch,colloc_grad_batch,colloc_rand_batch),axis=0),tf_dtype),sample_boundary(ScalingParameters,boundary_tuple),ScalingParameters) #
+        loss_value, data_loss, physics_loss, boundary_loss = train_step_pre(tf.cast(i_batch,tf_dtype),tf.cast(o_batch,tf_dtype),tf.cast(colloc_vector,tf_dtype),boundary_tuple,ScalingParameters) #
+        loss_vec[batch] = loss_value.numpy()
+        data_vec[batch] = data_loss.numpy()
+        physics_vec[batch] = physics_loss.numpy()
+        boundary_vec[batch] = boundary_loss.numpy()
+
+    training_steps = training_steps+1
+    print('Epoch',str(training_steps),f" Loss: {np.mean(loss_vec):.6e}",f" Data loss: {np.mean(data_vec):.6e}")
+    print(f" Physics loss: {np.mean(physics_vec):.6e}",f" Boundary loss: {np.mean(boundary_vec):.6e}",)
+
+def train_LBFGS_pre(model,x,y,colloc_x,boundary_tuple,ScalingParameters):
+    """A factory to create a function required by tfp.optimizer.lbfgs_minimize.
+    Args:
+        model [in]: an instance of `tf.keras.Model` or its subclasses.
+        loss [in]: a function with signature loss_value = loss(pred_y, true_y).
+        train_x [in]: the input part of training data.
+        train_y [in]: the output part of training data.
+    Returns:
+        A function that has a signature of:
+            loss_value, gradients = f(model_parameters).
+    """
+
+    # obtain the shapes of all trainable parameters in the model
+    shapes = tf.shape_n(model.trainable_variables)
+    n_tensors = len(shapes)
+
+    # we'll use tf.dynamic_stitch and tf.dynamic_partition later, so we need to
+    # prepare required information first
+    count = 0
+    idx = [] # stitch indices
+    part = [] # partition indices
+
+    for i, shape in enumerate(shapes):
+        n = np.product(shape)
+        idx.append(tf.reshape(tf.range(count, count+n, dtype=tf.int32), shape))
+        part.extend([i]*n)
+        count += n
+
+    part = tf.constant(part)
+
+    @tf.function
+    def assign_new_model_parameters(params_1d):
+        """A function updating the model's parameters with a 1D tf.Tensor.
+        Args:
+            params_1d [in]: a 1D tf.Tensor representing the model's trainable parameters.
+        """
+
+        params = tf.dynamic_partition(params_1d, part, n_tensors)
+        for i, (shape, param) in enumerate(zip(shapes, params)):
+            model.trainable_variables[i].assign(tf.reshape(param, shape))
+
+    # now create a function that will be returned by this factory
+    @tf.function
+    def f(params_1d):
+        """A function that can be used by tfp.optimizer.lbfgs_minimize.
+        This function is created by function_factory.
+        Args:
+           params_1d [in]: a 1D tf.Tensor.
+        Returns:
+            A scalar loss and the gradients w.r.t. the `params_1d`.
+        """
+
+        # use GradientTape so that we can calculate the gradient of loss w.r.t. parameters
+        with tf.GradientTape() as tape:
+            # update the parameters in the model
+            assign_new_model_parameters(params_1d)
+            # calculate the loss
+            #loss_value = loss(model(train_x, training=True), train_y) # jvs
+            
+            loss_value = compute_loss_pre(x,y,colloc_x,boundary_tuple,ScalingParameters)[0]
+
+        # calculate gradients and convert to 1D tf.Tensor
+        grads = tape.gradient(loss_value, model.trainable_variables)
+        grads = tf.dynamic_stitch(idx, grads)
+
+        # print out iteration & loss
+        f.iter.assign_add(1)
+        tf.print("Iter:", f.iter, "loss:", loss_value)
+
+        # store loss value so we can retrieve later
+        tf.py_function(f.history.append, inp=[loss_value], Tout=[])
+
+        return loss_value, grads
+
+    # store these information as members so we can use them outside the scope
+    f.iter = tf.Variable(0)
+    f.idx = idx
+    f.part = part
+    f.shapes = shapes
+    f.assign_new_model_parameters = assign_new_model_parameters
+    f.history = []
+
+    return f
+
+
+@tf.function
+def compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters):
+    y_pred = model_RANS(x,training=True)
+    data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:5]-y),axis=0),axis=0) 
+    physics_loss = RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) 
+    boundary_loss = RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple)
+
+    # dynamic loss weighting, scale based on largest
+    max_loss = tf.exp(tf.math.ceil(tf.math.log(1E-30+tf.reduce_max(tf.stack((data_loss,physics_loss,boundary_loss))))))
+    log_data = max_loss/tf.exp(tf.math.log(1E-30+data_loss))
+    log_physics = max_loss/tf.exp(tf.math.log(1E-30+physics_loss))
+    log_boundary = max_loss/tf.exp(tf.math.log(1E-30+boundary_loss))
+
+    total_loss = ScalingParameters.data_loss_coefficient*(1+log_data)*data_loss + ScalingParameters.physics_loss_coefficient*(1+log_physics)*physics_loss + ScalingParameters.boundary_loss_coefficient*(1+log_boundary)*boundary_loss
+    return total_loss, data_loss, physics_loss, boundary_loss
+
+# define the training functions
+@tf.function
+def train_step(x,y,colloc_x,boundary_tuple,ScalingParameters):
+    with tf.GradientTape() as tape:
+        total_loss ,data_loss, physics_loss, boundary_loss = compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters)
+
+    grads = tape.gradient(total_loss,model_RANS.trainable_weights)
+    optimizer.apply_gradients(zip(grads,model_RANS.trainable_weights))
+    return total_loss, data_loss, physics_loss, boundary_loss
+
+def fit_epoch(i_train,o_train,colloc_vector,boundary_tuple,ScalingParameters):
+    global training_steps
+    batches = np.int64(np.ceil(i_train.shape[0]/(1.0*ScalingParameters.batch_size)))
+    # sort colloc_points by error
+    #i_sampled,o_sampled = data_sample_by_err(i_train,o_train,i_train.shape[0])
+    i_sampled = i_train
+    o_sampled = o_train
+
+    # randomly sample colloc points
+    colloc_rand = tf.gather(colloc_vector,np.random.choice(np.arange(colloc_vector.shape[0]),batches*ScalingParameters.colloc_batch_size),axis=0)
+
+    # randomly sample the boundary points
+    (BC_p_epoch,BC_wall_epoch,BC_cylinder_inside_pts_epoch) = boundary_tuple
+    BC_wall_rand = tf.gather(BC_wall_epoch,np.random.choice(np.arange(BC_wall_epoch.shape[0]),batches*ScalingParameters.boundary_batch_size),axis=0)
+    BC_cylinder_inside_rand = tf.gather(BC_cylinder_inside_pts_epoch,np.random.choice(np.arange(BC_cylinder_inside_pts_epoch.shape[0]),batches*ScalingParameters.boundary_batch_size),axis=0)
+
+    progbar = keras.utils.Progbar(batches)
+    loss_vec = np.zeros((batches,),np.float64)
+    data_vec = np.zeros((batches,),np.float64)
+    physics_vec = np.zeros((batches,),np.float64)
+    boundary_vec = np.zeros((batches,),np.float64)
+
+    for batch in range(batches):
+        progbar.update(batch+1)
+        
+        i_batch = i_sampled[(batch*ScalingParameters.batch_size):np.min([(batch+1)*ScalingParameters.batch_size,i_train.shape[0]]),:]
+        o_batch = o_sampled[(batch*ScalingParameters.batch_size):np.min([(batch+1)*ScalingParameters.batch_size,o_train.shape[0]]),:]
+
+        colloc_batch = colloc_rand[(batch*ScalingParameters.colloc_batch_size):np.min([(batch+1)*ScalingParameters.colloc_batch_size,colloc_rand.shape[0]]),:]
+        BC_wall_batch = BC_wall_rand[(batch*ScalingParameters.boundary_batch_size):np.min([(batch+1)*ScalingParameters.boundary_batch_size,BC_wall_rand.shape[0]]),:]
+        BC_cylinder_inside_batch = BC_cylinder_inside_rand[(batch*ScalingParameters.boundary_batch_size):np.min([(batch+1)*ScalingParameters.boundary_batch_size,BC_cylinder_inside_rand.shape[0]]),:]
+
+        loss_value, data_loss, physics_loss, boundary_loss = train_step(tf.cast(i_batch,tf_dtype),tf.cast(o_batch,tf_dtype),tf.cast(colloc_batch,tf_dtype),(tf.cast(BC_p_epoch,tf_dtype),tf.cast(BC_wall_batch,tf_dtype),tf.cast(BC_cylinder_inside_batch,tf_dtype)),ScalingParameters) #
         loss_vec[batch] = loss_value.numpy()
         data_vec[batch] = data_loss.numpy()
         physics_vec[batch] = physics_loss.numpy()
@@ -575,8 +803,8 @@ def train_LBFGS(model,x,y,colloc_x,boundary_tuple,ScalingParameters):
             # update the parameters in the model
             assign_new_model_parameters(params_1d)
             # calculate the loss
-            #loss_value = loss(model(train_x, training=True), train_y) # jvs
-            loss_value = compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters)[0]
+            colloc_rand = tf.gather(colloc_vector,np.random.choice(np.arange(colloc_x.shape[0]),ScalingParameters.colloc_batch_size),axis=0)
+            loss_value = compute_loss(x,y,colloc_rand,boundary_tuple,ScalingParameters)[0]
 
         # calculate gradients and convert to 1D tf.Tensor
         grads = tape.gradient(loss_value, model.trainable_variables)
@@ -614,7 +842,7 @@ supersample_factor = int(sys.argv[2])
 job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_boundary_dense2_{:03d}_S{:d}'.format(job_number,supersample_factor)
+job_name = 'mf_dense005_{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 job_duration = timedelta(hours=job_hours,minutes=0)
 end_time = start_time+job_duration
@@ -644,12 +872,12 @@ from pinns_data_assimilation.lib.layers import QresBlock2
 from pinns_data_assimilation.lib.file_util import find_highest_numbered_file
 
 
-from pinns_data_assimilation.lib.downsample import compute_downsample_inds_center
+from pinns_data_assimilation.lib.downsample import compute_downsample_inds_irregular 
 
 from pinns_data_assimilation.lib.file_util import create_directory_if_not_exists
 
 # read the data
-base_dir = HOMEDIR+'data/mazi_fixed_grid/'
+base_dir = HOMEDIR+'data/mazi_fixed/'
 global savedir
 savedir = PROJECTDIR+'output/'+job_name+'/'
 create_directory_if_not_exists(savedir)
@@ -664,26 +892,27 @@ meanPressureFile = h5py.File(base_dir+'meanPressure.mat','r')
 
 global colloc_sampled
 
-global X_grid
-global Y_grid
 
-x = np.array(configFile['X_vec'][0,:])
-X_grid = np.array(configFile['X_grid'])
-y = np.array(configFile['X_vec'][1,:])
-Y_grid = np.array(configFile['Y_grid'])
+x = np.array(configFile['X'][0,:])
+y = np.array(configFile['X'][1,:])
+X = np.array(configFile['X']).transpose()
 global d
 d = np.array(configFile['cylinderDiameter'])
 
+global X_plot
+global Y_plot
+x_plot = np.linspace(-2,10,40*12)
+y_plot = np.linspace(-2,2,40*4)
+X_plot, Y_plot = np.meshgrid(x_plot,y_plot)
 
+ux = np.array(meanVelocityFile['meanVelocity'][:,0])
+uy = np.array(meanVelocityFile['meanVelocity'][:,1])
 
+uxux = np.array(reynoldsStressFile['reynoldsStress'][:,0])
+uxuy = np.array(reynoldsStressFile['reynoldsStress'][:,1])
+uyuy = np.array(reynoldsStressFile['reynoldsStress'][:,2])
 
-
-ux = np.array(meanVelocityFile['meanVelocity'][0,:]).transpose()
-uy = np.array(meanVelocityFile['meanVelocity'][1,:]).transpose()
-
-uxux = np.array(reynoldsStressFile['reynoldsStress'][0,:]).transpose()
-uxuy = np.array(reynoldsStressFile['reynoldsStress'][1,:]).transpose()
-uyuy = np.array(reynoldsStressFile['reynoldsStress'][2,:]).transpose()
+p = np.array(meanPressureFile['meanPressure'])
 
 MAX_ux = np.max(ux.ravel())
 MAX_uy = np.max(uy.ravel())
@@ -692,20 +921,10 @@ MAX_uxuy = np.max(uxuy.ravel())
 MAX_uyuy = np.max(uyuy.ravel())
 MAX_p = 1.0
 
-# remove training points inside the cylinder
-cylinder_mask = np.reshape(np.power(x,2.0)+np.power(y,2.0)<=np.power(d/2.0,2.0),[x.shape[0],])
-
-# actually we need to solve the pressure inside the cylinder, which means we should supply that the inside quantities are zero
-ux[cylinder_mask] = 0.0
-uy[cylinder_mask] = 0.0
-uxux[cylinder_mask] = 0.0
-uxuy[cylinder_mask] = 0.0
-uyuy[cylinder_mask] = 0.0
-
-MAX_x = np.max(X_grid)
-MIN_x = np.min(X_grid)
-MAX_y = np.max(Y_grid)
-MIN_y = np.min(Y_grid)
+MAX_x = 10.#np.max(X_grid)
+MIN_x = -2.#np.min(X_grid)
+MAX_y = 2.0 #np.max(Y_grid)
+MIN_y = -2.0#np.min(Y_grid)
 
 print('MAX_x: ',MAX_x)
 print('MIN_x: ',MIN_x)
@@ -718,10 +937,8 @@ y_test = 1.0*y/MAX_x
 global i_test
 i_test = np.hstack((x_test.reshape(-1,1),y_test.reshape(-1,1)))
 
-global p_grid
-p = np.array(meanPressureFile['meanPressure']).transpose()
-p = p[:,0]
-p_grid = np.reshape(p,X_grid.shape)/MAX_p
+
+
 
 x_large = np.linspace(-10,10,2000)
 y_large = 1.0*x_large
@@ -733,25 +950,27 @@ i_test_large = np.stack((X_grid_large.ravel(),Y_grid_large.ravel()),axis=1)/MAX_
 
 
 global o_test_grid
-o_test_grid = np.reshape(np.hstack((ux.reshape(-1,1)/MAX_ux,uy.reshape(-1,1)/MAX_uy,uxux.reshape(-1,1)/MAX_uxux,uxuy.reshape(-1,1)/MAX_uxuy,uyuy.reshape(-1,1)/MAX_uyuy)),[X_grid.shape[0],X_grid.shape[1],5])
+o_test = np.stack((ux/MAX_ux,uy/MAX_uy,uxux/MAX_uxux,uxuy/MAX_uxuy,uyuy/MAX_uyuy,p/MAX_p),axis=1)
+# interpolate the test data to the regular grid for plotting, since this doesnt change we do it on initialization
+o_test_grid = np.zeros([X_plot.shape[0],X_plot.shape[1],o_test.shape[1]])
 
+for c in range(o_test.shape[1]):
+    o_test_grid[:,:,c] = np.reshape(griddata(np.stack((x,y),1),o_test[:,c],np.stack((X_plot.ravel(),Y_plot.ravel()),1)),X_plot.shape)
 
 # copy inlet data
-inds_inlet_data = np.concatenate((np.nonzero(x==MIN_x)[0],np.nonzero(y==MAX_y)[0],np.nonzero(y==MIN_y)[0]),axis=0)
+#inds_inlet_data = np.concatenate((np.nonzero(y==MIN_y)[0][::-1],np.nonzero(x==MIN_x)[0],np.nonzero(y==MAX_y)[0]),axis=0)
 
-inlet_x = x[inds_inlet_data]/MAX_x
-inlet_y = y[inds_inlet_data]/MAX_x
-inlet_ux = ux[inds_inlet_data]/MAX_ux
-inlet_uy = uy[inds_inlet_data]/MAX_uy
-inlet_uxux = uxux[inds_inlet_data]/MAX_uxux
-inlet_uxuy = uxuy[inds_inlet_data]/MAX_uxuy
-inlet_uyuy = uyuy[inds_inlet_data]/MAX_uyuy
+#inlet_x = x[inds_inlet_data]/MAX_x
+#inlet_y = y[inds_inlet_data]/MAX_x
+#inlet_ux = ux[inds_inlet_data]/MAX_ux
+#inlet_uy = uy[inds_inlet_data]/MAX_uy
+#inlet_uxux = uxux[inds_inlet_data]/MAX_uxux
+#inlet_uxuy = uxuy[inds_inlet_data]/MAX_uxuy
+#inlet_uyuy = uyuy[inds_inlet_data]/MAX_uyuy
 
 # if we are downsampling and then upsampling, downsample the source data
 if supersample_factor>1:
-    n_x = np.array(configFile['x_grid']).size
-    n_y = np.array(configFile['y_grid']).size
-    downsample_inds, ndx,ndy = compute_downsample_inds_center(supersample_factor,X_grid[:,0],Y_grid[0,:].transpose())
+    downsample_inds = compute_downsample_inds_irregular(supersample_factor,X,d)
     x = x[downsample_inds]
     y = y[downsample_inds]
     ux = ux[downsample_inds]
@@ -759,26 +978,6 @@ if supersample_factor>1:
     uxux = uxux[downsample_inds]
     uxuy = uxuy[downsample_inds]
     uyuy = uyuy[downsample_inds]
-    cylinder_mask = cylinder_mask[downsample_inds]
-
-# remove the inside quantities
-x = np.delete(x,cylinder_mask,axis=0)
-y = np.delete(y,cylinder_mask,axis=0)
-ux = np.delete(ux,cylinder_mask,axis=0)
-uy = np.delete(uy,cylinder_mask,axis=0)
-uxux = np.delete(uxux,cylinder_mask,axis=0)
-uxuy = np.delete(uxuy,cylinder_mask,axis=0)
-uyuy = np.delete(uyuy,cylinder_mask,axis=0)
-
-# re append the inlet data
-#x = np.concatenate((x,inlet_x),axis=0)
-#y = np.concatenate((y,inlet_y),axis=0)
-#ux = np.concatenate((ux,inlet_ux),axis=0)
-#uy = np.concatenate((uy,inlet_uy),axis=0)
-#uxux = np.concatenate((uxux,inlet_uxux),axis=0)
-#uxuy = np.concatenate((uxuy,inlet_uxuy),axis=0)
-#uyuy = np.concatenate((uyuy,inlet_uyuy),axis=0)
-
 
 # for LBFGS we don't need to duplicate since all points and collocs are evaluated in a single step
 o_train_LBFGS = np.stack((ux/MAX_ux,uy/MAX_uy,uxux/MAX_uxux,uxuy/MAX_uxuy,uyuy/MAX_uyuy),axis=1)
@@ -810,16 +1009,16 @@ ScalingParameters.nu_mol = tf.cast(0.0066667,tf_dtype)
 ScalingParameters.MAX_p= MAX_p # estimated maximum pressure, we should
 ScalingParameters.batch_size = 32
 ScalingParameters.colloc_batch_size = 32
-ScalingParameters.boundary_batch_size = 32
-ScalingParameters.physics_loss_coefficient = tf.cast(1.0,tf_dtype)
+ScalingParameters.boundary_batch_size = 16
+ScalingParameters.physics_loss_coefficient = tf.cast(1E-3,tf_dtype)
 ScalingParameters.boundary_loss_coefficient = tf.cast(1.0,tf_dtype)
 ScalingParameters.data_loss_coefficient = tf.cast(1.0,tf_dtype)
 
 
 
 global colloc_vector
-boundary_tuple = boundary_points_function(360,200)
-colloc_vector = colloc_points_function(10000,50000)
+boundary_tuple = boundary_points_function(720,500)
+colloc_vector = colloc_points_function(5000,20000)
 
 global training_steps
 global model_RANS
@@ -830,28 +1029,29 @@ optimizer = keras.optimizers.Adam(learning_rate=1E-4)
 
 from pinns_data_assimilation.lib.file_util import get_filepaths_with_glob
 from pinns_data_assimilation.lib.layers import QresBlock2
+from pinns_data_assimilation.lib.layers import QuadraticInputPassthroughLayer
 
-checkpoint_files = get_filepaths_with_glob(PROJECTDIR+'/output/'+job_name+'/',job_name+'_ep*_model.h5')
+# 
+model_file = get_filepaths_with_glob(PROJECTDIR+'/output/'+job_name+'/',job_name+'_model.h5')
 
-if len(checkpoint_files)>0:
+# check if the model has been created, if so check if weights exist
+if len(model_file)>0:
     with tf.device(tf_device_string):
         model_RANS,training_steps = load_custom()
 else: 
     training_steps = 0
     with tf.device(tf_device_string):        
         inputs = keras.Input(shape=(2,),name='coordinates')
-        lo = keras.layers.Dense(100,activation='tanh',dtype=tf_dtype)(inputs)
-        for i in range(10):
-            lo = keras.layers.Dense(100,activation='tanh',dtype=tf_dtype)(lo)
+        lo = QuadraticInputPassthroughLayer(100,2,activation='tanh',dtype=tf_dtype)(inputs)
+        for i in range(4):
+            lo = QuadraticInputPassthroughLayer(100,2,activation='tanh',dtype=tf_dtype)(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         model_RANS.summary()
+        # save the model only on startup
+        model_RANS.save(savedir+job_name+'_model.h5')
 
 
-LBFGS_steps = 333
-LBFGS_epochs = 3*LBFGS_steps
-
-d_ts = 100
 # training
 
 global saveFig
@@ -860,22 +1060,177 @@ saveFig=True
 history_list = []
 
 
-if node_name == LOCAL_NODE:
-    plot_err()
-    plot_NS_residual()
-    plot_large()
-    plot_NS_large()
-    exit()
+
+#if node_name == LOCAL_NODE:
+#    plot_err()
+    #plot_NS_residual()
+    #plot_large()
+    #plot_NS_large()
+#    exit()
+
+pretrain_flag = False
+last_epoch_time = datetime.now()
+average_epoch_time=timedelta(minutes=10)
+
+while pretrain_flag:
+    # pre training based only on the data
+    lr_schedule = np.array([1E-5,   3.3E-6, 1E-6,   3.3E-7,     1E-7,       3.3E-8,      0.0])
+    ep_schedule = np.array([0,      50,     100,     150,       200,        250,         300])
+    phys_schedule = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+
+    # reset the correct learing rate on load
+    i_temp = 0
+    for i in range(len(ep_schedule)):
+        if training_steps>=ep_schedule[i]:
+            i_temp = i
+    if lr_schedule[i_temp]==0.0:
+        pretrain_flag=False
+    ScalingParameters.physics_loss_coefficient = tf.cast(phys_schedule[i_temp],tf.float64)
+    ScalingParameters.boundary_loss_coefficient = tf.cast(phys_schedule[i_temp],tf.float64)
+    print('physics loss =',str(ScalingParameters.physics_loss_coefficient))
+    print('learning rate =',str(lr_schedule[i_temp]))
+
+    while pretrain_flag:
+        for i in range(1,len(ep_schedule)):
+            if training_steps==ep_schedule[i]:
+                if lr_schedule[i] == 0.0:
+                    pretrain_flag=False
+                    # we will do one last epoch then lbfgs
+                keras.backend.set_value(optimizer.learning_rate, lr_schedule[i])
+                print('epoch',str(training_steps))
+                ScalingParameters.physics_loss_coefficient = tf.cast(phys_schedule[i],tf.float64)
+                ScalingParameters.boundary_loss_coefficient = tf.cast(phys_schedule[i],tf.float64)
+                print('physics loss =',str(ScalingParameters.physics_loss_coefficient))
+                print('learning rate =',str(lr_schedule[i]))               
+
+        fit_epoch_pre(i_train_backprop,o_train_backprop,colloc_vector,boundary_tuple,ScalingParameters)
+
+        if np.mod(training_steps,50)==0:
+            if node_name==LOCAL_NODE:
+                plot_err()
+                plot_NS_residual()
+        if np.mod(training_steps,10)==0:
+            model_RANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
+        
+        # check if we are out of time
+        average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
+        if (datetime.now()+average_epoch_time)>end_time:
+            model_RANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
+            exit()
+        last_epoch_time = datetime.now()
 
 
-if True:
-    last_epoch_time = datetime.now()
-    average_epoch_time=timedelta(minutes=10)
-    # LBFGS
+LBFGS_steps = 333
+LBFGS_epochs = 3*LBFGS_steps
+if False:
+    # final polishing of solution using LBFGS
     import tensorflow_probability as tfp
     L_iter = 0
-    boundary_tuple = boundary_points_function(720,200)
-    colloc_vector = colloc_points_function(10000,50000) # one A100 max = 60k?
+    boundary_tuple = boundary_points_function(720,500)
+    colloc_vector = colloc_points_function(5000,20000) # one A100 max = 60k?
+    func = train_LBFGS_pre(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
+    init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
+            
+    while True:
+        
+        last_epoch_time = datetime.now()
+        # train the model with L-BFGS solver
+        results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=LBFGS_steps,f_relative_tolerance=1E-16,stopping_condition=tfp.optimizer.converged_all)
+        func.assign_new_model_parameters(results.position)
+        init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables) # we need to reasign the parameters otherwise we start from the beginning each time
+        training_steps = training_steps + LBFGS_epochs
+        L_iter = L_iter+1
+            
+        # after training, the final optimized parameters are still in results.position
+        # so we have to manually put them back to the model
+ 
+        # check if we are out of time
+        average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
+        if (datetime.now()+average_epoch_time)>end_time:
+            #save_pred()
+            model_RANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
+            exit()
+
+        if np.mod(L_iter,10)==0:
+            save_model()
+            boundary_tuple = boundary_points_function(720,500)
+            colloc_vector = colloc_points_function(5000,20000)
+            func = train_LBFGS_pre(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
+            init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
+
+        if node_name==LOCAL_NODE:
+            #save_pred()
+            model_RANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
+            plot_err()
+            #plot_inlet_profile()
+            plot_NS_residual()
+
+
+boundary_tuple = boundary_points_function(720,500)
+colloc_vector = colloc_points_function(5000,20000)
+backprop_flag = True
+
+while backprop_flag:
+    # regular training with physics
+    lr_schedule = np.array([1E-5, 3.3E-6, 1E-6,   3.3E-7,     1E-7,   0.0])
+    ep_schedule = np.array([0,    50,     100,    300,        400,    500  ])
+    phys_schedule = np.array([1E-3, 1E-3, 1E-3, 1E-3, 1E-3, 1E-3, 1E-3])
+
+    # reset the correct learing rate on load
+    i_temp = 0
+    for i in range(len(ep_schedule)):
+        if training_steps>=ep_schedule[i]:
+            i_temp = i
+    if lr_schedule[i_temp]==0.0:
+        backprop_flag=False
+    ScalingParameters.physics_loss_coefficient = tf.cast(phys_schedule[i_temp],tf.float64)
+    ScalingParameters.boundary_loss_coefficient = tf.cast(phys_schedule[i_temp],tf.float64)
+    print('physics loss =',str(ScalingParameters.physics_loss_coefficient))
+    print('learning rate =',str(lr_schedule[i_temp]))
+
+    while backprop_flag:
+        for i in range(1,len(ep_schedule)):
+            if training_steps==ep_schedule[i]:
+                if lr_schedule[i] == 0.0:
+                    backprop_flag=False
+                    # we will do one last epoch then lbfgs
+                keras.backend.set_value(optimizer.learning_rate, lr_schedule[i])
+                print('epoch',str(training_steps))
+                ScalingParameters.physics_loss_coefficient = tf.cast(phys_schedule[i],tf.float64)
+                ScalingParameters.boundary_loss_coefficient = tf.cast(phys_schedule[i],tf.float64)
+                print('physics loss =',str(ScalingParameters.physics_loss_coefficient))
+                print('learning rate =',str(lr_schedule[i]))               
+
+        fit_epoch(i_train_backprop,o_train_backprop,colloc_vector,boundary_tuple,ScalingParameters)
+
+        if np.mod(training_steps,10)==0:
+            if node_name==LOCAL_NODE:
+                plot_NS_residual()
+                plot_err()
+                #plot_inlet_profile()
+        if np.mod(training_steps,10)==0:
+            model_RANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
+        if np.mod(training_steps,50)==0:
+                # rerandomize the collocation points 
+            boundary_tuple = boundary_points_function(720,500)
+            colloc_vector = colloc_points_function(5000,20000)
+        
+        # check if we are out of time
+        average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
+        if (datetime.now()+average_epoch_time)>end_time:
+            model_RANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
+            exit()
+        last_epoch_time = datetime.now()
+
+
+LBFGS_steps = 333
+LBFGS_epochs = 3*LBFGS_steps
+if True:
+    # final polishing of solution using LBFGS
+    import tensorflow_probability as tfp
+    L_iter = 0
+    boundary_tuple = boundary_points_function(720,500)
+    colloc_vector = colloc_points_function(5000,20000) # one A100 max = 60k?
     func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
     init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
             
@@ -895,21 +1250,24 @@ if True:
         # check if we are out of time
         average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
         if (datetime.now()+average_epoch_time)>end_time:
-            save_pred()
-            save_model()
+            #save_pred()
+            model_RANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
             exit()
 
         if np.mod(L_iter,10)==0:
-            save_model()
-            boundary_tuple = boundary_points_function(720,200)
-            colloc_vector = colloc_points_function(10000,50000)
+            model_RANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
+            boundary_tuple = boundary_points_function(720,500)
+            colloc_vector = colloc_points_function(5000,20000)
             func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
             init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
 
-        #if node_name==LOCAL_NODE:
-        #    save_pred()
-        #    plot_err()
-        #    plot_NS_residual()
+        if node_name==LOCAL_NODE:
+            #save_pred()
+            model_RANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
+            plot_err()
+            #plot_inlet_profile()
+            plot_NS_residual()
+
 
 
 

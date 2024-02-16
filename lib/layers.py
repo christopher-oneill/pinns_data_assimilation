@@ -178,6 +178,95 @@ class ResidualLayer(keras.layers.Layer):
     def call(self,inputs):
         return self.Dense(inputs)+self.Residual(inputs)
 
+class InputPassthroughLayer(keras.layers.Layer):
+    # this layer passes through a certain number of inputs from the previous layer, while doing a normal dense layer otherwise
+    # this allows the coordinate system to be passed through to deeper depths avoiding the vanishing gradient problem
+    # this is similar to a residual layer, but exploits our knowledge that the pinn input is the coordinate system
+    def __init__(self,units,npass,activation='tanh',name='Dense',trainable=True,dtype=tf.float64,Dense=None):
+        super().__init__()
+        self.units = int(units)
+        self.npass = int(npass)
+        if Dense==None:
+            self.Dense  = keras.layers.Dense(self.units,activation=activation,name=name,trainable=trainable,dtype=dtype)
+        else:
+            self.Dense = Dense
+
+    def build(self,input_shape):
+        # check the case where npass is larger than the input dimensionality
+        if input_shape[-1]<self.npass:
+            self.npass=input_shape[-1]
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "units":self.units,
+            "npass":self.npass,
+            "Dense":self.Dense,
+        })
+        return config
+      
+    def call(self,inputs):
+        # the input dimensionality is [nbatch,ninputs]
+        # concatenate the first npass inputs then the dense layer output. 
+        # thus the output dimensionality will be [nbatch,npass+units] or [nbatch,ninputs+units] if (ninputs<npass)
+        return tf.concat((inputs[...,0:self.npass],self.Dense(inputs)),axis=1)
+
+class QuadraticInputPassthroughLayer(keras.layers.Layer):
+    # this layer passes through a certain number of inputs from the previous layer, while doing a quadratic residual layer otherwise
+    # this allows the coordinate system to be passed through to deeper depths avoiding the vanishing gradient problem
+    # this is similar to a residual layer, but exploits our knowledge that the pinn input is the coordinate system
+    def __init__(self,units,npass,**kwargs):
+        super().__init__()
+        self.units = int(units)
+        self.npass = int(npass)
+        self.built=False
+
+        if 'dtype' in kwargs:
+            self.u_dtype=kwargs['dtype']
+        else:
+            self.u_dtype=tf.float64
+
+        if 'activation' in kwargs:
+            if type(kwargs['activation'])==str:
+                self.activation = tf.keras.activations.deserialize(kwargs['activation'])
+            else:
+                self.activation = kwargs['activation']
+        else:
+            self.activation =  tf.keras.activations.tanh
+        if 'w1' in kwargs:
+            self.w1 = tf.Variable(initial_value=tf.cast(kwargs['w1'],self.u_dtype),dtype=self.u_dtype,trainable=True,name='w1')
+            self.w2 = tf.Variable(initial_value=tf.cast(kwargs['w2'],self.u_dtype),dtype=self.u_dtype,trainable=True,name='w2')
+            self.b1 = tf.Variable(initial_value=tf.cast(kwargs['b1'],self.u_dtype),dtype=self.u_dtype,trainable=True,name='b1')
+            self.built=True
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "units":self.units,
+            "npass":self.npass,
+            "activation":self.activation,
+            "w1":self.w1.numpy(),
+            "w2":self.w2.numpy(),
+            "b1":self.b1.numpy(),
+            "dtype":self.u_dtype,
+        })
+        return config
+
+    def build(self, input_shape):
+        if self.built==False:
+            # deal with input passthrough dimensionality
+            if input_shape[-1]<self.npass:
+                self.npass = input_shape[-1]
+            # setup weights
+            w_init = tf.random_normal_initializer()
+            self.w1 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=self.u_dtype),trainable=True,name='w1')
+            self.w2 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=self.u_dtype),trainable=True,name='w2')
+            self.b1 = tf.Variable(initial_value=w_init(shape=(self.units,),dtype=self.u_dtype),trainable=True,name='b1')    
+    
+    def call(self,inputs):
+        self.xw1 = tf.matmul(inputs,self.w1)
+        return tf.concat((inputs[...,0:self.npass],self.activation(tf.multiply(self.xw1,tf.matmul(inputs,self.w2))+self.xw1+self.b1)),1)
+
     
 class ProductResidualLayer64(keras.layers.Layer):
     # Chris O'Neill, University of Calgary 2023
@@ -372,6 +461,31 @@ class CylindricalEmbeddingLayer(keras.layers.Layer):
         return tf.concat((inputs,r2),axis=1)
 
 class AdjustableFourierTransformLayer(keras.layers.Layer):
+    # Chris O'Neill, University of Calgary 2023
+    def __init__(self,units):
+        super().__init__()
+        self.units = units
+
+    def __init__(self,nfreq,max_freq):
+        super().__init__()
+        self.nfreq = nfreq
+        self.max_freq = max_freq
+        self.df = tf.cast(max_freq/(nfreq-1),tf.float64)
+
+    def build(self, input_shape):
+        self.w_init = tf.random_normal_initializer()
+        self.b1 = tf.reshape(tf.convert_to_tensor(np.linspace(0,self.max_freq,self.nfreq),dtype=tf.float64),(1,self.nfreq)) # frequency bin centers
+        self.w1 = tf.Variable(initial_value=self.w_init(shape=(1,self.nfreq,),dtype=tf.float64),trainable=True,name='w1') # frequency adjustment weight
+        
+    
+    def call(self,inputs):
+        inp_shape = tf.shape(inputs)
+        freq_vector = self.b1+tf.multiply(self.df,keras.activations.sigmoid(self.w1))
+        inp_prod = tf.reshape(tf.multiply(tf.reshape(inputs,(inp_shape[0],inp_shape[-1],1)),freq_vector),(inp_shape[0],inp_shape[-1]*self.nfreq))
+        return tf.concat((inputs,tf.cos(2.0*np.pi*inp_prod),tf.sin(2.0*np.pi*inp_prod)),axis=1)
+    
+
+class AdjustableFourierTransformLayer2(keras.layers.Layer):
     # Chris O'Neill, University of Calgary 2023
     def __init__(self,units):
         super().__init__()
