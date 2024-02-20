@@ -43,6 +43,9 @@ print('Exported mean velocity and pressure fields. Computing stresses...')
 fluctuatingVelocity = velocityField - np.reshape(meanVelocity,[meanVelocity.shape[0],1,meanVelocity.shape[1]])
 fluctuatingPressure = pressureField - np.reshape(meanPressure,[meanPressure.shape[0],1])
 
+print(np.max(np.abs(fluctuatingVelocity[:,:,0]),(0,1)))
+print(np.max(np.abs(fluctuatingPressure),(0,1)))
+
 # compute stresses
 fluctuatingStress = np.zeros([fluctuatingVelocity.shape[0],fluctuatingVelocity.shape[1],3])
 fluctuatingStress[:,:,0] = fluctuatingVelocity[:,:,0]*fluctuatingVelocity[:,:,0]
@@ -61,12 +64,15 @@ velocityModes,modeFrequencies = dft(fluctuatingVelocity)
 pressureModes,f_pressure = dft(fluctuatingPressure)
 stressModes,f_stress = dft(fluctuatingStress)
 
-# keep single sided spectrum
+print(np.max(np.abs(velocityModes[:,:,0]),(0,1)))
+print(np.max(np.abs(pressureModes),(0,1)))
+
+# keep single sided spectrum, divide by L_DFT to normalize
 half_index = int(L_dft/2)
 modeFrequencies = modeFrequencies[0:half_index]
-velocityModes = velocityModes[:,0:half_index,:]
-pressureModes = pressureModes[:,0:half_index]
-stressModes = stressModes[:,0:half_index,:]
+velocityModes = velocityModes[:,0:half_index,:]/L_dft
+pressureModes = pressureModes[:,0:half_index]/L_dft
+stressModes = stressModes[:,0:half_index,:]/L_dft
 
 # scale the non-dimensional frequncies by the sampling rate
 modeFrequencies = modeFrequencies*fs
@@ -93,8 +99,8 @@ stressModes = stressModes[:,inds_max,:]
 h5f = h5py.File(output_data_dir+'fourierModes.mat','w')
 h5f.create_dataset('modeFrequencies',data=modeFrequencies)
 h5f.create_dataset('velocityModes',data=velocityModes)
-h5f.create_dataset('pressureModes',data=velocityModes)
-h5f.create_dataset('stressModes',data=velocityModes)
+h5f.create_dataset('pressureModes',data=pressureModes)
+h5f.create_dataset('stressModes',data=stressModes)
 h5f.close()
 
 

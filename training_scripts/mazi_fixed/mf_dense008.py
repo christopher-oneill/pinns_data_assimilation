@@ -302,12 +302,42 @@ def save_pred():
 
 def load_custom():
     # get the model from the model file
-    model_file = get_filepaths_with_glob(PROJECTDIR+'/output/'+job_name+'/',job_name+'_model.h5')
+    model_file = get_filepaths_with_glob(PROJECTDIR+'output/'+job_name+'/',job_name+'_model.h5')
     model_RANS = keras.models.load_model(model_file[0],custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer})
+    
     # get the most recent set of weights
-    checkpoint_filename,training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','.weights.h5')
+    
+    checkpoint_filename,training_steps = find_highest_numbered_file(PROJECTDIR+'output/'+job_name+'/'+job_name+'_ep','[0-9]*','.weights.h5')
+
+    
     if checkpoint_filename is not None:
-        model_RANS.load_weights(checkpoint_filename)
+        #pred = model_RANS.predict(np.zeros([10,2])) # needed to enable weight loading
+        weights_file = h5py.File(checkpoint_filename)          
+        #print(weights_file.keys())
+        #print(weights_file['_layer_checkpoint_dependencies']['quadratic_input_passthrough_layer']['vars'].keys())
+        w_keys =  list(weights_file.keys())
+        if platform.system()=='Windows':
+            # check if the file is windows weight style or linux weight style
+            if w_keys[0]=='_layer_checkpoint_dependencies':
+                # if the file was saved on linux we need to copy it back to windows format 
+                new_weights_file = h5py.File(PROJECTDIR+'output/'+job_name+'/'+job_name+'_ep'+str(training_steps+1)+'.weights.h5','w')
+                # copy all other keys
+                for nkey in range(1,len(w_keys)):
+                    weights_file.copy(weights_file[w_keys[nkey]],new_weights_file)
+                # copy the layer keys
+                layer_keys = list(weights_file['_layer_checkpoint_dependencies'].keys())
+                for nkey in range(len(layer_keys)):
+                    new_weights_file.create_group('_layer_checkpoint_dependencies\\'+layer_keys[nkey])
+                    weights_file.copy(weights_file['_layer_checkpoint_dependencies'][layer_keys[nkey]]['vars'],new_weights_file['_layer_checkpoint_dependencies\\'+layer_keys[nkey]]) # ['_layer_checkpoint_dependencies\\'+layer_keys[nkey]] 
+                new_weights_file.close()
+                model_RANS.load_weights(PROJECTDIR+'output/'+job_name+'/'+job_name+'_ep'+str(training_steps+1)+'.weights.h5')
+            else:
+                # windows style loading
+                model_RANS.load_weights(checkpoint_filename)
+        else:
+            model_RANS.load_weights(checkpoint_filename)
+
+            
     model_RANS.summary()
     print('Model Loaded. Epoch',str(training_steps))
     #optimizer.build(model_RANS.trainable_variables)
@@ -866,17 +896,6 @@ o_test_grid = np.zeros([X_plot.shape[0],X_plot.shape[1],o_test.shape[1]])
 for c in range(o_test.shape[1]):
     o_test_grid[:,:,c] = np.reshape(griddata(np.stack((x,y),1),o_test[:,c],np.stack((X_plot.ravel(),Y_plot.ravel()),1)),X_plot.shape)
 
-# copy inlet data
-#inds_inlet_data = np.concatenate((np.nonzero(y==MIN_y)[0][::-1],np.nonzero(x==MIN_x)[0],np.nonzero(y==MAX_y)[0]),axis=0)
-
-#inlet_x = x[inds_inlet_data]/MAX_x
-#inlet_y = y[inds_inlet_data]/MAX_x
-#inlet_ux = ux[inds_inlet_data]/MAX_ux
-#inlet_uy = uy[inds_inlet_data]/MAX_uy
-#inlet_uxux = uxux[inds_inlet_data]/MAX_uxux
-#inlet_uxuy = uxuy[inds_inlet_data]/MAX_uxuy
-#inlet_uyuy = uyuy[inds_inlet_data]/MAX_uyuy
-
 # if we are downsampling and then upsampling, downsample the source data
 if supersample_factor>0:
     # note that S=1 still grids the data where as S=0 uses the unstructured grid
@@ -981,6 +1000,12 @@ boundary_tuple = boundary_points_function(720)
 colloc_vector = colloc_points_function(5000,20000)
 
 backprop_flag = True
+
+if node_name == LOCAL_NODE:
+    plot_err()
+    plot_NS_residual()
+    exit()
+
 
 
 ScalingParameters.colloc_batch_size = 32

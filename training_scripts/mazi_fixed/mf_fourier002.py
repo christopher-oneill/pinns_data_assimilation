@@ -296,7 +296,7 @@ def FANS_BC_pressure(model_FANS,BC_points):
     # unknowns, pressure fourier modes
     psi_r = up[:,10]*ScalingParameters.MAX_psi
     psi_i = up[:,11]*ScalingParameters.MAX_psi
-    return tf.square(tf.reduce_mean(psi_r)+tf.reduce_mean(psi_i))
+    return tf.reduce_mean(tf.square(psi_r))+tf.reduce_mean(tf.square(psi_i))
 
 @tf.function
 def FANS_BC_no_slip(model_FANS,BC_points):
@@ -314,7 +314,7 @@ def FANS_BC_no_slip(model_FANS,BC_points):
     tau_xy_i = up[:,7]*ScalingParameters.MAX_tau_xy_i
     tau_yy_r = up[:,8]*ScalingParameters.MAX_tau_yy_r
     tau_yy_i = up[:,9]*ScalingParameters.MAX_tau_yy_i
-    return tf.reduce_sum(tf.reduce_mean(tf.square(phi_xr))+tf.reduce_mean(tf.square(phi_xi))+tf.reduce_mean(tf.square(phi_yr))+tf.reduce_mean(tf.square(phi_yi))+tf.reduce_mean(tf.square(tau_xx_r))+tf.reduce_mean(tf.square(tau_xx_i))+tf.reduce_mean(tf.square(tau_xy_r))+tf.reduce_mean(tf.square(tau_xy_i))+tf.reduce_mean(tf.square(tau_yy_r))+tf.reduce_mean(tf.square(tau_yy_i)))
+    return tf.reduce_mean(tf.square(phi_xr))+tf.reduce_mean(tf.square(phi_xi))+tf.reduce_mean(tf.square(phi_yr))+tf.reduce_mean(tf.square(phi_yi))+tf.reduce_mean(tf.square(tau_xx_r))+tf.reduce_mean(tf.square(tau_xx_i))+tf.reduce_mean(tf.square(tau_xy_r))+tf.reduce_mean(tf.square(tau_xy_i))+tf.reduce_mean(tf.square(tau_yy_r))+tf.reduce_mean(tf.square(tau_yy_i))
 
 @tf.function
 def FANS_boundary_loss(model_FANS,boundary_tuple,ScalingParameters):
@@ -490,8 +490,8 @@ def boundary_points_function(n_cyl):
 @tf.function
 def compute_loss(x,y,colloc_x,mean_grads,boundary_tuple,ScalingParameters):
     y_pred = model_FANS(x,training=True)
-    data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:12]-y),axis=0),axis=0) 
-    physics_loss = tf.cast(1E-30,tf_dtype)#FANS_physics_loss(model_FANS,colloc_x,mean_grads,ScalingParameters) 
+    data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:10]-y),axis=0),axis=0) 
+    physics_loss = FANS_physics_loss(model_FANS,colloc_x,mean_grads,ScalingParameters) 
     boundary_loss = FANS_boundary_loss(model_FANS,boundary_tuple,ScalingParameters)
 
     # dynamic loss weighting, scale based on largest
@@ -644,7 +644,7 @@ if __name__=="__main__":
     supersample_factor = int(sys.argv[3])
     job_hours = int(sys.argv[4])
 
-    job_name = 'mf_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
+    job_name = 'mf2_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
 
     LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -825,8 +825,6 @@ if __name__=="__main__":
         tau_xy_i = tau_xy_i[downsample_inds]
         tau_yy_r = tau_yy_r[downsample_inds]
         tau_yy_i = tau_yy_i[downsample_inds]
-        psi_r = psi_r[downsample_inds]
-        psi_i = psi_i[downsample_inds]
 
     print('max_x: ',ScalingParameters.MAX_x)
     print('min_x: ',ScalingParameters.MIN_x)
@@ -854,8 +852,6 @@ if __name__=="__main__":
     tau_yy_r_train = tau_yy_r/ScalingParameters.MAX_tau_yy_r
     tau_yy_i_train = tau_yy_i/ScalingParameters.MAX_tau_yy_i
 
-    psi_r_train = psi_r/ScalingParameters.MAX_psi
-    psi_i_train = psi_i/ScalingParameters.MAX_psi
 
     print("MAX_phi_xr:",ScalingParameters.MAX_phi_xr)
     print("MAX_phi_xi:",ScalingParameters.MAX_phi_xi)
@@ -867,8 +863,7 @@ if __name__=="__main__":
     print("MAX_tau_xy_i:",ScalingParameters.MAX_tau_xy_i)
     print("MAX_tau_yy_r:",ScalingParameters.MAX_tau_yy_r)
     print("MAX_tau_yy_i:",ScalingParameters.MAX_tau_yy_i)
-    print("MAX_psi_r:",np.max(psi_r))
-    print("MAX_psi_i:",np.max(psi_i))
+
     
 
 
@@ -878,13 +873,13 @@ if __name__=="__main__":
     # LBFGS, since we form a single matrix anyway, dont duplicate the data
     X_train_LBFGS = np.stack((x_train,y_train),axis=1)
     O_train_LBFGS = np.stack((ux_train,uy_train,uxux_train,uxuy_train,uyuy_train),axis=1) # training data
-    F_train_LBFGS = np.stack((phi_xr_train,phi_xi_train,phi_yr_train,phi_yi_train,tau_xx_r_train,tau_xx_i_train,tau_xy_r_train,tau_xy_i_train,tau_yy_r_train,tau_yy_i_train,psi_r_train,psi_i_train),axis=1) # training data
+    F_train_LBFGS = np.stack((phi_xr_train,phi_xi_train,phi_yr_train,phi_yi_train,tau_xx_r_train,tau_xx_i_train,tau_xy_r_train,tau_xy_i_train,tau_yy_r_train,tau_yy_i_train),axis=1) # training data
 
     # backprop, duplicate data size so that the epoch length doesnt depend on supersample factor
     if supersample_factor>0:
         X_train_backprop = np.stack((np.concatenate([x_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([y_train for i in range(supersample_factor*supersample_factor)])),axis=1)
         O_train_backprop = np.stack((np.concatenate([ux_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([uy_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([uxux_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([uxuy_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([uyuy_train for i in range(supersample_factor*supersample_factor)])),axis=1) # training data
-        F_train_backprop = np.stack((np.concatenate([phi_xr_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_xi_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_yr_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_yi_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xx_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xx_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xy_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xy_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_yy_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_yy_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([psi_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([psi_i_train for i in range(supersample_factor*supersample_factor)])),axis=1) # training data
+        F_train_backprop = np.stack((np.concatenate([phi_xr_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_xi_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_yr_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_yi_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xx_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xx_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xy_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xy_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_yy_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_yy_i_train for i in range(supersample_factor*supersample_factor)])),axis=1) # training data
     else:
         X_train_backprop = 1.0*X_train_LBFGS
         O_train_backprop = 1.0*O_train_LBFGS
@@ -898,20 +893,26 @@ if __name__=="__main__":
 
     tf_device_string ='/GPU:0'
     # create the NNs
+    from pinns_data_assimilation.lib.file_util import get_filepaths_with_glob
+    from pinns_data_assimilation.lib.layers import QuadraticInputPassthroughLayer
     from pinns_data_assimilation.lib.layers import QresBlock
     # load the saved mean model
     with tf.device('/CPU:0'):
-        model_mean = keras.models.load_model(HOMEDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':RANS_loss_wrapper(X_colloc,boundary_tuple[0],boundary_tuple[1]),'QresBlock':QresBlock})
+        #model_mean = keras.models.load_model(HOMEDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':RANS_loss_wrapper(X_colloc,boundary_tuple[0],boundary_tuple[1]),'QresBlock':QresBlock})
+        mean_model_folder = PROJECTDIR+'output/mf_dense008_001_S'+str(supersample_factor)
+        model_mean = keras.models.load_model(mean_model_folder+'/mf_dense008_001_S'+str(supersample_factor)+'_model.h5',custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer})
+        # find the latest weights for the model
+        mean_weights_filename,mean_training_steps = find_highest_numbered_file(PROJECTDIR+'output/mf_dense008_001_S'+str(supersample_factor)+'/mf_dense008_001_S'+str(supersample_factor)+'_ep','[0-9]*','.weights.h5')
+        print('Loaded mean model weights:',mean_weights_filename)
+        model_mean.load_weights(mean_weights_filename)
         model_mean.trainable=False
 
     # get the values for the mean_data tensor
-    #mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters) # values at the collocation points
-    mean_data = []
+    mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters) # values at the collocation points
     mean_data_plot = mean_grads_cartesian(model_mean,X_plot/ScalingParameters.MAX_x,ScalingParameters) # at the plotting points
 
 
-    from pinns_data_assimilation.lib.file_util import get_filepaths_with_glob
-    from pinns_data_assimilation.lib.layers import QuadraticInputPassthroughLayer
+    
     # check if the model has been created before, if so load it
 
     optimizer = keras.optimizers.Adam(learning_rate=1E-4)
@@ -988,7 +989,7 @@ if __name__=="__main__":
                     # rerandomize the collocation points 
                 boundary_tuple = boundary_points_function(720)
                 X_colloc = colloc_points_function(5000,20000)
-                #mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
+                mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
             
             # check if we are out of time
             average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
@@ -1034,7 +1035,7 @@ if __name__=="__main__":
                 model_FANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
                 boundary_tuple = boundary_points_function(720)
                 X_colloc = colloc_points_function(5000,20000)
-                #mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
+                mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
                 func = train_LBFGS(model_FANS,tf.cast(X_train_LBFGS,tf_dtype),tf.cast(F_train_LBFGS,tf_dtype),X_colloc,mean_data,boundary_tuple,ScalingParameters)
                 init_params = tf.dynamic_stitch(func.idx, model_FANS.trainable_variables)
 
