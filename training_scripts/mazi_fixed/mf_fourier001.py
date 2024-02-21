@@ -27,7 +27,7 @@ import sys
 def load_custom():
     # get the model from the model file
     model_file = get_filepaths_with_glob(PROJECTDIR+'output/'+job_name+'_output/',job_name+'_model.h5')
-    model_FANS = keras.models.load_model(model_file[0],custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer})
+    model_FANS = keras.models.load_model(model_file[0],custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer,'FourierEmbeddingLayer':FourierEmbeddingLayer})
     
     # get the most recent set of weights
     
@@ -81,7 +81,7 @@ def save_pred():
     h5f.close()
 
 ####### plotting functions
-
+    
 def plot_NS_residual():
     # NS residual
     global X_plot
@@ -255,6 +255,17 @@ def plot_err():
         plot.xlim(-2,10)
         plot.savefig(fig_dir+'ep'+str(training_steps)+plot_save_exts2[i],dpi=300)
         plot.close(1)
+
+def plot_wave():
+    cylinder_mask = (np.power(X_grid_plot,2.0)+np.power(Y_grid_plot,2.0))<=np.power(d/2.0,2.0)
+    F_test_grid_temp = 1.0*F_test_grid
+    F_test_grid_temp[cylinder_mask,:] = np.NaN
+
+    ind = 20
+    plot.figure(1)
+    plot.plot(X_grid_plot[ind,:],F_test_grid_temp[ind,:,0])
+    plot.plot(X_grid_plot[ind,:],0.5*np.cos(np.pi*X_grid_plot[ind,:]))
+    plot.show()
 
 
 ####### physics functions
@@ -901,6 +912,7 @@ if __name__=="__main__":
     
     from pinns_data_assimilation.lib.file_util import get_filepaths_with_glob
     from pinns_data_assimilation.lib.layers import QuadraticInputPassthroughLayer
+    from pinns_data_assimilation.lib.layers import FourierEmbeddingLayer
     from pinns_data_assimilation.lib.layers import QresBlock
     # load the saved mean model
     with tf.device('/CPU:0'):
@@ -923,6 +935,7 @@ if __name__=="__main__":
     optimizer = keras.optimizers.Adam(learning_rate=1E-4)
     # we need to check if there are already checkpoints for this job
     model_file = get_filepaths_with_glob(PROJECTDIR+'output/'+job_name+'_output/',job_name+'_model.h5')
+    embedding_wavenumber_vector = np.linspace(0,2*np.pi*ScalingParameters.MAX_x,40) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
     # check if the model has been created, if so check if weights exist
     if len(model_file)>0:
         with tf.device(tf_device_string):
@@ -932,9 +945,9 @@ if __name__=="__main__":
         training_steps = 0
         with tf.device(tf_device_string):        
             inputs = keras.Input(shape=(2,),name='coordinates')
-            lo = QuadraticInputPassthroughLayer(150,2,activation='tanh',dtype=tf_dtype)(inputs)
-            for i in range(4):
-                lo = QuadraticInputPassthroughLayer(150,2,activation='tanh',dtype=tf_dtype)(lo)
+            lo = FourierEmbeddingLayer(embedding_wavenumber_vector)(inputs)
+            for i in range(5):
+                lo = QuadraticInputPassthroughLayer(100,2,activation='tanh',dtype=tf_dtype)(lo)
             outputs = keras.layers.Dense(12,activation='linear',name='dynamical_quantities')(lo)
             model_FANS = keras.Model(inputs=inputs,outputs=outputs)
             model_FANS.summary()
@@ -945,11 +958,6 @@ if __name__=="__main__":
     # setup the training data
     # this time we randomly shuffle the order of X and O
     rng = np.random.default_rng()
-
-
-    #if node_name == LOCAL_NODE:
-    #    plot_NS_residual()
-    #    exit()
 
 
     # train the network
@@ -989,7 +997,7 @@ if __name__=="__main__":
 
             fit_epoch(X_train_backprop,F_train_backprop,X_colloc,mean_data,boundary_tuple,ScalingParameters)
 
-            if np.mod(training_steps,50)==0:
+            if np.mod(training_steps,20)==0:
                 if node_name==LOCAL_NODE:
                     plot_NS_residual()
                     plot_err()

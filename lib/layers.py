@@ -267,6 +267,7 @@ class QuadraticInputPassthroughLayer(keras.layers.Layer):
         self.xw1 = tf.matmul(inputs,self.w1)
         return tf.concat((inputs[...,0:self.npass],self.activation(tf.multiply(self.xw1,tf.matmul(inputs,self.w2))+self.xw1+self.b1)),1)
 
+
     
 class ProductResidualLayer64(keras.layers.Layer):
     # Chris O'Neill, University of Calgary 2023
@@ -429,22 +430,20 @@ class QuarticFourierProductBlock64(keras.layers.Layer):
 class FourierEmbeddingLayer(keras.layers.Layer):
     # Chris O'Neill, University of Calgary 2023
     
-    def __init__(self,frequency_vector,nfreq=None,**kwargs):
+    def __init__(self,frequency_vector,**kwargs):
         super(FourierEmbeddingLayer,self).__init__(**kwargs)
         self.frequency_vector = tf.reshape(tf.convert_to_tensor(tf.cast(frequency_vector,tf.float64)),(1,1,tf.size(frequency_vector)))
-        self.nfreq = tf.shape(self.frequency_vector)[2]
 
     def get_config(self):
         config = super().get_config()
         config.update({
             "frequency_vector":self.frequency_vector.numpy(),
-            "nfreq":self.nfreq.numpy(),
         })
         return config
           
     def call(self,inputs):
         inp_shape = tf.shape(inputs)
-        inp_prod = tf.reshape(tf.multiply(tf.reshape(inputs,(inp_shape[0],inp_shape[-1],1)),self.frequency_vector),(inp_shape[0],inp_shape[-1]*self.nfreq))
+        inp_prod = tf.reshape(tf.multiply(tf.reshape(inputs,(inp_shape[0],inp_shape[-1],1)),self.frequency_vector),(inp_shape[0],inp_shape[-1]*tf.shape(self.frequency_vector)[2]))
         return tf.concat((inputs,tf.cos(2.0*np.pi*inp_prod),tf.sin(2.0*np.pi*inp_prod)),axis=1)
     
 

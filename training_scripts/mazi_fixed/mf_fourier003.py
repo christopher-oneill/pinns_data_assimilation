@@ -519,13 +519,6 @@ def fit_epoch(i_train,f_train,colloc_vector,mean_grads,boundary_tuple,ScalingPar
     #i_sampled,o_sampled = data_sample_by_err(i_train,o_train,i_train.shape[0])
     i_sampled = i_train
     f_sampled = f_train
-    colloc_rand_indices = np.random.choice(np.arange(colloc_vector.shape[0]),batches*ScalingParameters.colloc_batch_size)
-    colloc_rand = tf.gather(colloc_vector,colloc_rand_indices,axis=0)
-    grads_rand = tf.gather(mean_grads,colloc_rand_indices,axis=0)
-
-    (BC_wall_epoch,BC_p_epoch) = boundary_tuple
-    BC_wall_rand = tf.gather(BC_wall_epoch,np.random.choice(np.arange(BC_wall_epoch.shape[0]),batches*ScalingParameters.boundary_batch_size),axis=0)
-  
 
     progbar = keras.utils.Progbar(batches)
     loss_vec = np.zeros((batches,),np.float64)
@@ -539,11 +532,7 @@ def fit_epoch(i_train,f_train,colloc_vector,mean_grads,boundary_tuple,ScalingPar
         i_batch = i_sampled[(batch*ScalingParameters.batch_size):np.min([(batch+1)*ScalingParameters.batch_size,i_train.shape[0]]),:]
         f_batch = f_sampled[(batch*ScalingParameters.batch_size):np.min([(batch+1)*ScalingParameters.batch_size,f_train.shape[0]]),:]
 
-        colloc_batch = colloc_rand[(batch*ScalingParameters.colloc_batch_size):np.min([(batch+1)*ScalingParameters.colloc_batch_size,colloc_rand.shape[0]]),:]
-        grads_batch = grads_rand[(batch*ScalingParameters.colloc_batch_size):np.min([(batch+1)*ScalingParameters.colloc_batch_size,colloc_rand.shape[0]]),:]
-        BC_wall_batch = BC_wall_rand[(batch*ScalingParameters.boundary_batch_size):np.min([(batch+1)*ScalingParameters.boundary_batch_size,BC_wall_rand.shape[0]]),:]
-
-        loss_value, data_loss, physics_loss, boundary_loss = train_step(tf.cast(i_batch,tf_dtype),tf.cast(f_batch,tf_dtype),tf.cast(colloc_batch,tf_dtype),tf.cast(grads_batch,tf_dtype),(BC_wall_batch,BC_p_epoch),ScalingParameters) #
+        loss_value, data_loss, physics_loss, boundary_loss = train_step(tf.cast(i_batch,tf_dtype),tf.cast(f_batch,tf_dtype),tf.cast(colloc_vector,tf_dtype),tf.cast(mean_grads,tf_dtype),boundary_tuple,ScalingParameters) #
         loss_vec[batch] = loss_value.numpy()
         data_vec[batch] = data_loss.numpy()
         physics_vec[batch] = physics_loss.numpy()
@@ -655,7 +644,7 @@ if __name__=="__main__":
     supersample_factor = int(sys.argv[3])
     job_hours = int(sys.argv[4])
 
-    job_name = 'mf2_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
+    job_name = 'mf3_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
 
     LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -928,7 +917,7 @@ if __name__=="__main__":
     # check if the model has been created before, if so load it
 
     optimizer = keras.optimizers.Adam(learning_rate=1E-4)
-    embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,60) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
+    embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,60) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we triple that to make sure we resolve the 2nd harmonic of that
     # we need to check if there are already checkpoints for this job
     model_file = get_filepaths_with_glob(PROJECTDIR+'output/'+job_name+'_output/',job_name+'_model.h5')
     # check if the model has been created, if so check if weights exist
@@ -960,8 +949,8 @@ if __name__=="__main__":
     backprop_flag=True
     while backprop_flag:
         # regular training with physics
-        lr_schedule = np.array([1E-6, 3.16E-7,  1E-7,      0.0])
-        ep_schedule = np.array([0,      50,     200,       350,  ])
+        lr_schedule = np.array([3.16E-7,  1E-7,      0.0])
+        ep_schedule = np.array([0,           150,       300,  ])
         phys_schedule = np.array([3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1])
 
         # reset the correct learing rate on load
@@ -991,7 +980,7 @@ if __name__=="__main__":
 
             fit_epoch(X_train_backprop,F_train_backprop,X_colloc,mean_data,boundary_tuple,ScalingParameters)
 
-            if np.mod(training_steps,20)==0:
+            if np.mod(training_steps,50)==0:
                 if node_name==LOCAL_NODE:
                     plot_NS_residual()
                     plot_err()
