@@ -665,7 +665,7 @@ if __name__=="__main__":
         end_time = start_time+job_duration
         print("This job is: ",job_name)
         HOMEDIR = '/home/coneill/sync/'
-        PROJECTDIR = 'home/coneill/projects/def-martinuz/'
+        PROJECTDIR = '/home/coneill/projects/def-martinuz/'
         SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
         sys.path.append(HOMEDIR+'code/')
         # set number of cores to compute on 
