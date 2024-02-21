@@ -229,7 +229,7 @@ def plot_err():
     point_locations = Y_grid_plot[:,0]
 
     plot_save_exts2 = ['_phi_xr_profile.png','_phi_xi_profile.png','_phi_yr_profile.png','_phi_yi_profile.png','_tau_xx_r_profile.png','_tau_xx_i_profile.png','_tau_xy_r_profile.png','_tau_xy_i_profile.png','_tau_yy_r_profile.png','_tau_yy_i_profile.png','_psi_r_profile.png','_psi_i_profile.png']
-    x_offset = np.array([-1,0,0,0,0,0,0,0,0,0,0,0])
+    x_offset = np.array([0,0,0,0,0,0,0,0,0,0,0,0])
     x_scale = np.array([0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5])
     err_scale = np.nanmax(np.abs(err_test_grid),axis=(0,1))
     
@@ -450,7 +450,7 @@ def batch_FANS_cartesian(model_FANS,colloc_pts,mean_grads,ScalingParameters,batc
 @ tf.function
 def FANS_physics_loss(model_FANS,colloc_pts,mean_grads,ScalingParameters):
     f_xr, f_xi, f_yr, f_yi, f_mr, f_mi = FANS_cartesian(model_FANS,colloc_pts,mean_grads,ScalingParameters)
-    return tf.reduce_sum(tf.reduce_mean(f_xr)+tf.reduce_mean(f_xi)+tf.reduce_mean(f_yr)+tf.reduce_mean(f_yi)+tf.reduce_mean(f_mr)+tf.reduce_mean(f_mi))
+    return tf.reduce_mean(tf.square(f_xr))+tf.reduce_mean(tf.square(f_xi))+tf.reduce_mean(tf.square(f_yr))+tf.reduce_mean(tf.square(f_yi))+tf.reduce_mean(tf.square(f_mr))+tf.reduce_mean(tf.square(f_mi))
 
 # function wrapper, combine data and physics loss
 def colloc_points_function(close,far):
@@ -947,8 +947,8 @@ if __name__=="__main__":
     backprop_flag=True
     while backprop_flag:
         # regular training with physics
-        lr_schedule = np.array([1E-6,        3.16E-7,  1E-7,      0.0])
-        ep_schedule = np.array([0,           50,       150,       300,  ])
+        lr_schedule = np.array([3.16E-7,  1E-7,      0.0])
+        ep_schedule = np.array([0,           150,       300,  ])
         phys_schedule = np.array([3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1])
 
         # reset the correct learing rate on load

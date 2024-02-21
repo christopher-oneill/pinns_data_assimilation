@@ -293,7 +293,7 @@ def save_pred():
     h5f.create_dataset('pred',data=pred)
     h5f.close()
     if ScalingParameters.physics_loss_coefficient!=0:
-        t_mx,t_my,t_mass = RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,tf.cast(i_test,tf_dtype))
+        t_mx,t_my,t_mass,t_cr = RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,tf.cast(i_test,tf_dtype))
         h5f = h5py.File(savedir+job_name+'_ep'+str(np.uint(training_steps))+'_error.mat','w')
         h5f.create_dataset('mxr',data=t_mx)
         h5f.create_dataset('myr',data=t_my)
@@ -1002,8 +1002,9 @@ colloc_vector = colloc_points_function(5000,20000)
 backprop_flag = True
 
 if node_name == LOCAL_NODE:
-    plot_err()
-    plot_NS_residual()
+    #plot_err()
+    #plot_NS_residual()
+    save_pred()
     exit()
 
 

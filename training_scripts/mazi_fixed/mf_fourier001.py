@@ -450,7 +450,7 @@ def batch_FANS_cartesian(model_FANS,colloc_pts,mean_grads,ScalingParameters,batc
 @ tf.function
 def FANS_physics_loss(model_FANS,colloc_pts,mean_grads,ScalingParameters):
     f_xr, f_xi, f_yr, f_yi, f_mr, f_mi = FANS_cartesian(model_FANS,colloc_pts,mean_grads,ScalingParameters)
-    return tf.reduce_sum(tf.reduce_mean(f_xr)+tf.reduce_mean(f_xi)+tf.reduce_mean(f_yr)+tf.reduce_mean(f_yi)+tf.reduce_mean(f_mr)+tf.reduce_mean(f_mi))
+    return tf.reduce_mean(tf.square(f_xr))+tf.reduce_mean(tf.square(f_xi))+tf.reduce_mean(tf.square(f_yr))+tf.reduce_mean(tf.square(f_yi))+tf.reduce_mean(tf.square(f_mr))+tf.reduce_mean(tf.square(f_mi))
 
 # function wrapper, combine data and physics loss
 def colloc_points_function(close,far):
@@ -492,7 +492,7 @@ def compute_loss(x,y,colloc_x,mean_grads,boundary_tuple,ScalingParameters):
     y_pred = model_FANS(x,training=True)
     data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:12]-y),axis=0),axis=0) 
     physics_loss = tf.cast(1E-30,tf_dtype)#FANS_physics_loss(model_FANS,colloc_x,mean_grads,ScalingParameters) 
-    boundary_loss = FANS_boundary_loss(model_FANS,boundary_tuple,ScalingParameters)
+    boundary_loss = tf.cast(1E-30,tf_dtype)#FANS_boundary_loss(model_FANS,boundary_tuple,ScalingParameters)
 
     # dynamic loss weighting, scale based on largest
     max_loss = tf.exp(tf.math.ceil(tf.math.log(1E-30+tf.reduce_max(tf.stack((data_loss,physics_loss,boundary_loss))))))
@@ -898,20 +898,26 @@ if __name__=="__main__":
 
     tf_device_string ='/GPU:0'
     # create the NNs
+    
+    from pinns_data_assimilation.lib.file_util import get_filepaths_with_glob
+    from pinns_data_assimilation.lib.layers import QuadraticInputPassthroughLayer
     from pinns_data_assimilation.lib.layers import QresBlock
     # load the saved mean model
     with tf.device('/CPU:0'):
-        model_mean = keras.models.load_model(HOMEDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':RANS_loss_wrapper(X_colloc,boundary_tuple[0],boundary_tuple[1]),'QresBlock':QresBlock})
+        #model_mean = keras.models.load_model(HOMEDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':RANS_loss_wrapper(X_colloc,boundary_tuple[0],boundary_tuple[1]),'QresBlock':QresBlock})
+        mean_model_folder = PROJECTDIR+'output/mf_dense008_001_S'+str(supersample_factor)
+        model_mean = keras.models.load_model(mean_model_folder+'/mf_dense008_001_S'+str(supersample_factor)+'_model.h5',custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer})
+        # find the latest weights for the model
+        mean_weights_filename,mean_training_steps = find_highest_numbered_file(PROJECTDIR+'output/mf_dense008_001_S'+str(supersample_factor)+'/mf_dense008_001_S'+str(supersample_factor)+'_ep','[0-9]*','.weights.h5')
+        print('Loaded mean model weights:',mean_weights_filename)
+        model_mean.load_weights(mean_weights_filename)
         model_mean.trainable=False
-
     # get the values for the mean_data tensor
     #mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters) # values at the collocation points
     mean_data = []
     mean_data_plot = mean_grads_cartesian(model_mean,X_plot/ScalingParameters.MAX_x,ScalingParameters) # at the plotting points
 
 
-    from pinns_data_assimilation.lib.file_util import get_filepaths_with_glob
-    from pinns_data_assimilation.lib.layers import QuadraticInputPassthroughLayer
     # check if the model has been created before, if so load it
 
     optimizer = keras.optimizers.Adam(learning_rate=1E-4)
@@ -940,6 +946,12 @@ if __name__=="__main__":
     # this time we randomly shuffle the order of X and O
     rng = np.random.default_rng()
 
+
+    #if node_name == LOCAL_NODE:
+    #    plot_NS_residual()
+    #    exit()
+
+
     # train the network
     last_epoch_time = datetime.now()
     average_epoch_time=timedelta(minutes=10)
@@ -947,7 +959,7 @@ if __name__=="__main__":
     while backprop_flag:
         # regular training with physics
         lr_schedule = np.array([1E-6,        3.16E-7,  1E-7,      0.0])
-        ep_schedule = np.array([0,           50,       150,       300,  ])
+        ep_schedule = np.array([0,           50,       150,       200,  ])
         phys_schedule = np.array([3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1])
 
         # reset the correct learing rate on load
