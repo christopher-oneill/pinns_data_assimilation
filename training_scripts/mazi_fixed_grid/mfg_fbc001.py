@@ -147,7 +147,7 @@ def save_pred():
 
 def load_custom():
     
-    model_RANS = keras.models.load_model(PROJECTDIR+'/output/'+job_name+'/'+job_name+'_model.h5',custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer,})
+    model_RANS = keras.models.load_model(PROJECTDIR+'/output/'+job_name+'/'+job_name+'_model.h5',custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer,'FourierPassthroughEmbeddingLayer':FourierPassthroughEmbeddingLayer,'FourierPassthroughReductionLayer':FourierPassthroughReductionLayer})
     # check
     checkpoint_filename,training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','.weights.h5')
     if checkpoint_filename is not None:
@@ -641,6 +641,7 @@ if supersample_factor>1:
     uxux = uxux[downsample_inds]
     uxuy = uxuy[downsample_inds]
     uyuy = uyuy[downsample_inds]
+    p = p[downsample_inds]
     cylinder_mask = cylinder_mask[downsample_inds]
 
 # remove the inside quantities
@@ -680,6 +681,11 @@ optimizer = keras.optimizers.Adam(learning_rate=1E-4)
 
 from pinns_data_assimilation.lib.file_util import get_filepaths_with_glob
 from pinns_data_assimilation.lib.layers import QuadraticInputPassthroughLayer
+from pinns_data_assimilation.lib.layers import FourierPassthroughEmbeddingLayer
+from pinns_data_assimilation.lib.layers import FourierPassthroughReductionLayer
+
+embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,20)
+
 
 if os.path.isfile(PROJECTDIR+'/output/'+job_name+'/'+job_name+'_model.h5'):
     with tf.device(tf_device_string):
@@ -688,9 +694,12 @@ else:
     training_steps = 0
     with tf.device(tf_device_string):        
         inputs = keras.Input(shape=(2,),name='coordinates')
-        lo = QuadraticInputPassthroughLayer(100,2)(inputs)
+        lo = FourierPassthroughEmbeddingLayer(embedding_wavenumber_vector,2)(inputs)
         for i in range(4):
-            lo = QuadraticInputPassthroughLayer(100,2)(lo)
+            lo = QuadraticInputPassthroughLayer(70,2)(lo)
+        lo = FourierPassthroughReductionLayer(embedding_wavenumber_vector,2)(lo) 
+        for i in range(4):
+            lo = QuadraticInputPassthroughLayer(70,2)(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         # save the model architecture only once on setup
@@ -708,15 +717,6 @@ global saveFig
 saveFig=True
 
 history_list = []
-
-
-
-if node_name == LOCAL_NODE:
-    plot_err()
-    #plot_NS_residual()
-    #plot_large()
-    #plot_NS_large()
-    exit()
 
 backprop_flag = True
 

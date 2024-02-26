@@ -389,7 +389,6 @@ def fit_epoch(i_train,o_train,colloc_vector,boundary_tuple,ScalingParameters):
         colloc_batch = colloc_rand[(batch*ScalingParameters.colloc_batch_size):np.min([(batch+1)*ScalingParameters.colloc_batch_size,colloc_rand.shape[0]]),:]
         BC_wall_batch = BC_wall_rand[(batch*ScalingParameters.boundary_batch_size):np.min([(batch+1)*ScalingParameters.boundary_batch_size,BC_wall_rand.shape[0]]),:]
 
-
         loss_value, data_loss, physics_loss, boundary_loss = train_step(tf.cast(i_batch,tf_dtype),tf.cast(o_batch,tf_dtype),tf.cast(colloc_batch,tf_dtype),(BC_p_epoch,BC_wall_batch),ScalingParameters) #
         loss_vec[batch] = loss_value.numpy()
         data_vec[batch] = data_loss.numpy()
@@ -468,7 +467,8 @@ def train_LBFGS(model,x,y,colloc_x,boundary_tuple,ScalingParameters):
 
         # print out iteration & loss
         f.iter.assign_add(1)
-        tf.print("Iter:", f.iter, "loss:", loss_value)
+        tf.print("Iter:", f.iter, "loss:", loss_value,"time:",tf.timestamp()-f.last_time,"s")
+        f.last_time.assign(tf.timestamp())
 
         # store loss value so we can retrieve later
         tf.py_function(f.history.append, inp=[loss_value], Tout=[])
@@ -480,6 +480,7 @@ def train_LBFGS(model,x,y,colloc_x,boundary_tuple,ScalingParameters):
     f.idx = idx
     f.part = part
     f.shapes = shapes
+    f.last_time = tf.Variable(tf.timestamp())
     f.assign_new_model_parameters = assign_new_model_parameters
     f.history = []
 
@@ -690,9 +691,11 @@ optimizer = keras.optimizers.Adam(learning_rate=1E-4)
 
 from pinns_data_assimilation.lib.file_util import get_filepaths_with_glob
 from pinns_data_assimilation.lib.layers import QuadraticInputPassthroughLayer
-from pinns_data_assimilation.lib.layers import FourierEmbeddingLayer
+from pinns_data_assimilation.lib.layers import InputPassthroughLayer
+from pinns_data_assimilation.lib.layers import FourierPassthroughEmbeddingLayer
+from pinns_data_assimilation.lib.layers import FourierPassthroughReductionLayer
 
-embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,60)
+embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,20)
 
 if os.path.isfile(PROJECTDIR+'/output/'+job_name+'/'+job_name+'_model.h5'):
     with tf.device(tf_device_string):
@@ -701,9 +704,12 @@ else:
     training_steps = 0
     with tf.device(tf_device_string):        
         inputs = keras.Input(shape=(2,),name='coordinates')
-        lo = FourierEmbeddingLayer(embedding_wavenumber_vector)(inputs)
-        for i in range(5):
-            lo = QuadraticInputPassthroughLayer(100,2)(lo)
+        lo = FourierPassthroughEmbeddingLayer(embedding_wavenumber_vector,2)(inputs)
+        for i in range(4):
+            lo = QuadraticInputPassthroughLayer(70,2)(lo)
+        lo = FourierPassthroughReductionLayer(-embedding_wavenumber_vector,2)(lo)
+        for i in range(4):
+            lo = QuadraticInputPassthroughLayer(70,2)(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         # save the model architecture only once on setup

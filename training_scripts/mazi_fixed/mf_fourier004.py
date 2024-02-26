@@ -569,12 +569,12 @@ def colloc_points_function(close,far,i_train):
     rand_colloc_train = colloc_merged*np.array([1/ScalingParameters.MAX_x,1/ScalingParameters.MAX_y])
 
     # add a random set of the data points to the collocation array too
-    data_point_inds = np.random.choice(np.arange(i_train.shape[0]),close+far)
-    pts_colloc_train = i_train[data_point_inds,:]
+    #data_point_inds = np.random.choice(np.arange(i_train.shape[0]),close+far)
+    #pts_colloc_train = i_train[data_point_inds,:]
 
-    f_colloc_train = np.concatenate((rand_colloc_train,pts_colloc_train),axis=0)
-    print('colloc.shape',f_colloc_train.shape)
-    return f_colloc_train
+    #f_colloc_train = np.concatenate((rand_colloc_train,pts_colloc_train),axis=0)
+    print('colloc.shape',rand_colloc_train.shape)
+    return rand_colloc_train
 
 # boundary condition points
 def boundary_points_function(n_cyl):
