@@ -853,8 +853,8 @@ if __name__=="__main__":
     ScalingParameters = UserScalingParameters()
 
     ScalingParameters.fs = fs
-    ScalingParameters.MAX_x = 10.0
-    ScalingParameters.MAX_y = 10.0 # we use the larger of the two spatial scalings
+    ScalingParameters.MAX_x = 20.0 # we noticed an issue near the maximums so we double this to see if the linear region is more helpful
+    ScalingParameters.MAX_y = 20.0 # we use the larger of the two spatial scalings
     ScalingParameters.MAX_ux = np.max(ux.flatten())
     ScalingParameters.MAX_uy = np.max(uy.flatten())
     ScalingParameters.MIN_x = -2.0
@@ -1031,19 +1031,20 @@ if __name__=="__main__":
     mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters) # values at the collocation points
     mean_data_plot = mean_grads_cartesian(model_mean,X_plot/ScalingParameters.MAX_x,ScalingParameters) # at the plotting points
 
-    x_plot_vec = X_grid_plot[0,:]/ScalingParameters.MAX_x
-    plot.figure(1)
-    plot.plot(x_plot_vec,F_test_grid[0,:,8])
-    plot.plot(x_plot_vec,0.01*np.sin(10*np.pi*x_plot_vec))
-    plot.show()
+    if False:
+        x_plot_vec = X_grid_plot[0,:]/ScalingParameters.MAX_x
+        plot.figure(1)
+        plot.plot(x_plot_vec,F_test_grid[0,:,10])
+        plot.plot(x_plot_vec,0.001*np.sin(20*np.pi*x_plot_vec))
+        plot.show()
 
-    exit()
+        exit()
 
    
     # check if the model has been created before, if so load it
 
     optimizer = keras.optimizers.SGD(learning_rate=1E-4,momentum=0.0)
-    embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,60) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
+    embedding_wavenumber_vector = np.linspace(0,2*np.pi*ScalingParameters.MAX_x,20) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
     # we need to check if there are already checkpoints for this job
     model_file = get_filepaths_with_glob(PROJECTDIR+'output/'+job_name+'_output/',job_name+'_model.h5')
     # check if the model has been created, if so check if weights exist

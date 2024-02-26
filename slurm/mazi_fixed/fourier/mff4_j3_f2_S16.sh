@@ -15,7 +15,6 @@ echo "Starting run at: `date`"
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # Run your simulation step here...
-cd $SLURM_TMPDIR
 
 module load python/3.10
 source /home/coneill/sync/venv/tf1/bin/activate
