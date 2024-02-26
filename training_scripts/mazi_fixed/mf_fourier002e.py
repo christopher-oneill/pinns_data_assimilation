@@ -569,12 +569,12 @@ def colloc_points_function(close,far,i_train):
     rand_colloc_train = colloc_merged*np.array([1/ScalingParameters.MAX_x,1/ScalingParameters.MAX_y])
 
     # add a random set of the data points to the collocation array too
-    data_point_inds = np.random.choice(np.arange(i_train.shape[0]),close+far)
-    pts_colloc_train = i_train[data_point_inds,:]
+    #data_point_inds = np.random.choice(np.arange(i_train.shape[0]),close+far)
+    #pts_colloc_train = i_train[data_point_inds,:]
 
-    f_colloc_train = np.concatenate((rand_colloc_train,pts_colloc_train),axis=0)
-    print('colloc.shape',f_colloc_train.shape)
-    return f_colloc_train
+    #f_colloc_train = np.concatenate((rand_colloc_train,pts_colloc_train),axis=0)
+    print('colloc.shape',rand_colloc_train.shape)
+    return rand_colloc_train
 
 # boundary condition points
 def boundary_points_function(n_cyl):
@@ -757,7 +757,7 @@ if __name__=="__main__":
     supersample_factor = int(sys.argv[3])
     job_hours = int(sys.argv[4])
 
-    job_name = 'mf4_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
+    job_name = 'mf2e_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
 
     LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -778,7 +778,7 @@ if __name__=="__main__":
         end_time = start_time+job_duration
         print("This job is: ",job_name)
         HOMEDIR = '/home/coneill/sync/'
-        PROJECTDIR = '/home/coneill/projects/def-martinuz/coneill/'
+        PROJECTDIR = '/home/coneill/projects/def-martinuz/'
         SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
         sys.path.append(HOMEDIR+'code/')
         # set number of cores to compute on 
@@ -1014,6 +1014,7 @@ if __name__=="__main__":
     from pinns_data_assimilation.lib.layers import QuadraticInputPassthroughLayer
     from pinns_data_assimilation.lib.layers import FourierPassthroughEmbeddingLayer
     from pinns_data_assimilation.lib.layers import FourierPassthroughReductionLayer
+    from pinns_data_assimilation.lib.layers import InputPassthroughLayer
     from pinns_data_assimilation.lib.layers import QresBlock
     # load the saved mean model
     with tf.device('/CPU:0'):
@@ -1030,8 +1031,15 @@ if __name__=="__main__":
     mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters) # values at the collocation points
     mean_data_plot = mean_grads_cartesian(model_mean,X_plot/ScalingParameters.MAX_x,ScalingParameters) # at the plotting points
 
+    x_plot_vec = X_grid_plot[0,:]/ScalingParameters.MAX_x
+    plot.figure(1)
+    plot.plot(x_plot_vec,F_test_grid[0,:,8])
+    plot.plot(x_plot_vec,0.01*np.sin(10*np.pi*x_plot_vec))
+    plot.show()
 
-    
+    exit()
+
+   
     # check if the model has been created before, if so load it
 
     optimizer = keras.optimizers.SGD(learning_rate=1E-4,momentum=0.0)
@@ -1047,16 +1055,18 @@ if __name__=="__main__":
         training_steps = 0
         with tf.device(tf_device_string):        
             inputs = keras.Input(shape=(2,),name='coordinates')
+            #lo = InputPassthroughLayer(8,2)(inputs)
             lo = FourierPassthroughEmbeddingLayer(embedding_wavenumber_vector,2)(inputs)
             #lo = QuadraticInputPassthroughLayer(150,2,activation='tanh',dtype=tf_dtype)(inputs)
             # construct a representation in frequency domain
+            #lo = InputPassthroughLayer(100,2)(lo)
             for i in range(4):                
                 lo = QuadraticInputPassthroughLayer(100,2,activation='tanh',dtype=tf_dtype)(lo)
             # recover the frequency domain representation in time domain
             lo = FourierPassthroughReductionLayer(-embedding_wavenumber_vector,2)(lo)
             # find any low frequency content in time domain
             for i in range(4):
-                lo = QuadraticInputPassthroughLayer(150,2,activation='tanh',dtype=tf_dtype)(lo)
+                lo = QuadraticInputPassthroughLayer(100,2,activation='tanh',dtype=tf_dtype)(lo)
             # get the output
             outputs = keras.layers.Dense(12,activation='linear',name='dynamical_quantities')(lo)
             model_FANS = keras.Model(inputs=inputs,outputs=outputs)
