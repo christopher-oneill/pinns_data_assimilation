@@ -722,7 +722,8 @@ def train_LBFGS(model,x,y,colloc_x,mean_grads,boundary_tuple,ScalingParameters):
 
         # print out iteration & loss
         f.iter.assign_add(1)
-        tf.print("Iter:", f.iter, "loss:", loss_value)
+        tf.print("Iter:", f.iter, "loss:", loss_value,"time ",tf.timestamp()-f.last_time,'s')
+        f.last_time=tf.timestamp()
 
         # store loss value so we can retrieve later
         tf.py_function(f.history.append, inp=[loss_value], Tout=[])
@@ -734,6 +735,7 @@ def train_LBFGS(model,x,y,colloc_x,mean_grads,boundary_tuple,ScalingParameters):
     f.idx = idx
     f.part = part
     f.shapes = shapes
+    f.last_time = tf.timestamp()
     f.assign_new_model_parameters = assign_new_model_parameters
     f.history = []
 
