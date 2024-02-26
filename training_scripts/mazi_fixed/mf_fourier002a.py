@@ -44,7 +44,7 @@ def load_custom():
             # check if the file is windows weight style or linux weight style
             if w_keys[0]=='_layer_checkpoint_dependencies':
                 # if the file was saved on linux we need to copy it back to windows format 
-                new_weights_file = h5py.File(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep'+str(training_steps+1)+'.weights.h5','w')
+                new_weights_file = h5py.File(PROJECTDIR+'output/'+job_name+'/'+job_name+'_ep'+str(training_steps+1)+'.weights.h5','w')
                 # copy all other keys
                 for nkey in range(1,len(w_keys)):
                     weights_file.copy(weights_file[w_keys[nkey]],new_weights_file)
@@ -54,7 +54,7 @@ def load_custom():
                     new_weights_file.create_group('_layer_checkpoint_dependencies\\'+layer_keys[nkey])
                     weights_file.copy(weights_file['_layer_checkpoint_dependencies'][layer_keys[nkey]]['vars'],new_weights_file['_layer_checkpoint_dependencies\\'+layer_keys[nkey]]) # ['_layer_checkpoint_dependencies\\'+layer_keys[nkey]] 
                 new_weights_file.close()
-                model_FANS.load_weights(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep'+str(training_steps+1)+'.weights.h5')
+                model_FANS.load_weights(PROJECTDIR+'output/'+job_name+'/'+job_name+'_ep'+str(training_steps+1)+'.weights.h5')
             else:
                 # windows style loading
                 model_FANS.load_weights(checkpoint_filename)
@@ -453,13 +453,13 @@ def FANS_physics_loss(model_FANS,colloc_pts,mean_grads,ScalingParameters):
     return tf.reduce_mean(tf.square(f_xr))+tf.reduce_mean(tf.square(f_xi))+tf.reduce_mean(tf.square(f_yr))+tf.reduce_mean(tf.square(f_yi))+tf.reduce_mean(tf.square(f_mr))+tf.reduce_mean(tf.square(f_mi))
 
 # function wrapper, combine data and physics loss
-def colloc_points_function(close,far):
+def colloc_points_function(close,far,i_train):
     # reduce the collocation points to 25k
     colloc_limits1 = np.array([[3.0,10.0],[-2.0,2.0]])
     colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
     colloc_lhs1 = colloc_sample_lhs1(far)
 
-    colloc_limits2 = np.array([[-2.0,3.0],[-2,2]])
+    colloc_limits2 = np.array([[-2.0,3.0],[-2.0,2.0]])
     colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
     colloc_lhs2 = colloc_sample_lhs2(close)
 
@@ -469,9 +469,16 @@ def colloc_points_function(close,far):
     cylinder_inds = np.less(np.power(np.power(colloc_merged[:,0]-c1_loc[0],2)+np.power(colloc_merged[:,1]-c1_loc[1],2),0.5*d),0.5)
     print(cylinder_inds.shape)
     colloc_merged = np.delete(colloc_merged,np.nonzero(cylinder_inds[0,:]),axis=0)
-    print('colloc_merged.shape',colloc_merged.shape)
+    
 
-    f_colloc_train = colloc_merged*np.array([1/ScalingParameters.MAX_x,1/ScalingParameters.MAX_y])
+    rand_colloc_train = colloc_merged*np.array([1/ScalingParameters.MAX_x,1/ScalingParameters.MAX_y])
+
+    # add a random set of the data points to the collocation array too
+    data_point_inds = np.random.choice(np.arange(i_train.shape[0]),close+far)
+    pts_colloc_train = i_train[data_point_inds,:]
+
+    f_colloc_train = np.concatenate((rand_colloc_train,pts_colloc_train),axis=0)
+    print('colloc.shape',f_colloc_train.shape)
     return f_colloc_train
 
 # boundary condition points
@@ -519,6 +526,13 @@ def fit_epoch(i_train,f_train,colloc_vector,mean_grads,boundary_tuple,ScalingPar
     #i_sampled,o_sampled = data_sample_by_err(i_train,o_train,i_train.shape[0])
     i_sampled = i_train
     f_sampled = f_train
+    colloc_rand_indices = np.random.choice(np.arange(colloc_vector.shape[0]),batches*ScalingParameters.colloc_batch_size)
+    colloc_rand = tf.gather(colloc_vector,colloc_rand_indices,axis=0)
+    grads_rand = tf.gather(mean_grads,colloc_rand_indices,axis=0)
+
+    (BC_wall_epoch,BC_p_epoch) = boundary_tuple
+    BC_wall_rand = tf.gather(BC_wall_epoch,np.random.choice(np.arange(BC_wall_epoch.shape[0]),batches*ScalingParameters.boundary_batch_size),axis=0)
+  
 
     progbar = keras.utils.Progbar(batches)
     loss_vec = np.zeros((batches,),np.float64)
@@ -532,7 +546,11 @@ def fit_epoch(i_train,f_train,colloc_vector,mean_grads,boundary_tuple,ScalingPar
         i_batch = i_sampled[(batch*ScalingParameters.batch_size):np.min([(batch+1)*ScalingParameters.batch_size,i_train.shape[0]]),:]
         f_batch = f_sampled[(batch*ScalingParameters.batch_size):np.min([(batch+1)*ScalingParameters.batch_size,f_train.shape[0]]),:]
 
-        loss_value, data_loss, physics_loss, boundary_loss = train_step(tf.cast(i_batch,tf_dtype),tf.cast(f_batch,tf_dtype),tf.cast(colloc_vector,tf_dtype),tf.cast(mean_grads,tf_dtype),boundary_tuple,ScalingParameters) #
+        colloc_batch = colloc_rand[(batch*ScalingParameters.colloc_batch_size):np.min([(batch+1)*ScalingParameters.colloc_batch_size,colloc_rand.shape[0]]),:]
+        grads_batch = grads_rand[(batch*ScalingParameters.colloc_batch_size):np.min([(batch+1)*ScalingParameters.colloc_batch_size,colloc_rand.shape[0]]),:]
+        BC_wall_batch = BC_wall_rand[(batch*ScalingParameters.boundary_batch_size):np.min([(batch+1)*ScalingParameters.boundary_batch_size,BC_wall_rand.shape[0]]),:]
+
+        loss_value, data_loss, physics_loss, boundary_loss = train_step(tf.cast(i_batch,tf_dtype),tf.cast(f_batch,tf_dtype),tf.cast(colloc_batch,tf_dtype),tf.cast(grads_batch,tf_dtype),(BC_wall_batch,BC_p_epoch),ScalingParameters) #
         loss_vec[batch] = loss_value.numpy()
         data_vec[batch] = data_loss.numpy()
         physics_vec[batch] = physics_loss.numpy()
@@ -644,7 +662,7 @@ if __name__=="__main__":
     supersample_factor = int(sys.argv[3])
     job_hours = int(sys.argv[4])
 
-    job_name = 'mf3_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
+    job_name = 'mf2a_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
 
     LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -665,7 +683,7 @@ if __name__=="__main__":
         end_time = start_time+job_duration
         print("This job is: ",job_name)
         HOMEDIR = '/home/coneill/sync/'
-        PROJECTDIR = '/home/coneill/projects/def-martinuz/coneill/'
+        PROJECTDIR = '/home/coneill/projects/def-martinuz/'
         SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
         sys.path.append(HOMEDIR+'code/')
         # set number of cores to compute on 
@@ -888,7 +906,7 @@ if __name__=="__main__":
     print('O_train.shape: ',O_train_backprop.shape)
     # the order here must be identical to inside the cost functions
     boundary_tuple  = boundary_points_function(720)
-    X_colloc = colloc_points_function(20000,5000)
+    X_colloc = colloc_points_function(20000,5000,X_train_LBFGS)
 
 
     tf_device_string ='/GPU:0'
@@ -917,7 +935,7 @@ if __name__=="__main__":
     # check if the model has been created before, if so load it
 
     optimizer = keras.optimizers.Adam(learning_rate=1E-4)
-    embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,60) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we triple that to make sure we resolve the 2nd harmonic of that
+    embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,60) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
     # we need to check if there are already checkpoints for this job
     model_file = get_filepaths_with_glob(PROJECTDIR+'output/'+job_name+'_output/',job_name+'_model.h5')
     # check if the model has been created, if so check if weights exist
@@ -938,12 +956,6 @@ if __name__=="__main__":
             # save the model only on startup
             model_FANS.save(savedir+job_name+'_model.h5')
 
-    if node_name == LOCAL_NODE:
-        plot_err()
-        plot_NS_residual()
-        exit()
-
-
 
     # setup the training data
     # this time we randomly shuffle the order of X and O
@@ -955,8 +967,8 @@ if __name__=="__main__":
     backprop_flag=True
     while backprop_flag:
         # regular training with physics
-        lr_schedule = np.array([3.16E-7,  1E-7,      0.0])
-        ep_schedule = np.array([0,           150,       300,  ])
+        lr_schedule = np.array([1E-6, 3.16E-7,  1E-7,      0.0])
+        ep_schedule = np.array([0,      50,     200,       350,  ])
         phys_schedule = np.array([3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1])
 
         # reset the correct learing rate on load
@@ -986,7 +998,7 @@ if __name__=="__main__":
 
             fit_epoch(X_train_backprop,F_train_backprop,X_colloc,mean_data,boundary_tuple,ScalingParameters)
 
-            if np.mod(training_steps,50)==0:
+            if np.mod(training_steps,20)==0:
                 if node_name==LOCAL_NODE:
                     plot_NS_residual()
                     plot_err()
@@ -996,7 +1008,7 @@ if __name__=="__main__":
             if np.mod(training_steps,50)==0:
                     # rerandomize the collocation points 
                 boundary_tuple = boundary_points_function(720)
-                X_colloc = colloc_points_function(5000,20000)
+                X_colloc = colloc_points_function(5000,20000,X_train_LBFGS)
                 mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
             
             # check if we are out of time
@@ -1014,7 +1026,7 @@ if __name__=="__main__":
         import tensorflow_probability as tfp
         L_iter = 0
         boundary_tuple = boundary_points_function(720)
-        X_colloc = colloc_points_function(20000,5000) # one A100 max = 60k?
+        X_colloc = colloc_points_function(20000,5000,X_train_LBFGS) # one A100 max = 60k?
         #mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
         func = train_LBFGS(model_FANS,tf.cast(X_train_LBFGS,tf_dtype),tf.cast(F_train_LBFGS,tf_dtype),X_colloc,mean_data,boundary_tuple,ScalingParameters)
         init_params = tf.dynamic_stitch(func.idx, model_FANS.trainable_variables)
@@ -1042,7 +1054,7 @@ if __name__=="__main__":
             if np.mod(L_iter,10)==0:
                 model_FANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
                 boundary_tuple = boundary_points_function(720)
-                X_colloc = colloc_points_function(5000,20000)
+                X_colloc = colloc_points_function(5000,20000,X_train_LBFGS)
                 mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
                 func = train_LBFGS(model_FANS,tf.cast(X_train_LBFGS,tf_dtype),tf.cast(F_train_LBFGS,tf_dtype),X_colloc,mean_data,boundary_tuple,ScalingParameters)
                 init_params = tf.dynamic_stitch(func.idx, model_FANS.trainable_variables)

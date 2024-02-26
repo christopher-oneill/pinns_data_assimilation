@@ -8,8 +8,8 @@ import h5py
 #import tensorflow_probability as tfp
 from smt.sampling_methods import LHS
 
-keras.backend.set_floatx('float32')
-tf_dtype=tf.float32
+keras.backend.set_floatx('float64')
+tf_dtype=tf.float64
 import numpy as np
 
 from datetime import datetime
@@ -18,7 +18,6 @@ from datetime import timedelta
 import sys
 import os
 import platform
-
 
 def plot_NS_residual():
     # NS residual
@@ -82,12 +81,10 @@ def plot_err():
 
     cylinder_mask = (np.power(X_grid,2.0)+np.power(Y_grid,2.0))<=np.power(d/2.0,2.0)
 
-    o_test_grid_temp = np.zeros([X_grid.shape[0],X_grid.shape[1],6])
-    o_test_grid_temp[:,:,0:5] = 1.0*o_test_grid
-    o_test_grid_temp[:,:,5]=1.0*p_grid
+    o_test_grid_temp = 1.0*o_test_grid
     o_test_grid_temp[cylinder_mask,:] = np.NaN
 
-    pred_test = model_RANS(i_test[:],training=False)
+    pred_test = model_RANS(i_test,training=False)
     
     pred_test_grid = 1.0*np.reshape(pred_test,[X_grid.shape[0],X_grid.shape[1],6])
     pred_test_grid[cylinder_mask,:] = np.NaN
@@ -104,10 +101,11 @@ def plot_err():
         plot.title('Full Resolution')
         plot.subplot(3,1,1)
         plot.contourf(X_grid,Y_grid,o_test_grid_temp[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
-        if supersample_factor>1:
-            plot.scatter(i_train_plot[:,0],i_train_plot[:,1],3,'k','.')
         plot.set_cmap('bwr')
         plot.colorbar()
+        if supersample_factor>1:
+            plot.scatter(i_train_plot[:,0],i_train_plot[:,1],2,'k','.')
+        
         plot.subplot(3,1,2)
         plot.contourf(X_grid,Y_grid,pred_test_grid[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
         plot.set_cmap('bwr')
@@ -127,17 +125,14 @@ def plot_err():
 
 
 
-
 # plotting functions
 # save and load functions
 
-def save_custom():
+def save_pred():
     global i_test
     global savedir
     global ScalingParameters
     global training_steps
-    global model_RANS
-    model_RANS.save(savedir+job_name+'_ep'+str(np.uint(training_steps))+'_model.h5')
     pred = model_RANS(tf.cast(i_test,tf_dtype),training=False)
     h5f = h5py.File(savedir+job_name+'_ep'+str(np.uint(training_steps))+'_pred.mat','w')
     h5f.create_dataset('pred',data=pred)
@@ -151,22 +146,17 @@ def save_custom():
         h5f.close()
 
 def load_custom():
-    checkpoint_filename,training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','_model.h5')
-    model_RANS = keras.models.load_model(checkpoint_filename,custom_objects={'QresBlock2':QresBlock2,'QresBlock':QresBlock,})
+    model_RANS = keras.models.load_model(PROJECTDIR+'/output/'+job_name+'/'+job_name+'_model.h5',custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer,'FourierEmbeddingLayer':FourierEmbeddingLayer})
+    # check
+    checkpoint_filename,training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','.weights.h5')
+    if checkpoint_filename is not None:
+        model_RANS.load_weights(checkpoint_filename)        
     model_RANS.summary()
     print('Model Loaded. Epoch',str(training_steps))
     #optimizer.build(model_RANS.trainable_variables)
     return model_RANS, training_steps
 
 # import the physics
-@tf.function
-def BC_RANS_no_stresses(model_RANS,BC_points):
-    up = model_RANS(BC_points)
-    uxppuxpp = up[:,2]
-    uxppuypp = up[:,3]
-    uyppuypp = up[:,4]
-    return tf.reduce_mean(tf.square(uxppuxpp)+tf.square(uxppuypp)+tf.square(uyppuypp))
-
 @tf.function
 def BC_RANS_reynolds_stress_pressure(model_RANS,BC_points):
     up = model_RANS(BC_points)
@@ -176,25 +166,9 @@ def BC_RANS_reynolds_stress_pressure(model_RANS,BC_points):
     return tf.reduce_mean(tf.square(p))
 
 @tf.function
-def BC_RANS_inlet(model_RANS,ScalingParameters,BC_points):
-    up = model_RANS(BC_points)
-    ux = up[:,0]*ScalingParameters.MAX_ux
-    uy = up[:,1] # no need to scale since they should go to zero
-    uxppuxpp = up[:,2]
-    uxppuypp = up[:,3]
-    uyppuypp = up[:,4]
-    return tf.reduce_mean(tf.square(ux-1.0))+tf.reduce_mean(tf.square(uy))+tf.reduce_mean(tf.square(uxppuxpp))+tf.reduce_mean(tf.square(uxppuypp))+tf.reduce_mean(tf.square(uyppuypp))
- # note there is no point where the pressure is close to zero, so we neglect it in the mean field model
-
-@tf.function
-def BC_cylinder_inside(model_RANS,ScalingParameters,BC_points):
-    up = model_RANS(BC_points)
-    return tf.reduce_mean(tf.square(up[:,0]))+tf.reduce_mean(tf.square(up[:,1]))+tf.reduce_mean(tf.square(up[:,2]))+tf.reduce_mean(tf.square(up[:,3]))+tf.reduce_mean(tf.square(up[:,4]))
-
-@tf.function
 def BC_RANS_wall(model_RANS,ScalingParameters,BC_points):
     wall_coord = BC_points[:,0:2]
-    wall_angle = BC_points[:,2]
+    #wall_angle = BC_points[:,2]
     up = model_RANS(wall_coord)
     # knowns
     ux = up[:,0]
@@ -208,8 +182,7 @@ def BC_RANS_wall(model_RANS,ScalingParameters,BC_points):
     #p_y = dp[:,1]/ScalingParameters.MAX_y
     #grad_p_norm = p_x*tf.cos(wall_angle)+p_y*tf.sin(wall_angle)
 
-    return tf.reduce_sum(tf.square(ux)+tf.square(uy)+tf.square(uxppuxpp)+tf.square(uxppuypp)+tf.square(uyppuypp)) #+tf.square(grad_p_norm)
-
+    return tf.reduce_mean(tf.square(ux))+tf.reduce_mean(tf.square(uy))+tf.reduce_mean(tf.square(uxppuxpp))+tf.reduce_mean(tf.square(uxppuypp))+tf.reduce_mean(tf.square(uyppuypp)) #+tf.square(grad_p_norm)
 
 @tf.function
 def RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,colloc_tensor):
@@ -268,8 +241,9 @@ def RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,colloc_tensor):
     f_x = (ux*ux_x + uy*ux_y) + (uxux_x + uxuy_y) + p_x - (ScalingParameters.nu_mol)*(ux_xx+ux_yy)  #+ uxux_x + uxuy_y    #- nu*(ur_rr+ux_rx + ur_r/r - ur/pow(r,2))
     f_y = (ux*uy_x + uy*uy_y) + (uxuy_x + uyuy_y) + p_y - (ScalingParameters.nu_mol)*(uy_xx+uy_yy)#+ uxuy_x + uyuy_y    #- nu*(ux_xx+ur_xr+ur_x/r)
     f_mass = ux_x + uy_y
+    f_cr = tf.multiply(tf.cast(tf.math.less(uxux,tf.cast(0.0,tf_dtype)),tf_dtype),tf.abs(uxux))+tf.multiply(tf.cast(tf.math.less(uyuy,tf.cast(0.0,tf_dtype)),tf_dtype),tf.abs(uyuy)) # tr(ReStress)>0 by defn
     
-    return f_x, f_y, f_mass
+    return f_x, f_y, f_mass, f_cr
 
 def batch_RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,colloc_tensor,batch_size=1000):
     n_batch = np.int64(np.ceil(colloc_tensor.shape[0]/(1.0*batch_size)))
@@ -280,7 +254,7 @@ def batch_RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,colloc_ten
     for batch in range(0,n_batch):
         progbar.update(batch+1)
         batch_inds = np.arange(batch*batch_size,np.min([(batch+1)*batch_size,colloc_tensor.shape[0]]))
-        f_x, f_y, f_m = RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,tf.gather(colloc_tensor,batch_inds))
+        f_x, f_y, f_m, c_r = RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,tf.gather(colloc_tensor,batch_inds))
         f_x_list.append(f_x)
         f_y_list.append(f_y)
         f_m_list.append(f_m)
@@ -294,11 +268,12 @@ def batch_RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,colloc_ten
 
 @tf.function
 def RANS_physics_loss(model_RANS,ScalingParameters,colloc_points,): # def custom_loss_wrapper(colloc_tensor_f,BCs,BCs_p,BCs_t):
-    mx,my,mass = RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,colloc_points)
+    mx,my,mass,cr = RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,colloc_points)
     physical_loss1 = tf.reduce_mean(tf.square(mx))
     physical_loss2 = tf.reduce_mean(tf.square(my))
     physical_loss3 = tf.reduce_mean(tf.square(mass))
-    physics_loss = physical_loss1 + physical_loss2 + physical_loss3
+    constraint_loss = tf.reduce_mean(tf.square(cr)) # non-negative reynolds stresses
+    physics_loss = physical_loss1 + physical_loss2 + physical_loss3 + constraint_loss
     return physics_loss
 
 
@@ -306,16 +281,11 @@ def RANS_physics_loss(model_RANS,ScalingParameters,colloc_points,): # def custom
 
 @tf.function
 def RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple):
-    (BC_p,BC_wall,BC_inlet,BC_cylinder_inside_pts,BC_outside_pts) = boundary_tuple
-
-
+    (BC_p,BC_wall) = boundary_tuple
     BC_pressure_loss = BC_RANS_reynolds_stress_pressure(model_RANS,BC_p) 
     BC_wall_loss = BC_RANS_wall(model_RANS,ScalingParameters,BC_wall)
-    BC_cylinder_inside_loss = BC_cylinder_inside(model_RANS,ScalingParameters,BC_cylinder_inside_pts)
-    BC_stress_outside_loss = BC_RANS_no_stresses(model_RANS,BC_outside_pts)
-    BC_inlet_loss = BC_RANS_inlet(model_RANS,ScalingParameters,BC_inlet)
                        
-    boundary_loss = (BC_wall_loss + BC_pressure_loss + BC_inlet_loss + BC_cylinder_inside_loss + BC_stress_outside_loss) #  + BC_wall2 +   + BC_cylinder_inside_loss + BC_inlet_loss2
+    boundary_loss = (BC_wall_loss + BC_pressure_loss) #  + BC_wall2 +   + BC_cylinder_inside_loss + BC_inlet_loss2
     return boundary_loss
 
 
@@ -323,22 +293,16 @@ def RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple):
 
 # define the collocation points
 
-def colloc_points_function(a,b,c):
-    colloc_limits1 = np.array([[-10.0,10.0],[-10.0,10.0]])
-    colloc_sample_lhs1 = LHS(xlimits=colloc_limits1)
-    colloc_lhs1 = colloc_sample_lhs1(a)
-
-
-
-    colloc_limits2 = np.array([[-2.0,10.0],[-2.0,2.0]])
+def colloc_points_function(a,b):
+    colloc_limits2 = np.array([[4.0,10.0],[-2.0,2.0]])
     colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
-    colloc_lhs2 = colloc_sample_lhs2(b)
+    colloc_lhs2 = colloc_sample_lhs2(a)
 
-    colloc_limits3 = np.array([[-1.0,2.0],[-1.0,1.0]])
+    colloc_limits3 = np.array([[-2.0,4.0],[-2.0,2.0]])
     colloc_sample_lhs3 = LHS(xlimits=colloc_limits3)
-    colloc_lhs3 = colloc_sample_lhs3(c)
+    colloc_lhs3 = colloc_sample_lhs3(b)
 
-    colloc_merged = np.vstack((colloc_lhs1,colloc_lhs2,colloc_lhs3))
+    colloc_merged = np.vstack((colloc_lhs2,colloc_lhs3))
 
 
     # remove points inside the cylinder
@@ -353,7 +317,7 @@ def colloc_points_function(a,b,c):
     return tf.cast(f_colloc_train,tf_dtype)
 
 
-def boundary_points_function(cyl,inlet,inside,outside):
+def boundary_points_function(cyl):
     # define boundary condition points
     theta = np.linspace(0,2*np.pi,cyl)
     ns_BC_x = 0.5*d*np.cos(theta)/ScalingParameters.MAX_x # we beed to normalize the boundary conditions as well
@@ -364,44 +328,25 @@ def boundary_points_function(cyl,inlet,inside,outside):
     p_BC_y = np.array([-2.0,2.0,0.0])/ScalingParameters.MAX_y
     p_BC_vec = np.hstack((p_BC_x.reshape(-1,1),p_BC_y.reshape(-1,1)))
 
-    # inlet top and bottom
-    inlet_BC_x = np.concatenate((-10.0*np.ones([inlet,])/ScalingParameters.MAX_x,np.linspace(-10,10,inlet)/ScalingParameters.MAX_x,np.linspace(-10,10,inlet)/ScalingParameters.MAX_x,),axis=0)
-    inlet_BC_y = np.concatenate((np.linspace(-10.0,10.0,inlet)/ScalingParameters.MAX_y,10.0*np.ones([inlet,])/ScalingParameters.MAX_y,-10.0*np.ones([inlet,])/ScalingParameters.MAX_y),axis=0)
-    inlet_BC_vec = np.hstack((inlet_BC_x.reshape(-1,1),inlet_BC_y.reshape(-1,1)))
-
-    # random points inside the cylinder
-    cylinder_inside_limits1 = np.array([[-0.5,0.5],[-0.5,0.5]])
-    cylinder_inside_LHS = LHS(xlimits=cylinder_inside_limits1)
-    cylinder_inside_vec = cylinder_inside_LHS(inside)
-    c1_loc = np.array([0.0,0.0])
-    outside_cylinder_inds = np.greater_equal(np.power(np.power(cylinder_inside_vec[:,0]-c1_loc[0],2)+np.power(cylinder_inside_vec[:,1]-c1_loc[1],2),0.5),0.5*d)
-    cylinder_inside_vec = np.delete(cylinder_inside_vec,np.nonzero(outside_cylinder_inds[0,:]),axis=0)
-    cylinder_inside_vec[:,0] = cylinder_inside_vec[:,0]/ScalingParameters.MAX_x
-    cylinder_inside_vec[:,1] = cylinder_inside_vec[:,1]/ScalingParameters.MAX_y
-
     # random points outside the domain for no reynolds stress condition
-    domain_outside_limits = np.array([[-10.0,10.0],[-10.0,10.0]])
-    domain_outside_LHS = LHS(xlimits=domain_outside_limits)
-    domain_outside_vec = domain_outside_LHS(outside)
-    domain_inside_points_a = np.greater(domain_outside_vec[:,0],-2.0)
-    domain_inside_points_b = np.less(np.abs(domain_outside_vec[:,1]),2.5)
-    domain_inside_points = np.multiply(domain_inside_points_a,domain_inside_points_b)
-    domain_outside_vec = np.delete(domain_outside_vec,np.nonzero(domain_inside_points),axis=0)
-    domain_outside_vec[:,0] = domain_outside_vec[:,0]/ScalingParameters.MAX_x
-    domain_outside_vec[:,1] = domain_outside_vec[:,1]/ScalingParameters.MAX_y
-    boundary_tuple = (tf.cast(p_BC_vec,tf_dtype),tf.cast(cyl_BC_vec,tf_dtype),tf.cast(inlet_BC_vec,tf_dtype),tf.cast(cylinder_inside_vec,tf_dtype),tf.cast(domain_outside_vec,tf_dtype))
-    return boundary_tuple
+    return tf.cast(p_BC_vec,tf_dtype),tf.cast(cyl_BC_vec,tf_dtype)
 
 # training functions
 
 @tf.function
 def compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters):
     y_pred = model_RANS(x,training=True)
-    data_loss = ScalingParameters.data_loss_coefficient*tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:5]-y),axis=0),axis=0) 
-    physics_loss = tf.cast(0.0,tf_dtype)#ScalingParameters.physics_loss_coefficient*RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) #tf.cast(0.0,tf_dtype)#
-    boundary_loss = tf.cast(0.0,tf_dtype)#ScalingParameters.boundary_loss_coefficient*RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple)
+    data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:5]-y),axis=0),axis=0) 
+    physics_loss = RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) #tf.cast(0.0,tf_dtype)#
+    boundary_loss = RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple)
 
-    total_loss = data_loss + physics_loss + boundary_loss
+    # dynamic loss weighting, scale based on largest
+    max_loss = tf.exp(tf.math.ceil(tf.math.log(1E-30+tf.reduce_max(tf.stack((data_loss,physics_loss,boundary_loss))))))
+    log_data = max_loss/tf.exp(tf.math.log(1E-30+data_loss))
+    log_physics = max_loss/tf.exp(tf.math.log(1E-30+physics_loss))
+    log_boundary = max_loss/tf.exp(tf.math.log(1E-30+boundary_loss))
+
+    total_loss = ScalingParameters.data_loss_coefficient*(1+log_data)*data_loss + ScalingParameters.physics_loss_coefficient*(1+log_physics)*physics_loss + ScalingParameters.boundary_loss_coefficient*(1+log_boundary)*boundary_loss
     return total_loss, data_loss, physics_loss, boundary_loss
 
 # define the training functions
@@ -414,16 +359,20 @@ def train_step(x,y,colloc_x,boundary_tuple,ScalingParameters):
     optimizer.apply_gradients(zip(grads,model_RANS.trainable_weights))
     return total_loss, data_loss, physics_loss, boundary_loss
 
-def fit_epoch(i_train,o_train,colloc_tuple,boundary_tuple,ScalingParameters):
+def fit_epoch(i_train,o_train,colloc_vector,boundary_tuple,ScalingParameters):
     global training_steps
     batches = np.int64(np.ceil(i_train.shape[0]/(1.0*ScalingParameters.batch_size)))
     # sort colloc_points by error
-    (colloc_grad,colloc_rand) = colloc_tuple
-    assert(colloc_grad.shape[0]==batches*ScalingParameters.colloc_batch_size)
-    assert(colloc_rand.shape[0]==batches*ScalingParameters.colloc_batch_size)
     #i_sampled,o_sampled = data_sample_by_err(i_train,o_train,i_train.shape[0])
     i_sampled = i_train
     o_sampled = o_train
+
+    colloc_rand_indices = np.random.choice(np.arange(colloc_vector.shape[0]),batches*ScalingParameters.colloc_batch_size)
+    colloc_rand = tf.gather(colloc_vector,colloc_rand_indices,axis=0)
+
+    (BC_p_epoch,BC_wall_epoch) = boundary_tuple
+    BC_wall_rand = tf.gather(BC_wall_epoch,np.random.choice(np.arange(BC_wall_epoch.shape[0]),batches*ScalingParameters.boundary_batch_size),axis=0)
+  
     
     progbar = keras.utils.Progbar(batches)
     loss_vec = np.zeros((batches,),np.float64)
@@ -436,10 +385,12 @@ def fit_epoch(i_train,o_train,colloc_tuple,boundary_tuple,ScalingParameters):
         
         i_batch = i_sampled[(batch*ScalingParameters.batch_size):np.min([(batch+1)*ScalingParameters.batch_size,i_train.shape[0]]),:]
         o_batch = o_sampled[(batch*ScalingParameters.batch_size):np.min([(batch+1)*ScalingParameters.batch_size,o_train.shape[0]]),:]
-        colloc_grad_batch = colloc_grad[(batch*ScalingParameters.colloc_batch_size):np.min([(batch+1)*ScalingParameters.colloc_batch_size,colloc_grad.shape[0]]),:]
-        colloc_rand_batch = colloc_rand[(batch*ScalingParameters.colloc_batch_size):np.min([(batch+1)*ScalingParameters.colloc_batch_size,colloc_rand.shape[0]]),:]
 
-        loss_value, data_loss, physics_loss, boundary_loss = train_step(tf.cast(i_batch,tf_dtype),tf.cast(o_batch,tf_dtype),tf.cast(tf.concat((i_batch,colloc_grad_batch,colloc_rand_batch),axis=0),tf_dtype),sample_boundary(ScalingParameters,boundary_tuple),ScalingParameters) #
+        colloc_batch = colloc_rand[(batch*ScalingParameters.colloc_batch_size):np.min([(batch+1)*ScalingParameters.colloc_batch_size,colloc_rand.shape[0]]),:]
+        BC_wall_batch = BC_wall_rand[(batch*ScalingParameters.boundary_batch_size):np.min([(batch+1)*ScalingParameters.boundary_batch_size,BC_wall_rand.shape[0]]),:]
+
+
+        loss_value, data_loss, physics_loss, boundary_loss = train_step(tf.cast(i_batch,tf_dtype),tf.cast(o_batch,tf_dtype),tf.cast(colloc_batch,tf_dtype),(BC_p_epoch,BC_wall_batch),ScalingParameters) #
         loss_vec[batch] = loss_value.numpy()
         data_vec[batch] = data_loss.numpy()
         physics_vec[batch] = physics_loss.numpy()
@@ -540,10 +491,17 @@ start_timestamp = datetime.strftime(start_time,'%Y%m%d%H%M%S')
 
 node_name = platform.node()
 
+assert len(sys.argv)==4
 
+job_number = int(sys.argv[1])
+supersample_factor = int(sys.argv[2])
+job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_res_mean11a_003c'
+job_name = 'mfg_fbc002_{:03d}_S{:d}'.format(job_number,supersample_factor)
+
+job_duration = timedelta(hours=job_hours,minutes=0)
+end_time = start_time+job_duration
 
 LOCAL_NODE = 'DESKTOP-AMLVDAF'
 if node_name==LOCAL_NODE:
@@ -556,7 +514,6 @@ if node_name==LOCAL_NODE:
     sys.path.append('C:/projects/pinns_local/code/')
 else:
     # parameters for running on compute canada   
-    useGPU=False
     HOMEDIR = '/home/coneill/sync/'
     PROJECTDIR = '/home/coneill/projects/def-martinuz/coneill/'
     SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
@@ -619,6 +576,8 @@ MAX_uxuy = np.max(uxuy.ravel())
 MAX_uyuy = np.max(uyuy.ravel())
 MAX_p = 1.0
 
+
+
 # remove training points inside the cylinder
 cylinder_mask = np.reshape(np.power(x,2.0)+np.power(y,2.0)<=np.power(d/2.0,2.0),[x.shape[0],])
 
@@ -630,54 +589,27 @@ uxuy[cylinder_mask] = 0.0
 uyuy[cylinder_mask] = 0.0
 
 MAX_x = np.max(X_grid)
+MIN_x = np.min(X_grid)
 MAX_y = np.max(Y_grid)
+MIN_y = np.min(Y_grid)
+
+print('MAX_x: ',MAX_x)
+print('MIN_x: ',MIN_x)
+print('MAX_y: ',MAX_y)
+print('MAX_x: ',MIN_y)
+
+
 x_test = 1.0*x/MAX_x
 y_test = 1.0*y/MAX_x
 global i_test
-i_test = np.hstack((x_test.reshape(-1,1),y_test.reshape(-1,1)))
+i_test = np.stack((x_test,y_test),axis=1)
 
 global p_grid
 p = np.array(meanPressureFile['meanPressure']).transpose()
 p = p[:,0]
-p_grid = np.reshape(p,X_grid.shape)/MAX_p
 
+o_test_grid = np.stack([np.reshape(i,[X_grid.shape[0],X_grid.shape[1]]) for i in [ux/MAX_ux,uy/MAX_uy,uxux/MAX_uxux,uxuy/MAX_uxuy,uyuy/MAX_uyuy,p/MAX_p]],axis=2)
 
-
-global o_test_grid
-o_test_grid = np.reshape(np.hstack((ux.reshape(-1,1)/MAX_ux,uy.reshape(-1,1)/MAX_uy,uxux.reshape(-1,1)/MAX_uxux,uxuy.reshape(-1,1)/MAX_uxuy,uyuy.reshape(-1,1)/MAX_uyuy)),[X_grid.shape[0],X_grid.shape[1],5])
-
-supersample_factor=1
-# if we are downsampling and then upsampling, downsample the source data
-if supersample_factor>1:
-    n_x = np.array(configFile['x_grid']).size
-    n_y = np.array(configFile['y_grid']).size
-    downsample_inds, ndx,ndy = compute_downsample_inds_center(supersample_factor,X_grid[:,0],Y_grid[0,:].transpose())
-    x = x[downsample_inds]
-    y = y[downsample_inds]
-    ux = ux[downsample_inds]
-    uy = uy[downsample_inds]
-    uxux = uxux[downsample_inds]
-    uxuy = uxuy[downsample_inds]
-    uyuy = uyuy[downsample_inds]
-    cylinder_mask = cylinder_mask[downsample_inds]
-
-# remove the inside quantities
-
-x = np.delete(x,cylinder_mask,axis=0)
-y = np.delete(y,cylinder_mask,axis=0)
-ux = np.delete(ux,cylinder_mask,axis=0)
-uy = np.delete(uy,cylinder_mask,axis=0)
-uxux = np.delete(uxux,cylinder_mask,axis=0)
-uxuy = np.delete(uxuy,cylinder_mask,axis=0)
-uyuy = np.delete(uyuy,cylinder_mask,axis=0)
-
-# for LBFGS we don't need to duplicate since all points and collocs are evaluated in a single step
-o_train_LBFGS = np.stack((ux/MAX_ux,uy/MAX_uy,uxux/MAX_uxux,uxuy/MAX_uxuy,uyuy/MAX_uyuy),axis=1)
-i_train_LBFGS = np.stack((x/MAX_x,y/MAX_x),axis=1)
-
-# copy the arrays if supersample factor is >1 so that the data size is approximately consistent
-o_train_backprop = np.stack((np.concatenate([ux for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_ux,np.concatenate([uy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uy,np.concatenate([uxux for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uxux,np.concatenate([uxuy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uxuy,np.concatenate([uyuy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uyuy),axis=1)
-i_train_backprop = np.stack((np.concatenate([x for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_x, np.concatenate([y for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_x),axis=1)
 
 fs=10.0
 # create a dummy object to contain all the scaling parameters
@@ -701,44 +633,81 @@ ScalingParameters.nu_mol = tf.cast(0.0066667,tf_dtype)
 ScalingParameters.MAX_p= MAX_p # estimated maximum pressure, we should
 ScalingParameters.batch_size = 32
 ScalingParameters.colloc_batch_size = 32
-ScalingParameters.boundary_batch_size = 32
-ScalingParameters.physics_loss_coefficient = tf.cast(1.0,tf_dtype)
+ScalingParameters.boundary_batch_size = 16
+ScalingParameters.physics_loss_coefficient = tf.cast(0.316,tf_dtype)
 ScalingParameters.boundary_loss_coefficient = tf.cast(1.0,tf_dtype)
 ScalingParameters.data_loss_coefficient = tf.cast(1.0,tf_dtype)
 
 
-boundary_tuple = boundary_points_function(1080,2000,500,10000)
+# if we are downsampling and then upsampling, downsample the source data
+if supersample_factor>1:
+    n_x = np.array(configFile['x_grid']).size
+    n_y = np.array(configFile['y_grid']).size
+    downsample_inds, ndx,ndy = compute_downsample_inds_center(supersample_factor,X_grid[:,0],Y_grid[0,:].transpose())
+    x = x[downsample_inds]
+    y = y[downsample_inds]
+    ux = ux[downsample_inds]
+    uy = uy[downsample_inds]
+    uxux = uxux[downsample_inds]
+    uxuy = uxuy[downsample_inds]
+    uyuy = uyuy[downsample_inds]
+    cylinder_mask = cylinder_mask[downsample_inds]
+
+# remove the inside quantities
+x = np.delete(x,np.nonzero(cylinder_mask),axis=0)
+y = np.delete(y,np.nonzero(cylinder_mask),axis=0)
+ux = np.delete(ux,np.nonzero(cylinder_mask),axis=0)
+uy = np.delete(uy,np.nonzero(cylinder_mask),axis=0)
+uxux = np.delete(uxux,np.nonzero(cylinder_mask),axis=0)
+uxuy = np.delete(uxuy,np.nonzero(cylinder_mask),axis=0)
+uyuy = np.delete(uyuy,np.nonzero(cylinder_mask),axis=0)
+
+
+# for LBFGS we don't need to duplicate since all points and collocs are evaluated in a single step
+o_train_LBFGS = np.stack((ux/MAX_ux,uy/MAX_uy,uxux/MAX_uxux,uxuy/MAX_uxuy,uyuy/MAX_uyuy),axis=1)
+i_train_LBFGS = np.stack((x/MAX_x,y/MAX_x),axis=1)
+
+# copy the arrays if supersample factor is >1 so that the data size is approximately consistent
+if supersample_factor>0:
+    o_train_backprop = np.stack((np.concatenate([ux for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_ux,np.concatenate([uy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uy,np.concatenate([uxux for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uxux,np.concatenate([uxuy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uxuy,np.concatenate([uyuy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uyuy),axis=1)
+    i_train_backprop = np.stack((np.concatenate([x for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_x, np.concatenate([y for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_x),axis=1)
+else:
+    o_train_backprop = 1.0*o_train_LBFGS
+    i_train_backprop = 1.0*i_train_LBFGS
+
+
+
 global colloc_vector
-colloc_vector = colloc_points_function(20000,40000,10000)
+boundary_tuple = boundary_points_function(720)
+colloc_vector = colloc_points_function(5000,20000)
 
 global training_steps
 global model_RANS
 # model creation
-tf_device_string ='/CPU:0'
+tf_device_string ='/GPU:0'
 
 optimizer = keras.optimizers.Adam(learning_rate=1E-4)
 
 from pinns_data_assimilation.lib.file_util import get_filepaths_with_glob
-from pinns_data_assimilation.lib.layers import QresBlock2
+from pinns_data_assimilation.lib.layers import QuadraticInputPassthroughLayer
+from pinns_data_assimilation.lib.layers import FourierEmbeddingLayer
 
-checkpoint_files = get_filepaths_with_glob(HOMEDIR+'/output/'+job_name+'/',job_name+'_ep*_model.h5')
+embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,60)
 
-if len(checkpoint_files)>0:
+if os.path.isfile(PROJECTDIR+'/output/'+job_name+'/'+job_name+'_model.h5'):
     with tf.device(tf_device_string):
         model_RANS,training_steps = load_custom()
 else: 
     training_steps = 0
     with tf.device(tf_device_string):        
         inputs = keras.Input(shape=(2,),name='coordinates')
-        lo = QresBlock2(30,activation=keras.activations.tanh,dtype=tf_dtype)(inputs)
-        for i in range(10):
-            lo = QresBlock2(30,activation=keras.activations.tanh,dtype=tf_dtype)(lo)
-        for i in range(4):
-            lo = QresBlock2(30,activation=keras.activations.tanh,dtype=tf_dtype)(lo)
+        lo = FourierEmbeddingLayer(embedding_wavenumber_vector)(inputs)
         for i in range(5):
-            lo = QresBlock(70,activation=keras.activations.tanh,dtype=tf_dtype)(lo)
+            lo = QuadraticInputPassthroughLayer(100,2)(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
+        # save the model architecture only once on setup
+        model_RANS.save(savedir+job_name+'_model.h5')
         model_RANS.summary()
 
 
@@ -751,33 +720,79 @@ d_ts = 100
 global saveFig
 saveFig=True
 
-ScalingParameters.data_loss_coefficient=1.0
-ScalingParameters.batch_size=32
-ScalingParameters.boundary_batch_size=32
-ScalingParameters.colloc_batch_size=256
 history_list = []
 
 
 
+#if node_name == LOCAL_NODE:
+    #plot_err()
+    #plot_NS_residual()
+    #plot_large()
+    #plot_NS_large()
+    #exit()
 
+backprop_flag = True
 
+last_epoch_time = datetime.now()
+average_epoch_time=timedelta(minutes=10)
+
+while backprop_flag:
+    lr_schedule = np.array([3.3E-5, 1E-5,   3.3E-6, 1E-6,   3.3E-7,     1E-7,   0.0])
+    ep_schedule = np.array([0,      20,     50,     100,    350,        450,    600])
+    phys_schedule = np.array([3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1])
+
+    # reset the correct learing rate on load
+    i_temp = 0
+    for i in range(len(ep_schedule)):
+        if training_steps>=ep_schedule[i]:
+            i_temp = i
+    if lr_schedule[i_temp]==0.0:
+        backprop_flag=False
+    ScalingParameters.physics_loss_coefficient = tf.cast(phys_schedule[i_temp],tf.float64)
+    #ScalingParameters.boundary_loss_coefficient = tf.cast(phys_schedule[i_temp],tf.float64)
+    print('physics loss =',str(ScalingParameters.physics_loss_coefficient))
+    print('learning rate =',str(lr_schedule[i_temp]))
+
+    while backprop_flag:
+        for i in range(1,len(ep_schedule)):
+            if training_steps==ep_schedule[i]:
+                if lr_schedule[i] == 0.0:
+                    backprop_flag=False
+                    # we will do one last epoch then lbfgs
+                keras.backend.set_value(optimizer.learning_rate, lr_schedule[i])
+                print('epoch',str(training_steps))
+                ScalingParameters.physics_loss_coefficient = tf.cast(phys_schedule[i],tf.float64)
+                #ScalingParameters.boundary_loss_coefficient = tf.cast(phys_schedule[i],tf.float64)
+                print('physics loss =',str(ScalingParameters.physics_loss_coefficient))
+                print('learning rate =',str(lr_schedule[i]))               
+
+        fit_epoch(i_train_backprop,o_train_backprop,colloc_vector,boundary_tuple,ScalingParameters)
+
+        if np.mod(training_steps,10)==0:
+            if node_name==LOCAL_NODE:
+                plot_err()
+                plot_NS_residual()
+            model_RANS.save_weights(savedir+job_name+'_ep'+str(training_steps)+'.weights.h5')
+        
+        # check if we are out of time
+        average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
+        if (datetime.now()+average_epoch_time)>end_time:
+            model_RANS.save_weights(savedir+job_name+'_ep'+str(training_steps)+'.weights.h5')
+            exit()
+        last_epoch_time = datetime.now()
+    
 if True:
-
-    last_epoch_time = datetime.now()
-    average_epoch_time=timedelta(minutes=10)
-    ScalingParameters.physics_loss_coefficient=1.0
-    ScalingParameters.boundary_loss_coefficient=1.0
     # LBFGS
     import tensorflow_probability as tfp
     L_iter = 0
-    boundary_tuple = boundary_points_function(1080,2000,500,10000)
-    colloc_vector = colloc_points_function(20000,40000,10000)
-    func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),tf.cast(colloc_vector,tf_dtype),boundary_tuple,ScalingParameters)
+    boundary_tuple = boundary_points_function(720)
+    colloc_vector = colloc_points_function(5000,20000) # one A100 max = 60k?
+    func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
     init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
             
     while True:
         
-            
+        last_epoch_time = datetime.now()
         # train the model with L-BFGS solver
         results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=LBFGS_steps,f_relative_tolerance=1E-16,stopping_condition=tfp.optimizer.converged_all)
         func.assign_new_model_parameters(results.position)
@@ -789,15 +804,22 @@ if True:
         # so we have to manually put them back to the model
  
         # check if we are out of time
-
+        average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
+        if (datetime.now()+average_epoch_time)>end_time:
+            #save_pred()
+            model_RANS.save_weights(savedir+job_name+'_ep'+str(training_steps)+'.weights.h5')
+            exit()
 
         if np.mod(L_iter,10)==0:
-            save_custom()
-            colloc_vector = colloc_points_function(20000,40000,10000)
-            func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),tf.cast(colloc_vector,tf_dtype),boundary_tuple,ScalingParameters)
+            model_RANS.save_weights(savedir+job_name+'_ep'+str(training_steps)+'.weights.h5')
+            boundary_tuple = boundary_points_function(720)
+            colloc_vector = colloc_points_function(5000,20000)
+            func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
             init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
 
         if node_name==LOCAL_NODE:
+            #save_pred()
+            model_RANS.save_weights(savedir+job_name+'_ep'+str(training_steps)+'.weights.h5')
             plot_err()
             plot_NS_residual()
 

@@ -444,9 +444,57 @@ class FourierEmbeddingLayer(keras.layers.Layer):
     def call(self,inputs):
         inp_shape = tf.shape(inputs)
         inp_prod = tf.reshape(tf.multiply(tf.reshape(inputs,(inp_shape[0],inp_shape[-1],1)),self.frequency_vector),(inp_shape[0],inp_shape[-1]*tf.shape(self.frequency_vector)[2]))
-        return tf.concat((inputs,tf.cos(2.0*np.pi*inp_prod),tf.sin(2.0*np.pi*inp_prod)),axis=1)
-    
+        return tf.concat((inputs,tf.cos(inp_prod),tf.sin(inp_prod)),axis=1)
 
+class FourierPassthroughEmbeddingLayer(keras.layers.Layer):
+    # Chris O'Neill, University of Calgary 2023
+    
+    def __init__(self,frequency_vector,npass,**kwargs):
+        super(FourierPassthroughEmbeddingLayer,self).__init__(**kwargs)
+        self.frequency_vector = tf.reshape(tf.convert_to_tensor(tf.cast(frequency_vector,tf.float64)),(1,1,tf.size(frequency_vector)))
+        self.npass = int(npass)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "frequency_vector":self.frequency_vector.numpy(),
+            "npass":self.npass,
+        })
+        return config
+        
+    def build(self,input_shape):
+        if input_shape[-1]<self.npass:
+            self.npass = input_shape[-1]
+
+    def call(self,inputs):
+        inp_shape = tf.shape(inputs)
+        inp_prod = tf.reshape(tf.multiply(tf.reshape(inputs,(inp_shape[0],inp_shape[-1],1)),self.frequency_vector),(inp_shape[0],inp_shape[-1]*tf.shape(self.frequency_vector)[2]))
+        return tf.concat((inputs[...,0:self.npass],tf.cos(inp_prod),tf.sin(inp_prod)),axis=1)
+
+class FourierPassthroughReductionLayer(keras.layers.Layer):
+    # Chris O'Neill, University of Calgary 2023
+    
+    def __init__(self,frequency_vector,npass,dense_reduction_layer=None,**kwargs):
+        super(FourierPassthroughReductionLayer,self).__init__(**kwargs)
+        self.frequency_vector = tf.reshape(tf.convert_to_tensor(tf.cast(frequency_vector,tf.float64)),(1,tf.size(frequency_vector)))
+        self.npass = int(npass)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "frequency_vector":self.frequency_vector.numpy(),
+            "npass":self.npass,
+            "dense_reduction_layer":self.dense_reduction_layer,
+        })
+        return config
+    
+    def build(self,input_shape):
+        if input_shape[-1]<self.npass:
+            self.npass = input_shape[-1]
+        self.dense_reduction_layer = keras.layers.Dense(tf.shape(self.frequency_vector)[1],activation='linear')
+          
+    def call(self,inputs):
+        return tf.concat((inputs[...,0:self.npass],tf.cos(tf.multiply(self.frequency_vector,self.dense_reduction_layer(inputs))),tf.sin(tf.multiply(self.frequency_vector,self.dense_reduction_layer(inputs)))),axis=1)
 
 class CylindricalEmbeddingLayer(keras.layers.Layer):
     def __init__(self,*args,**kwargs):
