@@ -122,7 +122,50 @@ def plot_err():
             plot.savefig(fig_dir+'ep'+str(training_steps)+plot_save_exts[i],dpi=300)
         plot.close(1)
 
+    # also plot the profiles
+    profile_locations = np.linspace(-1.5,9.5,22) # spacing of 0.5
+    X_line_locations = X_grid[:,0]
 
+    X_distance_matrix = np.power(np.power(np.reshape(X_line_locations,[1,X_line_locations.size])-np.reshape(profile_locations,[profile_locations.size,1]),2.0),0.5)
+    # find index of closest data line  
+    line_inds = np.argmin(X_distance_matrix,axis=1)
+    profile_locations = X_grid[line_inds,0]
+
+
+
+    #point_locations = np.linspace(-2,2,40)
+    #Y_line_locations = Y_plot[:,0]
+    #Y_distance_matrix = np.power(np.power(np.reshape(Y_line_locations,[Y_line_locations.size,1])-np.reshape(point_locations,[1,point_locations.size]),2.0),0.5)
+    #point_inds = np.argmin(Y_distance_matrix,axis=0)
+    point_locations = Y_grid[0,:]
+
+    plot_save_exts2 = ['_ux_profile.png','_uy_profile.png','_uxux_profile.png','_uxuy_profile.png','_uyuy_profile.png','_p_profile.png',]
+    x_offset = np.array([-1.0,0,0,0,0,0])
+    x_scale = np.array([0.5,0.5,0.5,0.5,0.5,0.5,])
+    err_scale = np.nanmax(np.abs(err_test),axis=(0,1))
+    
+    for i in range(6):
+        plot.figure(1)
+        plot.subplot(3,1,1)
+        plot.contourf(X_grid,Y_grid,o_test_grid[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
+        
+        plot.set_cmap('bwr')
+        plot.xlim(-2,10)
+        
+        plot.subplot(3,1,2)
+        for k in range(profile_locations.shape[0]):
+            plot.plot(np.zeros(point_locations.shape)+profile_locations[k],point_locations,'--k',linewidth=0.5)
+            plot.plot((o_test_grid_temp[line_inds[k],:,i]+x_offset[i])*x_scale[i]+profile_locations[k],point_locations,'-k',linewidth=0.5)
+            plot.plot((pred_test_grid[line_inds[k],:,i]+x_offset[i])*x_scale[i]+profile_locations[k],point_locations,'-r',linewidth=0.5)
+        plot.xlim(-2,10)
+        plot.subplot(3,1,3)
+        for k in range(profile_locations.shape[0]):
+            plot.plot(np.zeros(point_locations.shape)+profile_locations[k],point_locations,'--k',linewidth=0.5)
+            plot.plot((0.5/err_scale[i])*err_test[line_inds[k],:,i]+profile_locations[k],point_locations,'-r',linewidth=0.5)
+        plot.text(4.5,1.7,"x-Scaled by (0.5/MaxErr). MaxErr={txterr:.4f}".format(txterr=err_scale[i]),fontsize=7.0)
+        plot.xlim(-2,10)
+        plot.savefig(fig_dir+'ep'+str(training_steps)+plot_save_exts2[i],dpi=300)
+        plot.close(1)
 
 
 # plotting functions
@@ -146,7 +189,7 @@ def save_pred():
         h5f.close()
 
 def load_custom():
-    model_RANS = keras.models.load_model(PROJECTDIR+'/output/'+job_name+'/'+job_name+'_model.h5',custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer,'FourierEmbeddingLayer':FourierEmbeddingLayer})
+    model_RANS = keras.models.load_model(PROJECTDIR+'/output/'+job_name+'/'+job_name+'_model.h5',custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer,'FourierPassthroughEmbeddingLayer':FourierPassthroughEmbeddingLayer,'FourierPassthroughReductionLayer':FourierPassthroughReductionLayer})
     # check
     checkpoint_filename,training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','.weights.h5')
     if checkpoint_filename is not None:
@@ -632,9 +675,9 @@ ScalingParameters.MAX_uxppuypp = MAX_uxuy
 ScalingParameters.MAX_uyppuypp = MAX_uyuy
 ScalingParameters.nu_mol = tf.cast(0.0066667,tf_dtype)
 ScalingParameters.MAX_p= MAX_p # estimated maximum pressure, we should
-ScalingParameters.batch_size = 32
-ScalingParameters.colloc_batch_size = 32
-ScalingParameters.boundary_batch_size = 16
+ScalingParameters.batch_size = 64
+ScalingParameters.colloc_batch_size = 64
+ScalingParameters.boundary_batch_size = 32
 ScalingParameters.physics_loss_coefficient = tf.cast(0.316,tf_dtype)
 ScalingParameters.boundary_loss_coefficient = tf.cast(1.0,tf_dtype)
 ScalingParameters.data_loss_coefficient = tf.cast(1.0,tf_dtype)
@@ -695,7 +738,7 @@ from pinns_data_assimilation.lib.layers import InputPassthroughLayer
 from pinns_data_assimilation.lib.layers import FourierPassthroughEmbeddingLayer
 from pinns_data_assimilation.lib.layers import FourierPassthroughReductionLayer
 
-embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,20)
+embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,30)
 
 if os.path.isfile(PROJECTDIR+'/output/'+job_name+'/'+job_name+'_model.h5'):
     with tf.device(tf_device_string):
@@ -709,7 +752,7 @@ else:
             lo = QuadraticInputPassthroughLayer(70,2)(lo)
         lo = FourierPassthroughReductionLayer(-embedding_wavenumber_vector,2)(lo)
         for i in range(4):
-            lo = QuadraticInputPassthroughLayer(70,2)(lo)
+            lo = QuadraticInputPassthroughLayer(100,2)(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         # save the model architecture only once on setup
@@ -743,8 +786,8 @@ last_epoch_time = datetime.now()
 average_epoch_time=timedelta(minutes=10)
 
 while backprop_flag:
-    lr_schedule = np.array([3.3E-5, 1E-5,   3.3E-6, 1E-6,   3.3E-7,     1E-7,   0.0])
-    ep_schedule = np.array([0,      20,     50,     100,    350,        450,    600])
+    lr_schedule = np.array([1E-5,   3.3E-6, 1E-6,   3.3E-7, 1E-7,   0.0])
+    ep_schedule = np.array([0,      50,     100,    200,    300,    400,])
     phys_schedule = np.array([3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1])
 
     # reset the correct learing rate on load

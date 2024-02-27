@@ -681,10 +681,11 @@ optimizer = keras.optimizers.Adam(learning_rate=1E-4)
 
 from pinns_data_assimilation.lib.file_util import get_filepaths_with_glob
 from pinns_data_assimilation.lib.layers import QuadraticInputPassthroughLayer
+from pinns_data_assimilation.lib.layers import InputPassthroughLayer
 from pinns_data_assimilation.lib.layers import FourierPassthroughEmbeddingLayer
 from pinns_data_assimilation.lib.layers import FourierPassthroughReductionLayer
 
-embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,20)
+embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,30)
 
 
 if os.path.isfile(PROJECTDIR+'/output/'+job_name+'/'+job_name+'_model.h5'):
@@ -694,12 +695,14 @@ else:
     training_steps = 0
     with tf.device(tf_device_string):        
         inputs = keras.Input(shape=(2,),name='coordinates')
+        #lo = QuadraticInputPassthroughLayer(8,2)(inputs)
         lo = FourierPassthroughEmbeddingLayer(embedding_wavenumber_vector,2)(inputs)
+        #lo = InputPassthroughLayer(100,2)(lo)
         for i in range(4):
             lo = QuadraticInputPassthroughLayer(70,2)(lo)
         lo = FourierPassthroughReductionLayer(embedding_wavenumber_vector,2)(lo) 
         for i in range(4):
-            lo = QuadraticInputPassthroughLayer(70,2)(lo)
+            lo = QuadraticInputPassthroughLayer(100,2)(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         # save the model architecture only once on setup
@@ -725,7 +728,7 @@ average_epoch_time=timedelta(minutes=10)
 
 while backprop_flag:
     lr_schedule = np.array([3.3E-5, 1E-5,   3.3E-6, 1E-6,   3.3E-7,     1E-7,   0.0])
-    ep_schedule = np.array([0,      20,     50,     100,    350,        450,    600])
+    ep_schedule = np.array([0,      20,     50,     100,    200,        300,    400])
     phys_schedule = np.array([1E-6, 1E-5, 1E-4, 1E-3, 1E-2, 1E-2, 1E-2])
 
     # reset the correct learing rate on load

@@ -36,8 +36,12 @@ def compute_downsample_inds_center(S,Xi,Yi):
     # downsample the data
     IndMinX = np.argmin(np.abs(Xi))
     IndMinY = np.argmin(np.abs(Yi))
-    vecX = np.concatenate((np.flip(np.arange(IndMinX,0,-S)),np.arange(IndMinX+S,Xi.shape[0],S)))
-    vecY = np.concatenate((np.flip(np.arange(IndMinY,0,-S)),np.arange(IndMinY+S,Yi.shape[0],S)))
+    lower_inds_x = np.flip(np.arange(IndMinX,-S,-S))
+    lower_inds_x = lower_inds_x[lower_inds_x>=0] # if the last index is below zero, we discard it
+    lower_inds_y = np.flip(np.arange(IndMinY,-S,-S))
+    lower_inds_y = lower_inds_y[lower_inds_y>=0] # if the last index is below zero, we discard it
+    vecX = np.concatenate((lower_inds_x,np.arange(IndMinX+S,Xi.shape[0],S)))
+    vecY = np.concatenate((lower_inds_y,np.arange(IndMinY+S,Yi.shape[0],S)))
     matX,matY = np.meshgrid(vecX,vecY)
     index_vector = np.int64(np.stack((matX.ravel(),matY.ravel()),axis=1))
     linear_downsample_inds = np.ravel_multi_index(index_vector.transpose(),(Xi.shape[0],Yi.shape[0]))
