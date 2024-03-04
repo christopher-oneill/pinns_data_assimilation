@@ -182,26 +182,47 @@ class InputPassthroughLayer(keras.layers.Layer):
     # this layer passes through a certain number of inputs from the previous layer, while doing a normal dense layer otherwise
     # this allows the coordinate system to be passed through to deeper depths avoiding the vanishing gradient problem
     # this is similar to a residual layer, but exploits our knowledge that the pinn input is the coordinate system
-    def __init__(self,units,npass,activation='tanh',name='Dense',trainable=True,dtype=tf.float64,Dense=None):
+    def __init__(self,units,npass,**kwargs):
         super().__init__()
         self.units = int(units)
         self.npass = int(npass)
-        if Dense==None:
-            self.Dense  = keras.layers.Dense(self.units,activation=activation,name=name,trainable=trainable,dtype=dtype)
+        self.built=False
+        if 'dtype' in kwargs:
+            self.u_dtype=kwargs['dtype']
         else:
-            self.Dense = Dense
+            self.u_dtype=tf.float64
+
+        if 'activation' in kwargs:
+            if type(kwargs['activation'])==str:
+                self.activation = tf.keras.activations.deserialize(kwargs['activation'])
+            else:
+                self.activation = kwargs['activation']
+        else:
+            self.activation =  tf.keras.activations.tanh
+        if 'w1' in kwargs:
+            self.w1 = tf.Variable(initial_value=tf.cast(kwargs['w1'],self.u_dtype),dtype=self.u_dtype,trainable=True,name='w1')
+            self.b1 = tf.Variable(initial_value=tf.cast(kwargs['b1'],self.u_dtype),dtype=self.u_dtype,trainable=True,name='b1')
+            self.built=True
 
     def build(self,input_shape):
-        # check the case where npass is larger than the input dimensionality
-        if input_shape[-1]<self.npass:
-            self.npass=input_shape[-1]
+        if self.built==False:
+            # check the case where npass is larger than the input dimensionality
+            if input_shape[-1]<self.npass:
+                self.npass=input_shape[-1]
+            # setup weights
+            w_init = tf.random_normal_initializer()
+            self.w1 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.units),dtype=self.u_dtype),trainable=True,name='w1')
+            self.b1 = tf.Variable(initial_value=w_init(shape=(self.units,),dtype=self.u_dtype),trainable=True,name='b1')
+            self.built=True
 
     def get_config(self):
         config = super().get_config()
         config.update({
             "units":self.units,
             "npass":self.npass,
-            "Dense":self.Dense,
+            "activation":self.activation,
+            "w1":self.w1.numpy(),
+            "b1":self.b1.numpy(),
         })
         return config
       
@@ -209,7 +230,7 @@ class InputPassthroughLayer(keras.layers.Layer):
         # the input dimensionality is [nbatch,ninputs]
         # concatenate the first npass inputs then the dense layer output. 
         # thus the output dimensionality will be [nbatch,npass+units] or [nbatch,ninputs+units] if (ninputs<npass)
-        return tf.concat((inputs[...,0:self.npass],self.Dense(inputs)),axis=1)
+        return tf.concat((inputs[...,0:self.npass],self.activation(tf.matmul(inputs,self.w1)+self.b1)),axis=1)
 
 class QuadraticInputPassthroughLayer(keras.layers.Layer):
     # this layer passes through a certain number of inputs from the previous layer, while doing a quadratic residual layer otherwise
@@ -431,7 +452,7 @@ class FourierEmbeddingLayer(keras.layers.Layer):
     # Chris O'Neill, University of Calgary 2023
     
     def __init__(self,frequency_vector,**kwargs):
-        super(FourierEmbeddingLayer,self).__init__(**kwargs)
+        super(FourierEmbeddingLayer,self).__init__()
         self.frequency_vector = tf.reshape(tf.convert_to_tensor(tf.cast(frequency_vector,tf.float64)),(1,1,tf.size(frequency_vector)))
 
     def get_config(self):
@@ -450,7 +471,7 @@ class FourierPassthroughEmbeddingLayer(keras.layers.Layer):
     # Chris O'Neill, University of Calgary 2023
     
     def __init__(self,frequency_vector,npass,**kwargs):
-        super(FourierPassthroughEmbeddingLayer,self).__init__(**kwargs)
+        super(FourierPassthroughEmbeddingLayer,self).__init__()
         self.frequency_vector = tf.reshape(tf.convert_to_tensor(tf.cast(frequency_vector,tf.float64)),(1,1,tf.size(frequency_vector)))
         self.npass = int(npass)
 
@@ -474,27 +495,51 @@ class FourierPassthroughEmbeddingLayer(keras.layers.Layer):
 class FourierPassthroughReductionLayer(keras.layers.Layer):
     # Chris O'Neill, University of Calgary 2023
     
-    def __init__(self,frequency_vector,npass,dense_reduction_layer=None,**kwargs):
-        super(FourierPassthroughReductionLayer,self).__init__(**kwargs)
+    def __init__(self,frequency_vector,npass,**kwargs):
+        super(FourierPassthroughReductionLayer,self).__init__()
         self.frequency_vector = tf.reshape(tf.convert_to_tensor(tf.cast(frequency_vector,tf.float64)),(1,tf.size(frequency_vector)))
         self.npass = int(npass)
+        self.built=False
+        if 'dtype' in kwargs:
+            self.u_dtype=kwargs['dtype']
+        else:
+            self.u_dtype=tf.float64
+
+        if 'activation' in kwargs:
+            if type(kwargs['activation'])==str:
+                self.activation = tf.keras.activations.deserialize(kwargs['activation'])
+            else:
+                self.activation = kwargs['activation']
+        else:
+            self.activation =  tf.keras.activations.tanh
+        if 'w1' in kwargs:
+            self.w1 = tf.Variable(initial_value=tf.cast(kwargs['w1'],self.u_dtype),dtype=self.u_dtype,trainable=True,name='w1')
+            self.b1 = tf.Variable(initial_value=tf.cast(kwargs['b1'],self.u_dtype),dtype=self.u_dtype,trainable=True,name='b1')
+            self.built=True
 
     def get_config(self):
         config = super().get_config()
         config.update({
             "frequency_vector":self.frequency_vector.numpy(),
             "npass":self.npass,
-            "dense_reduction_layer":self.dense_reduction_layer,
+            "activation":self.activation,
+            "w1":self.w1.numpy(),
+            "b1":self.b1.numpy()
         })
         return config
     
     def build(self,input_shape):
-        if input_shape[-1]<self.npass:
-            self.npass = input_shape[-1]
-        self.dense_reduction_layer = keras.layers.Dense(tf.shape(self.frequency_vector)[1],activation='linear')
+        if self.built==False:
+            # deal with input passthrough dimensionality
+            if input_shape[-1]<self.npass:
+                self.npass = input_shape[-1]
+            # setup weights
+            w_init = tf.random_normal_initializer()
+            self.w1 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],tf.shape(self.frequency_vector)[1]),dtype=self.u_dtype),trainable=True,name='w1')
+            self.b1 = tf.Variable(initial_value=w_init(shape=(tf.shape(self.frequency_vector)[1],),dtype=self.u_dtype),trainable=True,name='b1')  
           
     def call(self,inputs):
-        return tf.concat((inputs[...,0:self.npass],tf.cos(tf.multiply(self.frequency_vector,self.dense_reduction_layer(inputs))),tf.sin(tf.multiply(self.frequency_vector,self.dense_reduction_layer(inputs)))),axis=1)
+        return tf.concat((inputs[...,0:self.npass],tf.cos(tf.multiply(self.frequency_vector,self.activation(tf.matmul(inputs,self.w1)+self.b1))),tf.sin(tf.multiply(self.frequency_vector,self.activation(tf.matmul(inputs,self.w1)+self.b1)))),axis=1)
 
 class CylindricalEmbeddingLayer(keras.layers.Layer):
     def __init__(self,*args,**kwargs):

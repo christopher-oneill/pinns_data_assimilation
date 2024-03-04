@@ -192,8 +192,35 @@ def load_custom():
     model_RANS = keras.models.load_model(PROJECTDIR+'/output/'+job_name+'/'+job_name+'_model.h5',custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer,'FourierPassthroughEmbeddingLayer':FourierPassthroughEmbeddingLayer,'FourierPassthroughReductionLayer':FourierPassthroughReductionLayer})
     # check
     checkpoint_filename,training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','.weights.h5')
+
     if checkpoint_filename is not None:
-        model_RANS.load_weights(checkpoint_filename)        
+        #pred = model_RANS.predict(np.zeros([10,2])) # needed to enable weight loading
+        weights_file = h5py.File(checkpoint_filename)          
+        #print(weights_file.keys())
+        #print(weights_file['_layer_checkpoint_dependencies']['quadratic_input_passthrough_layer']['vars'].keys())
+        w_keys =  list(weights_file.keys())
+        if platform.system()=='Windows':
+            # check if the file is windows weight style or linux weight style
+            if w_keys[0]=='_layer_checkpoint_dependencies':
+                # if the file was saved on linux we need to copy it back to windows format 
+                new_weights_file = h5py.File(PROJECTDIR+'output/'+job_name+'/'+job_name+'_ep'+str(training_steps+1)+'.weights.h5','w')
+                # copy all other keys
+                for nkey in range(1,len(w_keys)):
+                    weights_file.copy(weights_file[w_keys[nkey]],new_weights_file)
+                # copy the layer keys
+                layer_keys = list(weights_file['_layer_checkpoint_dependencies'].keys())
+                for nkey in range(len(layer_keys)):
+                    new_weights_file.create_group('_layer_checkpoint_dependencies\\'+layer_keys[nkey])
+                    weights_file.copy(weights_file['_layer_checkpoint_dependencies'][layer_keys[nkey]]['vars'],new_weights_file['_layer_checkpoint_dependencies\\'+layer_keys[nkey]]) # ['_layer_checkpoint_dependencies\\'+layer_keys[nkey]] 
+                new_weights_file.close()
+                model_RANS.load_weights(PROJECTDIR+'output/'+job_name+'/'+job_name+'_ep'+str(training_steps+1)+'.weights.h5')
+            else:
+                # windows style loading
+                model_RANS.load_weights(checkpoint_filename)
+        else:
+            model_RANS.load_weights(checkpoint_filename)
+            model_RANS.save(PROJECTDIR+'output/'+job_name+'/'+job_name+'_ep'+str(training_steps+1)+'_model.h5')
+    
     model_RANS.summary()
     print('Model Loaded. Epoch',str(training_steps))
     #optimizer.build(model_RANS.trainable_variables)
@@ -773,12 +800,12 @@ history_list = []
 
 
 
-#if node_name == LOCAL_NODE:
-    #plot_err()
-    #plot_NS_residual()
+if node_name == LOCAL_NODE:
+    plot_err()
+    plot_NS_residual()
     #plot_large()
     #plot_NS_large()
-    #exit()
+    exit()
 
 backprop_flag = True
 

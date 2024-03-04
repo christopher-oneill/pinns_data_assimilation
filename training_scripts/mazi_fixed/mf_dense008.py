@@ -331,9 +331,11 @@ def load_custom():
                     weights_file.copy(weights_file['_layer_checkpoint_dependencies'][layer_keys[nkey]]['vars'],new_weights_file['_layer_checkpoint_dependencies\\'+layer_keys[nkey]]) # ['_layer_checkpoint_dependencies\\'+layer_keys[nkey]] 
                 new_weights_file.close()
                 model_RANS.load_weights(PROJECTDIR+'output/'+job_name+'/'+job_name+'_ep'+str(training_steps+1)+'.weights.h5')
+                model_RANS.save(PROJECTDIR+'output/'+job_name+'/'+job_name+'_ep'+str(training_steps+1)+'_model.h5')
             else:
                 # windows style loading
                 model_RANS.load_weights(checkpoint_filename)
+                model_RANS.save(PROJECTDIR+'output/'+job_name+'/'+job_name+'_ep'+str(training_steps+1)+'_model.h5')
         else:
             model_RANS.load_weights(checkpoint_filename)
 
