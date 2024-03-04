@@ -587,7 +587,6 @@ else:
     # parameters for running on compute canada   
     HOMEDIR = '/home/coneill/sync/'
     PROJECTDIR = '/home/coneill/projects/def-martinuz/coneill/'
-    SLURM_TMPDIR=os.environ["SLURM_TMPDIR"]
     sys.path.append(HOMEDIR+'code/')
 
 
