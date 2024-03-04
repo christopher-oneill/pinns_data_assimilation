@@ -798,6 +798,7 @@ saveFig=True
 
 history_list = []
 
+exit()
 
 
 if node_name == LOCAL_NODE:
