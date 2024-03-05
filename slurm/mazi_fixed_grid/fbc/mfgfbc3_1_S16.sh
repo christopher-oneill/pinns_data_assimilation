@@ -1,7 +1,6 @@
 #!/bin/bash
 #SBATCH --account=def-martinuz
 #SBATCH --ntasks=1
-#SBATCH --gpus-per-task=1
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=120G
 #SBATCH --time=0-23:30
