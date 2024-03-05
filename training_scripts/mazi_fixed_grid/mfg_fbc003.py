@@ -89,8 +89,6 @@ def plot_err():
     pred_test_grid = 1.0*np.reshape(pred_test,[X_grid.shape[0],X_grid.shape[1],6])
     pred_test_grid[cylinder_mask,:] = np.NaN
 
-    plot.close('all')
-
     i_train_plot = i_train_LBFGS*ScalingParameters.MAX_x
 
     err_test = o_test_grid_temp-pred_test_grid
@@ -369,17 +367,12 @@ def RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple):
 
 # define the collocation points
 
-def colloc_points_function(a,b):
-    colloc_limits2 = np.array([[4.0,10.0],[-2.0,2.0]])
-    colloc_sample_lhs2 = LHS(xlimits=colloc_limits2)
-    colloc_lhs2 = colloc_sample_lhs2(a)
-
-    colloc_limits3 = np.array([[-2.0,4.0],[-2.0,2.0]])
+def colloc_points_function(b):
+    colloc_limits3 = np.array([[-2.0,10.0],[-2.0,2.0]])
     colloc_sample_lhs3 = LHS(xlimits=colloc_limits3)
     colloc_lhs3 = colloc_sample_lhs3(b)
 
-    colloc_merged = np.vstack((colloc_lhs2,colloc_lhs3))
-
+    colloc_merged = colloc_lhs3
 
     # remove points inside the cylinder
     c1_loc = np.array([0,0],dtype=np.float64)
@@ -575,7 +568,7 @@ supersample_factor = int(sys.argv[2])
 job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_fbc002_{:03d}_S{:d}'.format(job_number,supersample_factor)
+job_name = 'mfg_fbc003_{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 job_duration = timedelta(hours=job_hours,minutes=0)
 end_time = start_time+job_duration
@@ -707,9 +700,9 @@ ScalingParameters.MAX_uxppuypp = MAX_uxuy
 ScalingParameters.MAX_uyppuypp = MAX_uyuy
 ScalingParameters.nu_mol = tf.cast(0.0066667,tf_dtype)
 ScalingParameters.MAX_p= MAX_p # estimated maximum pressure, we should
-ScalingParameters.batch_size = 64
-ScalingParameters.colloc_batch_size = 64
-ScalingParameters.boundary_batch_size = 32
+ScalingParameters.batch_size = 32
+ScalingParameters.colloc_batch_size = 32
+ScalingParameters.boundary_batch_size = 16
 ScalingParameters.physics_loss_coefficient = tf.cast(0.316,tf_dtype)
 ScalingParameters.boundary_loss_coefficient = tf.cast(1.0,tf_dtype)
 ScalingParameters.data_loss_coefficient = tf.cast(1.0,tf_dtype)
@@ -727,6 +720,7 @@ if supersample_factor>1:
     uxux = uxux[downsample_inds]
     uxuy = uxuy[downsample_inds]
     uyuy = uyuy[downsample_inds]
+
     cylinder_mask = cylinder_mask[downsample_inds]
 
 # remove the inside quantities
@@ -737,6 +731,7 @@ uy = np.delete(uy,np.nonzero(cylinder_mask),axis=0)
 uxux = np.delete(uxux,np.nonzero(cylinder_mask),axis=0)
 uxuy = np.delete(uxuy,np.nonzero(cylinder_mask),axis=0)
 uyuy = np.delete(uyuy,np.nonzero(cylinder_mask),axis=0)
+
 
 
 # for LBFGS we don't need to duplicate since all points and collocs are evaluated in a single step
@@ -755,7 +750,7 @@ else:
 
 global colloc_vector
 boundary_tuple = boundary_points_function(720)
-colloc_vector = colloc_points_function(5000,20000)
+colloc_vector = colloc_points_function(25000)
 
 global training_steps
 global model_RANS
@@ -770,22 +765,22 @@ from pinns_data_assimilation.lib.layers import InputPassthroughLayer
 from pinns_data_assimilation.lib.layers import FourierPassthroughEmbeddingLayer
 from pinns_data_assimilation.lib.layers import FourierPassthroughReductionLayer
 
-embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,30)
+embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,60)
 
 model_filename,model_training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','_model.h5')
-if os.path.isfile(model_filename):
+if model_filename is not None:
     with tf.device(tf_device_string):
         model_RANS,training_steps = load_custom()
 else: 
     training_steps = 0
     with tf.device(tf_device_string):        
         inputs = keras.Input(shape=(2,),name='coordinates')
-        lo = FourierPassthroughEmbeddingLayer(embedding_wavenumber_vector,2)(inputs)
-        for i in range(4):
+        lo = QuadraticInputPassthroughLayer(70,2)(inputs)
+        for i in range(3):
             lo = QuadraticInputPassthroughLayer(70,2)(lo)
-        lo = FourierPassthroughReductionLayer(-embedding_wavenumber_vector,2)(lo)
+        lo = FourierPassthroughReductionLayer(embedding_wavenumber_vector,32)(lo)
         for i in range(4):
-            lo = QuadraticInputPassthroughLayer(100,2)(lo)
+            lo = QuadraticInputPassthroughLayer(140,2)(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         # save the model architecture only once on setup
@@ -812,7 +807,7 @@ history_list = []
     #plot_NS_large()
     #exit()
 
-backprop_flag = True
+backprop_flag = False
 
 last_epoch_time = datetime.now()
 average_epoch_time=timedelta(minutes=10)
@@ -859,6 +854,7 @@ while backprop_flag:
         average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
         if (datetime.now()+average_epoch_time)>end_time:
             model_RANS.save_weights(savedir+job_name+'_ep'+str(training_steps)+'.weights.h5')
+            model_RANS.save(savedir+job_name+'_ep'+str(training_steps)+'_model.h5')
             exit()
         last_epoch_time = datetime.now()
     
@@ -867,7 +863,7 @@ if True:
     import tensorflow_probability as tfp
     L_iter = 0
     boundary_tuple = boundary_points_function(720)
-    colloc_vector = colloc_points_function(5000,20000) # one A100 max = 60k?
+    colloc_vector = colloc_points_function(25000) # one A100 max = 60k?
     func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
     init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
             
@@ -897,7 +893,7 @@ if True:
         if np.mod(L_iter,10)==0:
             model_RANS.save_weights(savedir+job_name+'_ep'+str(training_steps)+'.weights.h5')
             boundary_tuple = boundary_points_function(720)
-            colloc_vector = colloc_points_function(5000,20000)
+            colloc_vector = colloc_points_function(25000)
             func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
             init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
 

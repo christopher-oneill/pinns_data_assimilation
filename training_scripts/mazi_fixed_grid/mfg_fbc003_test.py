@@ -89,8 +89,6 @@ def plot_err():
     pred_test_grid = 1.0*np.reshape(pred_test,[X_grid.shape[0],X_grid.shape[1],6])
     pred_test_grid[cylinder_mask,:] = np.NaN
 
-    plot.close('all')
-
     i_train_plot = i_train_LBFGS*ScalingParameters.MAX_x
 
     err_test = o_test_grid_temp-pred_test_grid
@@ -412,9 +410,9 @@ def boundary_points_function(cyl):
 @tf.function
 def compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters):
     y_pred = model_RANS(x,training=True)
-    data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:5]-y),axis=0),axis=0) 
-    physics_loss = RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) #tf.cast(0.0,tf_dtype)#
-    boundary_loss = RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple)
+    data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:6]-y),axis=0),axis=0) 
+    physics_loss = tf.cast(0.0,tf_dtype)#RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) #tf.cast(0.0,tf_dtype)#
+    boundary_loss = tf.cast(0.0,tf_dtype)#RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple)
 
     # dynamic loss weighting, scale based on largest
     max_loss = tf.exp(tf.math.ceil(tf.math.log(1E-30+tf.reduce_max(tf.stack((data_loss,physics_loss,boundary_loss))))))
@@ -575,7 +573,7 @@ supersample_factor = int(sys.argv[2])
 job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_fbc002_{:03d}_S{:d}'.format(job_number,supersample_factor)
+job_name = 'mfg_fbc003_{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 job_duration = timedelta(hours=job_hours,minutes=0)
 end_time = start_time+job_duration
@@ -707,9 +705,9 @@ ScalingParameters.MAX_uxppuypp = MAX_uxuy
 ScalingParameters.MAX_uyppuypp = MAX_uyuy
 ScalingParameters.nu_mol = tf.cast(0.0066667,tf_dtype)
 ScalingParameters.MAX_p= MAX_p # estimated maximum pressure, we should
-ScalingParameters.batch_size = 64
-ScalingParameters.colloc_batch_size = 64
-ScalingParameters.boundary_batch_size = 32
+ScalingParameters.batch_size = 32
+ScalingParameters.colloc_batch_size = 32
+ScalingParameters.boundary_batch_size = 16
 ScalingParameters.physics_loss_coefficient = tf.cast(0.316,tf_dtype)
 ScalingParameters.boundary_loss_coefficient = tf.cast(1.0,tf_dtype)
 ScalingParameters.data_loss_coefficient = tf.cast(1.0,tf_dtype)
@@ -727,6 +725,7 @@ if supersample_factor>1:
     uxux = uxux[downsample_inds]
     uxuy = uxuy[downsample_inds]
     uyuy = uyuy[downsample_inds]
+    p = p[downsample_inds]
     cylinder_mask = cylinder_mask[downsample_inds]
 
 # remove the inside quantities
@@ -737,15 +736,16 @@ uy = np.delete(uy,np.nonzero(cylinder_mask),axis=0)
 uxux = np.delete(uxux,np.nonzero(cylinder_mask),axis=0)
 uxuy = np.delete(uxuy,np.nonzero(cylinder_mask),axis=0)
 uyuy = np.delete(uyuy,np.nonzero(cylinder_mask),axis=0)
+p = np.delete(p,np.nonzero(cylinder_mask),axis=0)
 
 
 # for LBFGS we don't need to duplicate since all points and collocs are evaluated in a single step
-o_train_LBFGS = np.stack((ux/MAX_ux,uy/MAX_uy,uxux/MAX_uxux,uxuy/MAX_uxuy,uyuy/MAX_uyuy),axis=1)
+o_train_LBFGS = np.stack((ux/MAX_ux,uy/MAX_uy,uxux/MAX_uxux,uxuy/MAX_uxuy,uyuy/MAX_uyuy,p/MAX_p),axis=1)
 i_train_LBFGS = np.stack((x/MAX_x,y/MAX_x),axis=1)
 
 # copy the arrays if supersample factor is >1 so that the data size is approximately consistent
 if supersample_factor>0:
-    o_train_backprop = np.stack((np.concatenate([ux for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_ux,np.concatenate([uy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uy,np.concatenate([uxux for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uxux,np.concatenate([uxuy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uxuy,np.concatenate([uyuy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uyuy),axis=1)
+    o_train_backprop = np.stack((np.concatenate([ux for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_ux,np.concatenate([uy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uy,np.concatenate([uxux for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uxux,np.concatenate([uxuy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uxuy,np.concatenate([uyuy for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_uyuy,np.concatenate([p for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_p),axis=1)
     i_train_backprop = np.stack((np.concatenate([x for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_x, np.concatenate([y for i in range(supersample_factor*supersample_factor)],axis=0)/MAX_x),axis=1)
 else:
     o_train_backprop = 1.0*o_train_LBFGS
@@ -770,22 +770,22 @@ from pinns_data_assimilation.lib.layers import InputPassthroughLayer
 from pinns_data_assimilation.lib.layers import FourierPassthroughEmbeddingLayer
 from pinns_data_assimilation.lib.layers import FourierPassthroughReductionLayer
 
-embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,30)
+embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,60)
 
 model_filename,model_training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','_model.h5')
-if os.path.isfile(model_filename):
+if model_filename is not None:
     with tf.device(tf_device_string):
         model_RANS,training_steps = load_custom()
 else: 
     training_steps = 0
     with tf.device(tf_device_string):        
         inputs = keras.Input(shape=(2,),name='coordinates')
-        lo = FourierPassthroughEmbeddingLayer(embedding_wavenumber_vector,2)(inputs)
-        for i in range(4):
+        lo = QuadraticInputPassthroughLayer(70,2)(inputs)
+        for i in range(3):
             lo = QuadraticInputPassthroughLayer(70,2)(lo)
-        lo = FourierPassthroughReductionLayer(-embedding_wavenumber_vector,2)(lo)
+        lo = FourierPassthroughReductionLayer(embedding_wavenumber_vector,32)(lo)
         for i in range(4):
-            lo = QuadraticInputPassthroughLayer(100,2)(lo)
+            lo = QuadraticInputPassthroughLayer(140,2)(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         # save the model architecture only once on setup
@@ -812,7 +812,7 @@ history_list = []
     #plot_NS_large()
     #exit()
 
-backprop_flag = True
+backprop_flag = False
 
 last_epoch_time = datetime.now()
 average_epoch_time=timedelta(minutes=10)
@@ -859,6 +859,7 @@ while backprop_flag:
         average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
         if (datetime.now()+average_epoch_time)>end_time:
             model_RANS.save_weights(savedir+job_name+'_ep'+str(training_steps)+'.weights.h5')
+            model_RANS.save(savedir+job_name+'_ep'+str(training_steps)+'_model.h5')
             exit()
         last_epoch_time = datetime.now()
     

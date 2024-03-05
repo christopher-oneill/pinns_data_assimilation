@@ -1083,11 +1083,11 @@ if __name__=="__main__":
             inputs = keras.Input(shape=(2,),name='coordinates')
             #lo = FourierPassthroughEmbeddingLayer(embedding_wavenumber_vector,2)(lo)
             lo = QuadraticInputPassthroughLayer(70,2,activation='tanh',dtype=tf_dtype)(inputs)
-            for i in range(7):
+            for i in range(4):
                 lo = QuadraticInputPassthroughLayer(70,2,activation='tanh',dtype=tf_dtype)(lo)
             lo = FourierPassthroughReductionLayer(embedding_wavenumber_vector,30)(lo)
             for i in range(4):
-                lo = QuadraticInputPassthroughLayer(100,2,activation='tanh',dtype=tf_dtype)(lo)
+                lo = QuadraticInputPassthroughLayer(140,2,activation='tanh',dtype=tf_dtype)(lo)
             outputs = keras.layers.Dense(12,activation='linear',name='dynamical_quantities')(lo)
             model_FANS = keras.Model(inputs=inputs,outputs=outputs)
             model_FANS.summary()
