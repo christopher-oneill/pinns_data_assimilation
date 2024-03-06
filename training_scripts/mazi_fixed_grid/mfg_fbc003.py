@@ -101,7 +101,7 @@ def plot_err():
         plot.contourf(X_grid,Y_grid,o_test_grid_temp[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
         plot.set_cmap('bwr')
         plot.colorbar()
-        if supersample_factor>1:
+        if (supersample_factor>1) and (i<5):
             plot.scatter(i_train_plot[:,0],i_train_plot[:,1],2,'k','.')
         
         plot.subplot(3,1,2)
@@ -138,7 +138,7 @@ def plot_err():
     point_locations = Y_grid[0,:]
 
     plot_save_exts2 = ['_ux_profile.png','_uy_profile.png','_uxux_profile.png','_uxuy_profile.png','_uyuy_profile.png','_p_profile.png',]
-    x_offset = np.array([-1.0,0,0,0,0,0])
+    x_offset = np.array([-1.0/ScalingParameters.MAX_ux,0,0,0,0,0])
     x_scale = np.array([0.5,0.5,0.5,0.5,0.5,0.5,])
     err_scale = np.nanmax(np.abs(err_test),axis=(0,1))
     
@@ -187,8 +187,8 @@ def save_pred():
         h5f.close()
 
 def load_custom():
-    checkpoint_filename,model_training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','_model.h5')
-    model_RANS = keras.models.load_model(PROJECTDIR+'/output/'+job_name+'/'+job_name+'_model.h5',custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer,'FourierPassthroughEmbeddingLayer':FourierPassthroughEmbeddingLayer,'FourierPassthroughReductionLayer':FourierPassthroughReductionLayer})
+    model_filename,model_training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','_model.h5')
+    model_RANS = keras.models.load_model(model_filename,custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer,'FourierPassthroughEmbeddingLayer':FourierPassthroughEmbeddingLayer,'FourierPassthroughReductionLayer':FourierPassthroughReductionLayer})
     # check if the weights are newer
     checkpoint_filename,weights_training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','.weights.h5')
 
@@ -800,12 +800,12 @@ saveFig=True
 history_list = []
 
 
-#if node_name == LOCAL_NODE:
-    #plot_err()
-    #plot_NS_residual()
+if node_name == LOCAL_NODE:
+    plot_err()
+    plot_NS_residual()
     #plot_large()
     #plot_NS_large()
-    #exit()
+    exit()
 
 backprop_flag = False
 
