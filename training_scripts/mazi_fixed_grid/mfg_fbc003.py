@@ -19,6 +19,119 @@ import sys
 import os
 import platform
 
+
+def plot_gradients():
+    global o_test_grid
+    global X_grid
+    global Y_grid
+    meps = np.finfo(np.float64).eps
+
+    cylinder_mask = (np.power(X_grid,2.0)+np.power(Y_grid,2.0))<=np.power(d/2.0,2.0)
+
+    data_grads = np.zeros([o_test_grid.shape[0],o_test_grid.shape[1],14])
+
+    labels = ['ux_x','ux_y','uy_x','uy_y','uxux_x','uxuy_x','uxuy_y','uyuy_y','p_x','p_y','ux_xx','ux_yy','uy_xx','uy_yy']
+
+    o_test_grid_temp = 1.0*o_test_grid
+    o_test_grid_temp[:,:,0] = o_test_grid_temp[:,:,0]*ScalingParameters.MAX_ux
+    o_test_grid_temp[:,:,1] = o_test_grid_temp[:,:,1]*ScalingParameters.MAX_uy
+    o_test_grid_temp[:,:,2] = o_test_grid_temp[:,:,2]*ScalingParameters.MAX_uxppuxpp
+    o_test_grid_temp[:,:,3] = o_test_grid_temp[:,:,3]*ScalingParameters.MAX_uxppuypp
+    o_test_grid_temp[:,:,4] = o_test_grid_temp[:,:,4]*ScalingParameters.MAX_uyppuypp
+    o_test_grid_temp[:,:,5] = o_test_grid_temp[:,:,5]*ScalingParameters.MAX_p
+    
+
+    # first derivatives of data
+    data_grads[:,:,0] = np.gradient(o_test_grid_temp[:,:,0],X_grid[:,0],axis=0) # ux_x
+    data_grads[:,:,1] = np.gradient(o_test_grid_temp[:,:,0],Y_grid[0,:],axis=1) # ux_y
+    data_grads[:,:,2] = np.gradient(o_test_grid_temp[:,:,1],X_grid[:,0],axis=0) # uy_x
+    data_grads[:,:,3] = np.gradient(o_test_grid_temp[:,:,1],Y_grid[0,:],axis=1) # uy_y
+    data_grads[:,:,4] = np.gradient(o_test_grid_temp[:,:,2],X_grid[:,0],axis=0) # uxux_x
+    #data_uxux_y = np.gradient(o_test_grid_temp[:,:,2],Y_grid[0,:],axis=1)
+    data_grads[:,:,5] = np.gradient(o_test_grid_temp[:,:,3],X_grid[:,0],axis=0) # uxuy_x
+    data_grads[:,:,6] = np.gradient(o_test_grid_temp[:,:,3],Y_grid[0,:],axis=1) # uxuy_y
+    #data_uyuy_x = np.gradient(o_test_grid_temp[:,:,4],X_grid[:,0],axis=0)
+    data_grads[:,:,7] = np.gradient(o_test_grid_temp[:,:,4],Y_grid[0,:],axis=1) # uyuy_y
+    data_grads[:,:,8] = np.gradient(o_test_grid_temp[:,:,5],X_grid[:,0],axis=0) # p_x
+    data_grads[:,:,9] = np.gradient(o_test_grid_temp[:,:,5],Y_grid[0,:],axis=1) # p_y
+
+    # second derivatives of data
+    data_grads[:,:,10] = np.gradient(data_grads[:,:,0],X_grid[:,0],axis=0) # ux_xx
+    data_grads[:,:,11] = np.gradient(data_grads[:,:,1],Y_grid[0,:],axis=1) # ux_yy
+    data_grads[:,:,12] = np.gradient(data_grads[:,:,2],X_grid[:,0],axis=0) # uy_xx
+    data_grads[:,:,13] = np.gradient(data_grads[:,:,3],Y_grid[0,:],axis=1) # uy_yy
+
+    data_grads[cylinder_mask,:]=np.NaN
+
+
+    NN_grads = RANS_gradients(model_RANS,ScalingParameters,i_test)
+    NN_grads_grid = 1.0*np.reshape(NN_grads,data_grads.shape)
+    NN_grads_grid[cylinder_mask,:]=np.NaN
+
+    for i in range(data_grads.shape[2]):
+        plot.figure(1)
+        plot.subplot(3,1,1)
+        plot.contourf(X_grid,Y_grid,data_grads[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        plot.subplot(3,1,2)
+        plot.contourf(X_grid,Y_grid,NN_grads_grid[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        plot.subplot(3,1,3)
+        plot.contourf(X_grid,Y_grid,data_grads[:,:,i]-NN_grads_grid[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        if saveFig:
+            plot.savefig(fig_dir+'ep'+str(training_steps)+'_gradients_'+labels[i]+'.png',dpi=300)
+        plot.close(1)
+    
+    # f_x = (ux*ux_x + uy*ux_y) + (uxux_x + uxuy_y) + p_x - (ScalingParameters.nu_mol)*(ux_xx+ux_yy) 
+    # f_y = (ux*uy_x + uy*uy_y) + (uxuy_x + uyuy_y) + p_y - (ScalingParameters.nu_mol)*(uy_xx+uy_yy)
+    # f_mass = ux_x + uy_y
+
+    f_x = (o_test_grid_temp[:,:,0]*data_grads[:,:,0] + o_test_grid_temp[:,:,1]*data_grads[:,:,1]) + (data_grads[:,:,4] + data_grads[:,:,6]) + data_grads[:,:,8] - (ScalingParameters.nu_mol)*(data_grads[:,:,10]+data_grads[:,:,11])  
+    f_y = (o_test_grid_temp[:,:,0]*data_grads[:,:,2] + o_test_grid_temp[:,:,1]*data_grads[:,:,3]) + (data_grads[:,:,5] + data_grads[:,:,7]) + data_grads[:,:,9] - (ScalingParameters.nu_mol)*(data_grads[:,:,12]+data_grads[:,:,13])
+    f_mass = data_grads[:,:,0] + data_grads[:,:,3]
+
+
+    levels_fd = np.linspace(-0.01,0.01,21)
+    plot.figure(1)
+    plot.subplot(3,1,1)
+    plot.contourf(X_grid,Y_grid,f_x,levels=levels_fd,extend='both')
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.subplot(3,1,2)
+    plot.contourf(X_grid,Y_grid,f_y,levels=levels_fd,extend='both')
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.subplot(3,1,3)
+    plot.contourf(X_grid,Y_grid,f_mass,levels=levels_fd,extend='both')
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    if saveFig:
+        plot.savefig(fig_dir+'ep'+str(training_steps)+'_NS_residual_finite_difference.png',dpi=300)
+    plot.close(1)
+
+    plot.figure(1)
+    plot.subplot(3,1,1)
+    plot.contourf(X_grid,Y_grid,np.log10(np.abs(f_x+meps)),levels=21)
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.subplot(3,1,2)
+    plot.contourf(X_grid,Y_grid,np.log10(np.abs(f_y+meps)),levels=21)
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.subplot(3,1,3)
+    plot.contourf(X_grid,Y_grid,np.log10(np.abs(f_mass+meps)),levels=21)
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    if saveFig:
+        plot.savefig(fig_dir+'ep'+str(training_steps)+'_NS_residual_finite_difference_log.png',dpi=300)
+    plot.close(1)
+
+    # create profile plot
+
 def plot_NS_residual():
     # NS residual
     global X_grid
@@ -257,6 +370,62 @@ def BC_RANS_wall(model_RANS,ScalingParameters,BC_points):
     #grad_p_norm = p_x*tf.cos(wall_angle)+p_y*tf.sin(wall_angle)
 
     return tf.reduce_mean(tf.square(ux))+tf.reduce_mean(tf.square(uy))+tf.reduce_mean(tf.square(uxppuxpp))+tf.reduce_mean(tf.square(uxppuypp))+tf.reduce_mean(tf.square(uyppuypp)) #+tf.square(grad_p_norm)
+
+
+@tf.function
+def RANS_gradients(model_RANS,ScalingParameters,colloc_tensor):
+    up = model_RANS(colloc_tensor)
+    # knowns
+    ux = up[:,0]*ScalingParameters.MAX_ux
+    uy = up[:,1]*ScalingParameters.MAX_uy
+    uxux = up[:,2]*ScalingParameters.MAX_uxppuxpp
+    uxuy = up[:,3]*ScalingParameters.MAX_uxppuypp
+    uyuy = up[:,4]*ScalingParameters.MAX_uyppuypp
+    # unknowns
+    p = up[:,5]*ScalingParameters.MAX_p
+    
+    # compute the gradients of the quantities
+    
+    # first gradients
+    dux = tf.gradients((ux,), (colloc_tensor))[0]
+    duy = tf.gradients((uy,), (colloc_tensor))[0]
+    duxux = tf.gradients((uxux,), (colloc_tensor))[0]
+    duxuy = tf.gradients((uxuy,), (colloc_tensor))[0]
+    duyuy = tf.gradients((uyuy,), (colloc_tensor))[0]
+    dp = tf.gradients((p,), (colloc_tensor))[0]
+    # ux grads
+
+    ux_x = dux[:,0]/ScalingParameters.MAX_x
+    ux_y = dux[:,1]/ScalingParameters.MAX_y
+    
+    # uy gradient
+    uy_x = duy[:,0]/ScalingParameters.MAX_x
+    uy_y = duy[:,1]/ScalingParameters.MAX_y
+
+
+    # gradient unmodeled reynolds stresses
+    uxux_x = duxux[:,0]/ScalingParameters.MAX_x
+    uxuy_x = duxuy[:,0]/ScalingParameters.MAX_x
+    uxuy_y = duxuy[:,1]/ScalingParameters.MAX_y
+    uyuy_y = duyuy[:,1]/ScalingParameters.MAX_y
+
+    # pressure gradients
+    p_x = dp[:,0]/ScalingParameters.MAX_x
+    p_y = dp[:,1]/ScalingParameters.MAX_y
+
+    # second gradients
+    (dux_x) = tf.gradients((ux_x,),(colloc_tensor,))[0]
+    (dux_y) = tf.gradients((ux_y,),(colloc_tensor,))[0]
+    (duy_x) = tf.gradients((uy_x,),(colloc_tensor,))[0]
+    (duy_y) = tf.gradients((uy_y,),(colloc_tensor,))[0]
+    # and second derivative
+    ux_xx = dux_x[:,0]/ScalingParameters.MAX_x
+    ux_yy = dux_y[:,1]/ScalingParameters.MAX_y
+    uy_xx = duy_x[:,0]/ScalingParameters.MAX_x
+    uy_yy = duy_y[:,1]/ScalingParameters.MAX_y
+
+    # governing equations
+    return tf.stack((ux_x, ux_y, uy_x, uy_y, uxux_x, uxuy_x, uxuy_y, uyuy_y, p_x, p_y, ux_xx, ux_yy, uy_xx, uy_yy),axis=1)
 
 @tf.function
 def RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,colloc_tensor):
@@ -662,12 +831,6 @@ MIN_x = np.min(X_grid)
 MAX_y = np.max(Y_grid)
 MIN_y = np.min(Y_grid)
 
-print('MAX_x: ',MAX_x)
-print('MIN_x: ',MIN_x)
-print('MAX_y: ',MAX_y)
-print('MAX_x: ',MIN_y)
-
-
 x_test = 1.0*x/MAX_x
 y_test = 1.0*y/MAX_x
 global i_test
@@ -706,6 +869,11 @@ ScalingParameters.boundary_batch_size = 16
 ScalingParameters.physics_loss_coefficient = tf.cast(0.316,tf_dtype)
 ScalingParameters.boundary_loss_coefficient = tf.cast(1.0,tf_dtype)
 ScalingParameters.data_loss_coefficient = tf.cast(1.0,tf_dtype)
+
+print('MAX_x: ',ScalingParameters.MAX_x)
+print('MIN_x: ',ScalingParameters.MIN_x)
+print('MAX_y: ',ScalingParameters.MAX_y)
+print('MAX_x: ',ScalingParameters.MIN_y)
 
 
 # if we are downsampling and then upsampling, downsample the source data
@@ -805,6 +973,7 @@ if node_name == LOCAL_NODE:
     plot_NS_residual()
     #plot_large()
     #plot_NS_large()
+    plot_gradients()
     exit()
 
 backprop_flag = False

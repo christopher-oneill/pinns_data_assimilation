@@ -16,7 +16,7 @@ def find_highest_numbered_file(path_prefix, number_pattern, suffix):
     pattern = re.compile(f'{file_prefix}({number_pattern}){suffix}')
     
     # Initialize variables to track the highest number and file path
-    highest_number = 0
+    highest_number = -1
     highest_file_path = None
     
     # Iterate over the files in the directory
