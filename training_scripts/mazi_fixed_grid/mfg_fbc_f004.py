@@ -205,8 +205,7 @@ def plot_err():
         plot.contourf(X_grid_plot,Y_grid_plot,F_test_grid_temp[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
         plot.set_cmap('bwr')
         plot.colorbar()
-        if supersample_factor>1 and i<10:
-            # not on psis
+        if supersample_factor>1:
             plot.scatter(X_train_plot[:,0],X_train_plot[:,1],2,'k','.')
         
         plot.subplot(3,1,2)
@@ -776,9 +775,9 @@ def boundary_points_function(n_cyl):
 @tf.function
 def compute_loss(x,y,colloc_x,mean_grads,boundary_tuple,ScalingParameters):
     y_pred = model_FANS(x,training=True)
-    data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:10]-y),axis=0),axis=0) 
-    physics_loss = FANS_physics_loss(model_FANS,colloc_x,mean_grads,ScalingParameters) 
-    boundary_loss = FANS_boundary_loss(model_FANS,boundary_tuple,ScalingParameters)
+    data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:12]-y),axis=0),axis=0) 
+    physics_loss = tf.cast(0.0,tf_dtype)#FANS_physics_loss(model_FANS,colloc_x,mean_grads,ScalingParameters) 
+    boundary_loss = tf.cast(0.0,tf_dtype)#FANS_boundary_loss(model_FANS,boundary_tuple,ScalingParameters)
 
     # dynamic loss weighting, scale based on largest
     max_loss = tf.exp(tf.math.ceil(tf.math.log(1E-30+tf.reduce_max(tf.stack((data_loss,physics_loss,boundary_loss))))))
@@ -943,7 +942,7 @@ if __name__=="__main__":
     supersample_factor = int(sys.argv[3])
     job_hours = int(sys.argv[4])
 
-    job_name = 'mfg_fbcf002_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
+    job_name = 'mfg_fbc004_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
 
     LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -1069,7 +1068,7 @@ if __name__=="__main__":
     ScalingParameters.MAX_tau_yy_i = np.max(tau_yy_i.flatten())
 
     ScalingParameters.MAX_p= 1 # estimated maximum pressure, we should 
-    ScalingParameters.MAX_psi= 0.2*np.power((omega_0/omega),2.0) # chosen based on abs(max(psi)) # since this decays with frequency, we multiply by the inverse squared to prevent a scaling issue
+    ScalingParameters.MAX_psi= 0.2*(omega_0/omega) # chosen based on abs(max(psi)) # since this decays with frequency, we multiply by the inverse to prevent a scaling issue
     ScalingParameters.nu_mol = 0.0066667
     ScalingParameters.batch_size = 32
     ScalingParameters.colloc_batch_size = 32
@@ -1122,13 +1121,16 @@ if __name__=="__main__":
         tau_xy_i = tau_xy_i[downsample_inds]
         tau_yy_r = tau_yy_r[downsample_inds]
         tau_yy_i = tau_yy_i[downsample_inds]
+        psi_r = psi_r[downsample_inds]
+        psi_i = psi_i[downsample_inds]
+        cylinder_mask = cylinder_mask[downsample_inds]
 
     print('max_x: ',ScalingParameters.MAX_x)
     print('min_x: ',ScalingParameters.MIN_x)
     print('max_y: ',ScalingParameters.MAX_y)
     print('min_y: ',ScalingParameters.MIN_y)
 
-    # remove the inside quantities (from interpolation to grid)
+    # remove the inside quantities
     x = np.delete(x,np.nonzero(cylinder_mask),axis=0)
     y = np.delete(y,np.nonzero(cylinder_mask),axis=0)
     ux = np.delete(ux,np.nonzero(cylinder_mask),axis=0)
@@ -1146,7 +1148,10 @@ if __name__=="__main__":
     tau_xy_r = np.delete(tau_xy_r,np.nonzero(cylinder_mask),axis=0)
     tau_xy_i = np.delete(tau_xy_i,np.nonzero(cylinder_mask),axis=0)
     tau_yy_r = np.delete(tau_yy_r,np.nonzero(cylinder_mask),axis=0)
-    tau_yy_i = np.delete(tau_yy_i,np.nonzero(cylinder_mask),axis=0)   
+    tau_yy_i = np.delete(tau_yy_i,np.nonzero(cylinder_mask),axis=0)
+    psi_r = np.delete(psi_r,np.nonzero(cylinder_mask),axis=0)
+    psi_i = np.delete(psi_i,np.nonzero(cylinder_mask),axis=0)
+    
 
     # normalize the training data:
     x_train = x/ScalingParameters.MAX_x
@@ -1187,18 +1192,17 @@ if __name__=="__main__":
     X_train_LBFGS = np.stack((x_train,y_train),axis=1)
     O_train_LBFGS = np.stack((ux_train,uy_train,uxux_train,uxuy_train,uyuy_train),axis=1) # training data
     # with psi
-    #F_train_LBFGS = np.stack((phi_xr_train,phi_xi_train,phi_yr_train,phi_yi_train,tau_xx_r_train,tau_xx_i_train,tau_xy_r_train,tau_xy_i_train,tau_yy_r_train,tau_yy_i_train,psi_r_train,psi_i_train),axis=1) # training data
+    F_train_LBFGS = np.stack((phi_xr_train,phi_xi_train,phi_yr_train,phi_yi_train,tau_xx_r_train,tau_xx_i_train,tau_xy_r_train,tau_xy_i_train,tau_yy_r_train,tau_yy_i_train,psi_r_train,psi_i_train),axis=1) # training data
     # without psi: 
-    F_train_LBFGS = np.stack((phi_xr_train,phi_xi_train,phi_yr_train,phi_yi_train,tau_xx_r_train,tau_xx_i_train,tau_xy_r_train,tau_xy_i_train,tau_yy_r_train,tau_yy_i_train),axis=1) # training data
+    #F_train_LBFGS = np.stack((phi_xr_train,phi_xi_train,phi_yr_train,phi_yi_train,tau_xx_r_train,tau_xx_i_train,tau_xy_r_train,tau_xy_i_train,tau_yy_r_train,tau_yy_i_train),axis=1) # training data
 
     # backprop, duplicate data size so that the epoch length doesnt depend on supersample factor
     if supersample_factor>0:
         X_train_backprop = np.stack((np.concatenate([x_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([y_train for i in range(supersample_factor*supersample_factor)])),axis=1)
         O_train_backprop = np.stack((np.concatenate([ux_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([uy_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([uxux_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([uxuy_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([uyuy_train for i in range(supersample_factor*supersample_factor)])),axis=1) # training data
         # with psi
-        #F_train_backprop = np.stack((np.concatenate([phi_xr_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_xi_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_yr_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_yi_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xx_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xx_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xy_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xy_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_yy_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_yy_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([psi_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([psi_i_train for i in range(supersample_factor*supersample_factor)])),axis=1) # training data
+        F_train_backprop = np.stack((np.concatenate([phi_xr_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_xi_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_yr_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_yi_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xx_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xx_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xy_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xy_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_yy_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_yy_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([psi_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([psi_i_train for i in range(supersample_factor*supersample_factor)])),axis=1) # training data
         # without psi
-        F_train_backprop = np.stack((np.concatenate([phi_xr_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_xi_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_yr_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_yi_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xx_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xx_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xy_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xy_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_yy_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_yy_i_train for i in range(supersample_factor*supersample_factor)])),axis=1) # training data
     else:
         X_train_backprop = 1.0*X_train_LBFGS
         O_train_backprop = 1.0*O_train_LBFGS
@@ -1207,7 +1211,7 @@ if __name__=="__main__":
     print('O_train.shape: ',O_train_backprop.shape)
     # the order here must be identical to inside the cost functions
     boundary_tuple  = boundary_points_function(720)
-    X_colloc = colloc_points_function(25000)
+    X_colloc = colloc_points_function(20000)
 
 
     tf_device_string ='/GPU:0'
@@ -1234,7 +1238,7 @@ if __name__=="__main__":
     # check if the model has been created before, if so load it
 
     optimizer = keras.optimizers.SGD(learning_rate=1E-4,momentum=0.0)
-    embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,90) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
+    embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,60) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
     # we need to check if there are already checkpoints for this job
     model_file,temp_trainingsteps = find_highest_numbered_file(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep','[0-9]*','_model.h5')
     # check if the model has been created, if so check if weights exist
@@ -1247,12 +1251,12 @@ if __name__=="__main__":
         with tf.device(tf_device_string):        
             inputs = keras.Input(shape=(2,),name='coordinates')
             #lo = FourierPassthroughEmbeddingLayer(embedding_wavenumber_vector,2)(lo)
-            lo = QuadraticInputPassthroughLayer(70,2,activation='tanh',dtype=tf_dtype)(inputs)
+            lo = QuadraticInputPassthroughLayer(60,2,activation='tanh',dtype=tf_dtype)(inputs)
             for i in range(4):
-                lo = QuadraticInputPassthroughLayer(70,2,activation='tanh',dtype=tf_dtype)(lo)
+                lo = QuadraticInputPassthroughLayer(60,2,activation='tanh',dtype=tf_dtype)(lo)
             lo = FourierPassthroughReductionLayer(embedding_wavenumber_vector,30)(lo)
             for i in range(4):
-                lo = QuadraticInputPassthroughLayer(140,2,activation='tanh',dtype=tf_dtype)(lo)
+                lo = QuadraticInputPassthroughLayer(100,2,activation='tanh',dtype=tf_dtype)(lo)
             outputs = keras.layers.Dense(12,activation='linear',name='dynamical_quantities')(lo)
             model_FANS = keras.Model(inputs=inputs,outputs=outputs)
             model_FANS.summary()
@@ -1264,11 +1268,11 @@ if __name__=="__main__":
     # this time we randomly shuffle the order of X and O
     rng = np.random.default_rng()
 
-    if node_name==LOCAL_NODE:
-        plot_err()
-        plot_NS_residual()
+    #if node_name==LOCAL_NODE:
+    #    plot_err()
+    #    plot_NS_residual()
     #    plot_frequencies()
-        exit()
+    #    exit()
 
     # train the network
     last_epoch_time = datetime.now()
@@ -1320,7 +1324,7 @@ if __name__=="__main__":
             if np.mod(training_steps,50)==0:
                     # rerandomize the collocation points 
                 boundary_tuple = boundary_points_function(720)
-                X_colloc = colloc_points_function(25000)
+                X_colloc = colloc_points_function(20000)
                 mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
             
             # check if we are out of time
@@ -1339,7 +1343,7 @@ if __name__=="__main__":
         import tensorflow_probability as tfp
         L_iter = 0
         boundary_tuple = boundary_points_function(720)
-        X_colloc = colloc_points_function(25000) # one A100 max = 60k?
+        X_colloc = colloc_points_function(10000) # one A100 max = 60k?
         mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
         func = train_LBFGS(model_FANS,tf.cast(X_train_LBFGS,tf_dtype),tf.cast(F_train_LBFGS,tf_dtype),X_colloc,mean_data,boundary_tuple,ScalingParameters)
         init_params = tf.dynamic_stitch(func.idx, model_FANS.trainable_variables)
@@ -1368,7 +1372,7 @@ if __name__=="__main__":
             if np.mod(L_iter,10)==0:
                 model_FANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
                 boundary_tuple = boundary_points_function(720)
-                X_colloc = colloc_points_function(25000)
+                X_colloc = colloc_points_function(10000)
                 mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
                 func = train_LBFGS(model_FANS,tf.cast(X_train_LBFGS,tf_dtype),tf.cast(F_train_LBFGS,tf_dtype),X_colloc,mean_data,boundary_tuple,ScalingParameters)
                 init_params = tf.dynamic_stitch(func.idx, model_FANS.trainable_variables)

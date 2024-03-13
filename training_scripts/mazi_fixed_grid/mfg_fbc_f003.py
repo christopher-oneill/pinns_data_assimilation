@@ -943,7 +943,7 @@ if __name__=="__main__":
     supersample_factor = int(sys.argv[3])
     job_hours = int(sys.argv[4])
 
-    job_name = 'mfg_fbcf002_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
+    job_name = 'mfg_fbcf003_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
 
     LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -1069,12 +1069,12 @@ if __name__=="__main__":
     ScalingParameters.MAX_tau_yy_i = np.max(tau_yy_i.flatten())
 
     ScalingParameters.MAX_p= 1 # estimated maximum pressure, we should 
-    ScalingParameters.MAX_psi= 0.2*np.power((omega_0/omega),2.0) # chosen based on abs(max(psi)) # since this decays with frequency, we multiply by the inverse squared to prevent a scaling issue
+    ScalingParameters.MAX_psi= 0.2*(omega_0/omega) # chosen based on abs(max(psi)) # since this decays with frequency, we multiply by the inverse to prevent a scaling issue
     ScalingParameters.nu_mol = 0.0066667
     ScalingParameters.batch_size = 32
     ScalingParameters.colloc_batch_size = 32
     ScalingParameters.boundary_batch_size = 16
-    ScalingParameters.physics_loss_coefficient = tf.cast(3.16E-1,tf_dtype)
+    ScalingParameters.physics_loss_coefficient = tf.cast(1.0E-1,tf_dtype)
     ScalingParameters.boundary_loss_coefficient = tf.cast(1.0,tf_dtype)
     ScalingParameters.data_loss_coefficient = tf.cast(1.0,tf_dtype)
 
@@ -1122,6 +1122,7 @@ if __name__=="__main__":
         tau_xy_i = tau_xy_i[downsample_inds]
         tau_yy_r = tau_yy_r[downsample_inds]
         tau_yy_i = tau_yy_i[downsample_inds]
+        cylinder_mask = cylinder_mask[downsample_inds]
 
     print('max_x: ',ScalingParameters.MAX_x)
     print('min_x: ',ScalingParameters.MIN_x)
@@ -1147,6 +1148,7 @@ if __name__=="__main__":
     tau_xy_i = np.delete(tau_xy_i,np.nonzero(cylinder_mask),axis=0)
     tau_yy_r = np.delete(tau_yy_r,np.nonzero(cylinder_mask),axis=0)
     tau_yy_i = np.delete(tau_yy_i,np.nonzero(cylinder_mask),axis=0)   
+
 
     # normalize the training data:
     x_train = x/ScalingParameters.MAX_x
@@ -1182,6 +1184,11 @@ if __name__=="__main__":
     print("MAX_tau_yy_r:",ScalingParameters.MAX_tau_yy_r)
     print("MAX_tau_yy_i:",ScalingParameters.MAX_tau_yy_i)
 
+    
+
+
+
+
     # the order here must be identical to inside the cost functions
     # LBFGS, since we form a single matrix anyway, dont duplicate the data
     X_train_LBFGS = np.stack((x_train,y_train),axis=1)
@@ -1207,7 +1214,7 @@ if __name__=="__main__":
     print('O_train.shape: ',O_train_backprop.shape)
     # the order here must be identical to inside the cost functions
     boundary_tuple  = boundary_points_function(720)
-    X_colloc = colloc_points_function(25000)
+    X_colloc = colloc_points_function(8000)
 
 
     tf_device_string ='/GPU:0'
@@ -1234,7 +1241,7 @@ if __name__=="__main__":
     # check if the model has been created before, if so load it
 
     optimizer = keras.optimizers.SGD(learning_rate=1E-4,momentum=0.0)
-    embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,90) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
+    embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,60) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
     # we need to check if there are already checkpoints for this job
     model_file,temp_trainingsteps = find_highest_numbered_file(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep','[0-9]*','_model.h5')
     # check if the model has been created, if so check if weights exist
@@ -1247,12 +1254,12 @@ if __name__=="__main__":
         with tf.device(tf_device_string):        
             inputs = keras.Input(shape=(2,),name='coordinates')
             #lo = FourierPassthroughEmbeddingLayer(embedding_wavenumber_vector,2)(lo)
-            lo = QuadraticInputPassthroughLayer(70,2,activation='tanh',dtype=tf_dtype)(inputs)
+            lo = QuadraticInputPassthroughLayer(60,2,activation='tanh',dtype=tf_dtype)(inputs)
             for i in range(4):
-                lo = QuadraticInputPassthroughLayer(70,2,activation='tanh',dtype=tf_dtype)(lo)
+                lo = QuadraticInputPassthroughLayer(60,2,activation='tanh',dtype=tf_dtype)(lo)
             lo = FourierPassthroughReductionLayer(embedding_wavenumber_vector,30)(lo)
             for i in range(4):
-                lo = QuadraticInputPassthroughLayer(140,2,activation='tanh',dtype=tf_dtype)(lo)
+                lo = QuadraticInputPassthroughLayer(100,2,activation='tanh',dtype=tf_dtype)(lo)
             outputs = keras.layers.Dense(12,activation='linear',name='dynamical_quantities')(lo)
             model_FANS = keras.Model(inputs=inputs,outputs=outputs)
             model_FANS.summary()
@@ -1264,11 +1271,11 @@ if __name__=="__main__":
     # this time we randomly shuffle the order of X and O
     rng = np.random.default_rng()
 
-    if node_name==LOCAL_NODE:
-        plot_err()
-        plot_NS_residual()
+    #if node_name==LOCAL_NODE:
+    #    plot_err()
+    #    plot_NS_residual()
     #    plot_frequencies()
-        exit()
+    #    exit()
 
     # train the network
     last_epoch_time = datetime.now()
@@ -1278,7 +1285,7 @@ if __name__=="__main__":
         # regular training with physics
         lr_schedule = np.array([1E-5, 3.16E-6, 1E-6,    0.0])
         ep_schedule = np.array([0,      30,     100,    200])
-        phys_schedule = np.array([3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1])
+        phys_schedule = np.array([1.0E-1, 1.0E-1, 1.0E-1, 1.0E-1, 1.0E-1, 1.0E-1, 1.0E-1])
         #lr_schedule = np.array([3.16E-7, 1E-7,    3.16E-8, 1E-8,    0.0])
         #ep_schedule = np.array([0,       50,      150,   300,       400,])
         #phys_schedule = np.array([3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1])
@@ -1320,7 +1327,7 @@ if __name__=="__main__":
             if np.mod(training_steps,50)==0:
                     # rerandomize the collocation points 
                 boundary_tuple = boundary_points_function(720)
-                X_colloc = colloc_points_function(25000)
+                X_colloc = colloc_points_function(7000)
                 mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
             
             # check if we are out of time
@@ -1339,7 +1346,7 @@ if __name__=="__main__":
         import tensorflow_probability as tfp
         L_iter = 0
         boundary_tuple = boundary_points_function(720)
-        X_colloc = colloc_points_function(25000) # one A100 max = 60k?
+        X_colloc = colloc_points_function(8000) # one A100 max = 60k?
         mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
         func = train_LBFGS(model_FANS,tf.cast(X_train_LBFGS,tf_dtype),tf.cast(F_train_LBFGS,tf_dtype),X_colloc,mean_data,boundary_tuple,ScalingParameters)
         init_params = tf.dynamic_stitch(func.idx, model_FANS.trainable_variables)
@@ -1368,7 +1375,7 @@ if __name__=="__main__":
             if np.mod(L_iter,10)==0:
                 model_FANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
                 boundary_tuple = boundary_points_function(720)
-                X_colloc = colloc_points_function(25000)
+                X_colloc = colloc_points_function(8000)
                 mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
                 func = train_LBFGS(model_FANS,tf.cast(X_train_LBFGS,tf_dtype),tf.cast(F_train_LBFGS,tf_dtype),X_colloc,mean_data,boundary_tuple,ScalingParameters)
                 init_params = tf.dynamic_stitch(func.idx, model_FANS.trainable_variables)
