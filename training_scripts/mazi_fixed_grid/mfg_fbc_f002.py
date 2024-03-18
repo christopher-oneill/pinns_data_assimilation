@@ -1122,6 +1122,7 @@ if __name__=="__main__":
         tau_xy_i = tau_xy_i[downsample_inds]
         tau_yy_r = tau_yy_r[downsample_inds]
         tau_yy_i = tau_yy_i[downsample_inds]
+        cylinder_mask = cylinder_mask[downsample_inds]
 
     print('max_x: ',ScalingParameters.MAX_x)
     print('min_x: ',ScalingParameters.MIN_x)
