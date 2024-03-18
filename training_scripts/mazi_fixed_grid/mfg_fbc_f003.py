@@ -280,6 +280,46 @@ def plot_frequencies():
     plot.plot(x_plot,np.sin((3*np.pi*ScalingParameters.MAX_x)*x_plot))
     plot.show()
 
+def plot_near_wall_BC():
+    temp_F_test_grid = np.copy(F_test_grid)
+    temp_X_grid_plot = X_grid_plot
+    temp_Y_grid_plot = Y_grid_plot
+
+    temp_x_vec = np.power(temp_X_grid_plot[:,0],2.0)
+    line_plot = np.argmin(temp_x_vec)
+    y_plot = temp_Y_grid_plot[line_plot,:]/ScalingParameters.MAX_x
+
+    plot.figure(1)
+    plot.plot(y_plot,temp_F_test_grid[line_plot,:,0])
+    plot.plot(y_plot,temp_F_test_grid[line_plot,:,1])
+    
+    plot.plot(np.array([-d/(ScalingParameters.MAX_x*2),-d/(ScalingParameters.MAX_x*2)]).flatten(),np.array([-ScalingParameters.MAX_phi_xr,ScalingParameters.MAX_phi_xr]),'-k')
+    plot.plot(np.array([d/(ScalingParameters.MAX_x*2),d/(ScalingParameters.MAX_x*2)]).flatten(),np.array([-ScalingParameters.MAX_phi_xr,ScalingParameters.MAX_phi_xr]),'-k')
+    plot.figure(2)
+    plot.plot(y_plot,temp_F_test_grid[line_plot,:,2])
+    plot.plot(y_plot,temp_F_test_grid[line_plot,:,3])
+    plot.plot(np.array([-d/(ScalingParameters.MAX_x*2),-d/(ScalingParameters.MAX_x*2)]).flatten(),np.array([-0.01,0.01]),'-k')
+    plot.plot(np.array([d/(ScalingParameters.MAX_x*2),d/(ScalingParameters.MAX_x*2)]).flatten(),np.array([-0.01,0.01]),'-k')
+
+    plot.figure(3)
+    plot.plot(y_plot,temp_F_test_grid[line_plot,:,4])
+    plot.plot(y_plot,temp_F_test_grid[line_plot,:,5])
+    plot.plot(np.array([-d/(ScalingParameters.MAX_x*2),-d/(ScalingParameters.MAX_x*2)]).flatten(),np.array([-0.001,0.001]),'-k')
+    plot.plot(np.array([d/(ScalingParameters.MAX_x*2),d/(ScalingParameters.MAX_x*2)]).flatten(),np.array([-0.001,0.001]),'-k')
+    plot.figure(4)
+    plot.plot(y_plot,temp_F_test_grid[line_plot,:,6])
+    plot.plot(y_plot,temp_F_test_grid[line_plot,:,7])
+    plot.plot(np.array([-d/(ScalingParameters.MAX_x*2),-d/(ScalingParameters.MAX_x*2)]).flatten(),np.array([-0.001,0.001]),'-k')
+    plot.plot(np.array([d/(ScalingParameters.MAX_x*2),d/(ScalingParameters.MAX_x*2)]).flatten(),np.array([-0.001,0.001]),'-k')  
+    plot.figure(5)
+    plot.plot(y_plot,temp_F_test_grid[line_plot,:,8])
+    plot.plot(y_plot,temp_F_test_grid[line_plot,:,9])
+    plot.plot(np.array([-d/(ScalingParameters.MAX_x*2),-d/(ScalingParameters.MAX_x*2)]).flatten(),np.array([-0.0001,0.0001]),'-k')
+    plot.plot(np.array([d/(ScalingParameters.MAX_x*2),d/(ScalingParameters.MAX_x*2)]).flatten(),np.array([-0.0001,0.0001]),'-k')
+
+    #plot.plot(y_plot,np.sin((3*np.pi*ScalingParameters.MAX_x)*y_plot))
+    plot.show()
+
 def plot_gradients():
     global o_test_grid
     global X_grid
@@ -1271,11 +1311,12 @@ if __name__=="__main__":
     # this time we randomly shuffle the order of X and O
     rng = np.random.default_rng()
 
-    #if node_name==LOCAL_NODE:
-    #    plot_err()
-    #    plot_NS_residual()
-    #    plot_frequencies()
-    #    exit()
+    if node_name==LOCAL_NODE:
+        plot_near_wall_BC()
+        #plot_err()
+        #plot_NS_residual()
+        #plot_frequencies()
+        exit()
 
     # train the network
     last_epoch_time = datetime.now()

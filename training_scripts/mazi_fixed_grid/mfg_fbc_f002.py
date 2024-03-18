@@ -520,7 +520,7 @@ def FANS_BC_no_slip(model_FANS,BC_points):
     tau_xy_i = up[:,7]*ScalingParameters.MAX_tau_xy_i
     tau_yy_r = up[:,8]*ScalingParameters.MAX_tau_yy_r
     tau_yy_i = up[:,9]*ScalingParameters.MAX_tau_yy_i
-    return tf.reduce_mean(tf.square(phi_xr))+tf.reduce_mean(tf.square(phi_xi))+tf.reduce_mean(tf.square(phi_yr))+tf.reduce_mean(tf.square(phi_yi))+tf.reduce_mean(tf.square(tau_xx_r))+tf.reduce_mean(tf.square(tau_xx_i))+tf.reduce_mean(tf.square(tau_xy_r))+tf.reduce_mean(tf.square(tau_xy_i))+tf.reduce_mean(tf.square(tau_yy_r))+tf.reduce_mean(tf.square(tau_yy_i))
+    return tf.reduce_mean(tf.square(phi_xr+phi_xi))+tf.reduce_mean(tf.square(phi_yr+phi_yi))+tf.reduce_mean(tf.square(tau_xx_r))+tf.reduce_mean(tf.square(tau_xx_i))+tf.reduce_mean(tf.square(tau_xy_r))+tf.reduce_mean(tf.square(tau_xy_i))+tf.reduce_mean(tf.square(tau_yy_r))+tf.reduce_mean(tf.square(tau_yy_i))
 
 @tf.function
 def FANS_boundary_loss(model_FANS,boundary_tuple,ScalingParameters):

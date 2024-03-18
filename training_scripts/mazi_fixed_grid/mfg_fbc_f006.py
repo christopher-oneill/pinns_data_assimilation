@@ -24,60 +24,55 @@ import sys
 
 # saving loading functions
 
-def load_mean_custom():
-    
-    mean_model_filename,mean_training_steps = find_highest_numbered_file(PROJECTDIR+'output/mf_dense008_001_S'+str(supersample_factor)+'/mf_dense008_001_S'+str(supersample_factor)+'_ep','[0-9]*','_model.h5')
-    model_mean = keras.models.load_model(mean_model_filename,custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer})
-
-    #mean_weights_filename,mean_training_steps = find_highest_numbered_file(PROJECTDIR+'output/mf_dense008_001_S'+str(supersample_factor)+'/mf_dense008_001_S'+str(supersample_factor)+'_ep','[0-9]*','.weights.h5')
-    #model_mean.load_weights(mean_weights_filename)
-    #model_mean.save(mean_model_folder+'/mf_dense008_001_S'+str(supersample_factor)+'_ep'+str(mean_training_steps+1)+'_model.h5')
-    model_mean.trainable=False
-    return model_mean
 
 def load_custom():
     # get the model from the model file
-    model_file = get_filepaths_with_glob(PROJECTDIR+'output/'+job_name+'_output/',job_name+'_model.h5')
-    model_FANS = keras.models.load_model(model_file[0],custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer,'FourierPassthroughEmbeddingLayer':FourierPassthroughEmbeddingLayer,'FourierPassthroughReductionLayer':FourierPassthroughReductionLayer,'InputPassthroughLayer':InputPassthroughLayer})
+    model_file,model_training_steps = find_highest_numbered_file(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep','[0-9]*','_model.h5')
+    model_FANS = keras.models.load_model(model_file,custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer,'FourierPassthroughEmbeddingLayer':FourierPassthroughEmbeddingLayer,'FourierPassthroughReductionLayer':FourierPassthroughReductionLayer,'InputPassthroughLayer':InputPassthroughLayer})
     
     # get the most recent set of weights
     
-    checkpoint_filename,training_steps = find_highest_numbered_file(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep','[0-9]*','.weights.h5')
+    checkpoint_filename,weights_training_steps = find_highest_numbered_file(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep','[0-9]*','.weights.h5')
 
-    
-    if checkpoint_filename is not None:
-        #pred = model_RANS.predict(np.zeros([10,2])) # needed to enable weight loading
-        weights_file = h5py.File(checkpoint_filename)          
-        #print(weights_file.keys())
-        #print(weights_file['_layer_checkpoint_dependencies']['quadratic_input_passthrough_layer']['vars'].keys())
-        w_keys =  list(weights_file.keys())
-        if platform.system()=='Windows':
-            # check if the file is windows weight style or linux weight style
-            if w_keys[0]=='_layer_checkpoint_dependencies':
-                # if the file was saved on linux we need to copy it back to windows format 
-                new_weights_file = h5py.File(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep'+str(training_steps+1)+'.weights.h5','w')
-                # copy all other keys
-                for nkey in range(1,len(w_keys)):
-                    weights_file.copy(weights_file[w_keys[nkey]],new_weights_file)
-                # copy the layer keys
-                layer_keys = list(weights_file['_layer_checkpoint_dependencies'].keys())
-                print(weights_file['_layer_checkpoint_dependencies']['fourier_passthrough_reduction_layer']['dense_reduction_layer']['vars'].keys())
-                for nkey in range(len(layer_keys)):
-                    new_weights_file.create_group('_layer_checkpoint_dependencies\\'+layer_keys[nkey])
-                    weights_file.copy(weights_file['_layer_checkpoint_dependencies'][layer_keys[nkey]]['vars'],new_weights_file['_layer_checkpoint_dependencies\\'+layer_keys[nkey]]) # ['_layer_checkpoint_dependencies\\'+layer_keys[nkey]] 
-                    if layer_keys[nkey] == 'fourier_passthrough_reduction_layer':
-                        dense_key = list(weights_file['_layer_checkpoint_dependencies'][layer_keys[nkey]])[0]
-                        print(dense_key)
-                        new_weights_file.create_group('_layer_checkpoint_dependencies\\'+layer_keys[nkey]+'\\'+dense_key)
-                        weights_file.copy(weights_file['_layer_checkpoint_dependencies'][layer_keys[nkey]][dense_key]['vars'],new_weights_file['_layer_checkpoint_dependencies\\'+layer_keys[nkey]+'\\'+dense_key]) # ['_layer_checkpoint_dependencies\\'+layer_keys[nkey]] 
-                        print(new_weights_file['_layer_checkpoint_dependencies\\'+layer_keys[nkey]+'\\'+dense_key].keys())
-                new_weights_file.close()
-                model_FANS.load_weights(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep'+str(training_steps+1)+'.weights.h5')
+    if model_training_steps>=weights_training_steps:
+        # just set the training steps
+        training_steps = model_training_steps
+    else:
+        training_steps = weights_training_steps
+        # load from weights
+        if checkpoint_filename is not None:
+            #pred = model_RANS.predict(np.zeros([10,2])) # needed to enable weight loading
+            weights_file = h5py.File(checkpoint_filename)          
+            #print(weights_file.keys())
+            #print(weights_file['_layer_checkpoint_dependencies']['quadratic_input_passthrough_layer']['vars'].keys())
+            w_keys =  list(weights_file.keys())
+            if platform.system()=='Windows':
+                # check if the file is windows weight style or linux weight style
+                if w_keys[0]=='_layer_checkpoint_dependencies':
+                    # if the file was saved on linux we need to copy it back to windows format 
+                    new_weights_file = h5py.File(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep'+str(training_steps+1)+'.weights.h5','w')
+                    # copy all other keys
+                    for nkey in range(1,len(w_keys)):
+                        weights_file.copy(weights_file[w_keys[nkey]],new_weights_file)
+                    # copy the layer keys
+                    layer_keys = list(weights_file['_layer_checkpoint_dependencies'].keys())
+                    print(weights_file['_layer_checkpoint_dependencies']['fourier_passthrough_reduction_layer']['dense_reduction_layer']['vars'].keys())
+                    for nkey in range(len(layer_keys)):
+                        new_weights_file.create_group('_layer_checkpoint_dependencies\\'+layer_keys[nkey])
+                        weights_file.copy(weights_file['_layer_checkpoint_dependencies'][layer_keys[nkey]]['vars'],new_weights_file['_layer_checkpoint_dependencies\\'+layer_keys[nkey]]) # ['_layer_checkpoint_dependencies\\'+layer_keys[nkey]] 
+                        if layer_keys[nkey] == 'fourier_passthrough_reduction_layer':
+                            dense_key = list(weights_file['_layer_checkpoint_dependencies'][layer_keys[nkey]])[0]
+                            print(dense_key)
+                            new_weights_file.create_group('_layer_checkpoint_dependencies\\'+layer_keys[nkey]+'\\'+dense_key)
+                            weights_file.copy(weights_file['_layer_checkpoint_dependencies'][layer_keys[nkey]][dense_key]['vars'],new_weights_file['_layer_checkpoint_dependencies\\'+layer_keys[nkey]+'\\'+dense_key]) # ['_layer_checkpoint_dependencies\\'+layer_keys[nkey]] 
+                            print(new_weights_file['_layer_checkpoint_dependencies\\'+layer_keys[nkey]+'\\'+dense_key].keys())
+                    new_weights_file.close()
+                    model_FANS.load_weights(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep'+str(training_steps+1)+'.weights.h5')
+                else:
+                    # windows style loading
+                    model_FANS.load_weights(checkpoint_filename)
             else:
-                # windows style loading
                 model_FANS.load_weights(checkpoint_filename)
-        else:
-            model_FANS.load_weights(checkpoint_filename)
                 
     model_FANS.summary()
     print('Model Loaded. Epoch',str(training_steps))
@@ -177,7 +172,7 @@ def plot_NS_residual():
     plot.close(1)
 
 
-def plot_err_fast():
+def plot_err():
     global X_plot  
     global d
     global training_steps
@@ -188,9 +183,7 @@ def plot_err_fast():
     F_test_grid_temp = 1.0*F_test_grid
     F_test_grid_temp[cylinder_mask,:] = np.NaN
 
-    # its not strictly fair to compare the interpolated original field to the PINNs exact predicted field;
-    # but interpolating both here is very computationaly expensive so we dont do it except for final plots
-    pred_test = model_FANS(np.stack((X_grid_plot.flatten()/ScalingParameters.MAX_x,Y_grid_plot.flatten()/ScalingParameters.MAX_x),axis=1),training=False)
+    pred_test = model_FANS(X_plot/ScalingParameters.MAX_x,training=False)
     
     pred_test_grid = np.copy(np.reshape(pred_test,[X_grid_plot.shape[0],X_grid_plot.shape[1],12]))
     pred_test_grid[cylinder_mask,:] = np.NaN
@@ -212,7 +205,8 @@ def plot_err_fast():
         plot.contourf(X_grid_plot,Y_grid_plot,F_test_grid_temp[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
         plot.set_cmap('bwr')
         plot.colorbar()
-        if supersample_factor>1:
+        if supersample_factor>1 and i<10:
+            # not on psis
             plot.scatter(X_train_plot[:,0],X_train_plot[:,1],2,'k','.')
         
         plot.subplot(3,1,2)
@@ -232,17 +226,17 @@ def plot_err_fast():
 
     # also plot the profiles
     profile_locations = np.linspace(-1.5,9.5,22) # spacing of 0.5
-    X_line_locations = X_grid_plot[0,:]
+    X_line_locations = X_grid_plot[:,0]
     X_distance_matrix = np.power(np.power(np.reshape(X_line_locations,[X_line_locations.size,1])-np.reshape(profile_locations,[1,profile_locations.size]),2.0),0.5)
     # find index of closest data line
     line_inds = np.argmin(X_distance_matrix,axis=0)
-    profile_locations = X_grid_plot[0,line_inds]
+    profile_locations = X_grid_plot[line_inds,:]
 
     #point_locations = np.linspace(-2,2,40)
     #Y_line_locations = Y_plot[:,0]
     #Y_distance_matrix = np.power(np.power(np.reshape(Y_line_locations,[Y_line_locations.size,1])-np.reshape(point_locations,[1,point_locations.size]),2.0),0.5)
     #point_inds = np.argmin(Y_distance_matrix,axis=0)
-    point_locations = Y_grid_plot[:,0]
+    point_locations = Y_grid_plot[0,:]
 
     plot_save_exts2 = ['_phi_xr_profile.png','_phi_xi_profile.png','_phi_yr_profile.png','_phi_yi_profile.png','_tau_xx_r_profile.png','_tau_xx_i_profile.png','_tau_xy_r_profile.png','_tau_xy_i_profile.png','_tau_yy_r_profile.png','_tau_yy_i_profile.png','_psi_r_profile.png','_psi_i_profile.png']
     x_offset = np.array([0,0,0,0,0,0,0,0,0,0,0,0])
@@ -260,110 +254,13 @@ def plot_err_fast():
         plot.subplot(3,1,2)
         for k in range(profile_locations.shape[0]):
             plot.plot(np.zeros(point_locations.shape)+profile_locations[k],point_locations,'--k',linewidth=0.5)
-            plot.plot((F_test_grid_temp[:,line_inds[k],i]+x_offset[i])*x_scale[i]+profile_locations[k],point_locations,'-k',linewidth=0.5)
-            plot.plot((pred_test_grid[:,line_inds[k],i]+x_offset[i])*x_scale[i]+profile_locations[k],point_locations,'-r',linewidth=0.5)
+            plot.plot((F_test_grid_temp[line_inds[k],:,i]+x_offset[i])*x_scale[i]+profile_locations[k],point_locations,'-k',linewidth=0.5)
+            plot.plot((pred_test_grid[line_inds[k],:,i]+x_offset[i])*x_scale[i]+profile_locations[k],point_locations,'-r',linewidth=0.5)
         plot.xlim(-2,10)
         plot.subplot(3,1,3)
         for k in range(profile_locations.shape[0]):
             plot.plot(np.zeros(point_locations.shape)+profile_locations[k],point_locations,'--k',linewidth=0.5)
-            plot.plot((0.5/err_scale[i])*err_test_grid[:,line_inds[k],i]+profile_locations[k],point_locations,'-r',linewidth=0.5)
-        plot.text(4.5,1.7,"x-Scaled by (0.5/MaxErr). MaxErr={txterr:.4f}".format(txterr=err_scale[i]),fontsize=7.0)
-        plot.xlim(-2,10)
-        plot.savefig(fig_dir+'ep'+str(training_steps)+plot_save_exts2[i],dpi=300)
-        plot.close(1)
-
-def plot_err():
-    global X_plot  
-    global d
-    global training_steps
-    global ScalingParameters
-
-    cylinder_mask = (np.power(X_grid_plot,2.0)+np.power(Y_grid_plot,2.0))<=np.power(d/2.0,2.0)
-
-    F_test_grid_temp = 1.0*F_test_grid
-    F_test_grid_temp[cylinder_mask,:] = np.NaN
-
-    pred_test = model_FANS(X_test,training=False)
-    # interpolate the predicted data
-    pred_test_grid = np.zeros([X_grid_plot.shape[0],X_grid_plot.shape[1],F_test.shape[1]])
-    for c in range(F_test.shape[1]):
-        pred_test_grid[:,:,c] = np.reshape(griddata(X,pred_test[:,c],X_plot),X_grid_plot.shape)
-    pred_test_grid[cylinder_mask,:] = np.NaN
-
-    err_test = F_test-pred_test
-    # interpolate the error
-    err_test_grid = np.zeros([X_grid_plot.shape[0],X_grid_plot.shape[1],F_test.shape[1]])
-    for c in range(F_test.shape[1]):
-        err_test_grid[:,:,c] = np.reshape(griddata(X,err_test[:,c],X_plot),X_grid_plot.shape)
-    err_test_grid[cylinder_mask,:] = np.NaN
-
-    plot.close('all')
-
-    X_train_plot = X_train_LBFGS*ScalingParameters.MAX_x
-
-    plot_save_exts = ['_phi_xr.png','_phi_xi.png','_phi_yr.png','_phi_yi.png','_tau_xx_r.png','_tau_xx_i.png','_tau_xy_r.png','_tau_xy_i.png','_tau_yy_r.png','_tau_yy_i.png','_psi_r.png','_psi_i.png']
-    # quantities
-    for i in range(12):
-        plot.figure(1)
-        plot.subplot(3,1,1)
-        plot.contourf(X_grid_plot,Y_grid_plot,F_test_grid_temp[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
-        plot.set_cmap('bwr')
-        plot.colorbar()
-        if supersample_factor>1:
-            plot.scatter(X_train_plot[:,0],X_train_plot[:,1],2,'k','.')
-        
-        plot.subplot(3,1,2)
-        plot.contourf(X_grid_plot,Y_grid_plot,pred_test_grid[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
-        plot.set_cmap('bwr')
-        plot.colorbar()
-        plot.subplot(3,1,3)
-        e_test_min = np.nanpercentile(err_test_grid[:,:,i].ravel(),0.1)
-        e_test_max = np.nanpercentile(err_test_grid[:,:,i].ravel(),99.9)
-        e_test_level = np.max([abs(e_test_min),abs(e_test_max)])
-        e_test_levels = np.linspace(-e_test_level,e_test_level,21)
-        plot.contourf(X_grid_plot,Y_grid_plot,err_test_grid[:,:,i],levels=e_test_levels,extend='both')
-        plot.set_cmap('bwr')
-        plot.colorbar()
-        plot.savefig(fig_dir+'ep'+str(training_steps)+plot_save_exts[i],dpi=300)
-        plot.close(1)
-
-    # also plot the profiles
-    profile_locations = np.linspace(-1.5,9.5,22) # spacing of 0.5
-    X_line_locations = X_grid_plot[0,:]
-    X_distance_matrix = np.power(np.power(np.reshape(X_line_locations,[X_line_locations.size,1])-np.reshape(profile_locations,[1,profile_locations.size]),2.0),0.5)
-    # find index of closest data line
-    line_inds = np.argmin(X_distance_matrix,axis=0)
-    profile_locations = X_grid_plot[0,line_inds]
-
-    #point_locations = np.linspace(-2,2,40)
-    #Y_line_locations = Y_plot[:,0]
-    #Y_distance_matrix = np.power(np.power(np.reshape(Y_line_locations,[Y_line_locations.size,1])-np.reshape(point_locations,[1,point_locations.size]),2.0),0.5)
-    #point_inds = np.argmin(Y_distance_matrix,axis=0)
-    point_locations = Y_grid_plot[:,0]
-
-    plot_save_exts2 = ['_phi_xr_profile.png','_phi_xi_profile.png','_phi_yr_profile.png','_phi_yi_profile.png','_tau_xx_r_profile.png','_tau_xx_i_profile.png','_tau_xy_r_profile.png','_tau_xy_i_profile.png','_tau_yy_r_profile.png','_tau_yy_i_profile.png','_psi_r_profile.png','_psi_i_profile.png']
-    x_offset = np.array([0,0,0,0,0,0,0,0,0,0,0,0])
-    x_scale = np.array([0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5])
-    err_scale = np.nanmax(np.abs(err_test_grid),axis=(0,1))
-    
-    for i in range(12):
-        plot.figure(1)
-        plot.subplot(3,1,1)
-        plot.contourf(X_grid_plot,Y_grid_plot,F_test_grid_temp[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
-        
-        plot.set_cmap('bwr')
-        plot.xlim(-2,10)
-        
-        plot.subplot(3,1,2)
-        for k in range(profile_locations.shape[0]):
-            plot.plot(np.zeros(point_locations.shape)+profile_locations[k],point_locations,'--k',linewidth=0.5)
-            plot.plot((F_test_grid_temp[:,line_inds[k],i]+x_offset[i])*x_scale[i]+profile_locations[k],point_locations,'-k',linewidth=0.5)
-            plot.plot((pred_test_grid[:,line_inds[k],i]+x_offset[i])*x_scale[i]+profile_locations[k],point_locations,'-r',linewidth=0.5)
-        plot.xlim(-2,10)
-        plot.subplot(3,1,3)
-        for k in range(profile_locations.shape[0]):
-            plot.plot(np.zeros(point_locations.shape)+profile_locations[k],point_locations,'--k',linewidth=0.5)
-            plot.plot((0.5/err_scale[i])*err_test_grid[:,line_inds[k],i]+profile_locations[k],point_locations,'-r',linewidth=0.5)
+            plot.plot((0.5/err_scale[i])*err_test_grid[line_inds[k],:,i]+profile_locations[k],point_locations,'-r',linewidth=0.5)
         plot.text(4.5,1.7,"x-Scaled by (0.5/MaxErr). MaxErr={txterr:.4f}".format(txterr=err_scale[i]),fontsize=7.0)
         plot.xlim(-2,10)
         plot.savefig(fig_dir+'ep'+str(training_steps)+plot_save_exts2[i],dpi=300)
@@ -374,12 +271,12 @@ def plot_frequencies():
     temp_X_grid_plot = X_grid_plot
     temp_Y_grid_plot = Y_grid_plot
 
-    line_plot = int((X_grid_plot.shape[0])/3.0)
+    line_plot = int((X_grid_plot.shape[1])/3.0)
 
-    x_plot = X_grid_plot[line_plot,:]/ScalingParameters.MAX_x
+    x_plot = X_grid_plot[:,line_plot]/ScalingParameters.MAX_x
 
     plot.figure(1)
-    plot.plot(x_plot,temp_F_test_grid[line_plot,:,8])
+    plot.plot(x_plot,temp_F_test_grid[:,line_plot,8])
     plot.plot(x_plot,np.sin((3*np.pi*ScalingParameters.MAX_x)*x_plot))
     plot.show()
 
@@ -388,24 +285,145 @@ def plot_near_wall_BC():
     temp_X_grid_plot = X_grid_plot
     temp_Y_grid_plot = Y_grid_plot
 
-    temp_x_vec = np.power(temp_X_grid_plot[0,:],2.0)
+    temp_x_vec = np.power(temp_X_grid_plot[:,0],2.0)
     line_plot = np.argmin(temp_x_vec)
-    y_plot = temp_Y_grid_plot[:,line_plot]/ScalingParameters.MAX_x
+    y_plot = temp_Y_grid_plot[line_plot,:]/ScalingParameters.MAX_x
 
     plot.figure(1)
-    plot.plot(y_plot,temp_F_test_grid[:,line_plot,0])
-    plot.plot(y_plot,temp_F_test_grid[:,line_plot,1])
+    plot.plot(y_plot,temp_F_test_grid[line_plot,:,0])
+    plot.plot(y_plot,temp_F_test_grid[line_plot,:,1])
     
     plot.plot(np.array([-d/(ScalingParameters.MAX_x*2),-d/(ScalingParameters.MAX_x*2)]).flatten(),np.array([-0.1,0.1]),'-k')
     plot.plot(np.array([d/(ScalingParameters.MAX_x*2),d/(ScalingParameters.MAX_x*2)]).flatten(),np.array([-0.1,0.1]),'-k')
     plot.figure(2)
-    plot.plot(y_plot,temp_F_test_grid[:,line_plot,2])
-    plot.plot(y_plot,temp_F_test_grid[:,line_plot,3])
+    plot.plot(y_plot,temp_F_test_grid[line_plot,:,2])
+    plot.plot(y_plot,temp_F_test_grid[line_plot,:,3])
     plot.plot(np.array([-d/(ScalingParameters.MAX_x*2),-d/(ScalingParameters.MAX_x*2)]).flatten(),np.array([-0.1,0.1]),'-k')
     plot.plot(np.array([d/(ScalingParameters.MAX_x*2),d/(ScalingParameters.MAX_x*2)]).flatten(),np.array([-0.1,0.1]),'-k')
     #plot.plot(y_plot,np.sin((3*np.pi*ScalingParameters.MAX_x)*y_plot))
     plot.show()
 
+def plot_gradients():
+    global o_test_grid
+    global X_grid
+    global Y_grid
+    meps = np.finfo(np.float64).eps
+
+    cylinder_mask = (np.power(X_grid,2.0)+np.power(Y_grid,2.0))<=np.power(d/2.0,2.0)
+
+    data_grads = np.zeros([o_test_grid.shape[0],o_test_grid.shape[1],14])
+
+    labels = ['ux_x','ux_y','uy_x','uy_y','uxux_x','uxuy_x','uxuy_y','uyuy_y','p_x','p_y','ux_xx','ux_yy','uy_xx','uy_yy']
+
+    o_test_grid_temp = 1.0*o_test_grid
+    o_test_grid_temp[:,:,0] = o_test_grid_temp[:,:,0]*ScalingParameters.MAX_ux
+    o_test_grid_temp[:,:,1] = o_test_grid_temp[:,:,1]*ScalingParameters.MAX_uy
+    o_test_grid_temp[:,:,2] = o_test_grid_temp[:,:,2]*ScalingParameters.MAX_uxppuxpp
+    o_test_grid_temp[:,:,3] = o_test_grid_temp[:,:,3]*ScalingParameters.MAX_uxppuypp
+    o_test_grid_temp[:,:,4] = o_test_grid_temp[:,:,4]*ScalingParameters.MAX_uyppuypp
+    o_test_grid_temp[:,:,5] = o_test_grid_temp[:,:,5]*ScalingParameters.MAX_p
+    
+
+    # first derivatives of data
+    data_grads[:,:,0] = np.gradient(o_test_grid_temp[:,:,0],X_grid[:,0],axis=0) # ux_x
+    data_grads[:,:,1] = np.gradient(o_test_grid_temp[:,:,0],Y_grid[0,:],axis=1) # ux_y
+    data_grads[:,:,2] = np.gradient(o_test_grid_temp[:,:,1],X_grid[:,0],axis=0) # uy_x
+    data_grads[:,:,3] = np.gradient(o_test_grid_temp[:,:,1],Y_grid[0,:],axis=1) # uy_y
+    data_grads[:,:,4] = np.gradient(o_test_grid_temp[:,:,2],X_grid[:,0],axis=0) # uxux_x
+    #data_uxux_y = np.gradient(o_test_grid_temp[:,:,2],Y_grid[0,:],axis=1)
+    data_grads[:,:,5] = np.gradient(o_test_grid_temp[:,:,3],X_grid[:,0],axis=0) # uxuy_x
+    data_grads[:,:,6] = np.gradient(o_test_grid_temp[:,:,3],Y_grid[0,:],axis=1) # uxuy_y
+    #data_uyuy_x = np.gradient(o_test_grid_temp[:,:,4],X_grid[:,0],axis=0)
+    data_grads[:,:,7] = np.gradient(o_test_grid_temp[:,:,4],Y_grid[0,:],axis=1) # uyuy_y
+    data_grads[:,:,8] = np.gradient(o_test_grid_temp[:,:,5],X_grid[:,0],axis=0) # p_x
+    data_grads[:,:,9] = np.gradient(o_test_grid_temp[:,:,5],Y_grid[0,:],axis=1) # p_y
+
+    # second derivatives of data
+    data_grads[:,:,10] = np.gradient(data_grads[:,:,0],X_grid[:,0],axis=0) # ux_xx
+    data_grads[:,:,11] = np.gradient(data_grads[:,:,1],Y_grid[0,:],axis=1) # ux_yy
+    data_grads[:,:,12] = np.gradient(data_grads[:,:,2],X_grid[:,0],axis=0) # uy_xx
+    data_grads[:,:,13] = np.gradient(data_grads[:,:,3],Y_grid[0,:],axis=1) # uy_yy
+
+    data_grads[cylinder_mask,:]=np.NaN
+
+
+    NN_grads = RANS_gradients(model_mean,ScalingParameters,X_test)
+    NN_grads_grid = 1.0*np.reshape(NN_grads,data_grads.shape)
+    NN_grads_grid[cylinder_mask,:]=np.NaN
+
+    for i in range(data_grads.shape[2]):
+        plot.figure(1)
+        plot.subplot(3,1,1)
+        plot.contourf(X_grid,Y_grid,data_grads[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        plot.subplot(3,1,2)
+        plot.contourf(X_grid,Y_grid,NN_grads_grid[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        plot.subplot(3,1,3)
+        plot.contourf(X_grid,Y_grid,data_grads[:,:,i]-NN_grads_grid[:,:,i],levels=21,norm=matplotlib.colors.CenteredNorm())
+        plot.set_cmap('bwr')
+        plot.colorbar()
+        plot.savefig(fig_dir+'ep'+str(training_steps)+'_gradients_'+labels[i]+'.png',dpi=300)
+        plot.close(1)
+    
+    # f_x = (ux*ux_x + uy*ux_y) + (uxux_x + uxuy_y) + p_x - (ScalingParameters.nu_mol)*(ux_xx+ux_yy) 
+    # f_y = (ux*uy_x + uy*uy_y) + (uxuy_x + uyuy_y) + p_y - (ScalingParameters.nu_mol)*(uy_xx+uy_yy)
+    # f_mass = ux_x + uy_y
+
+    f_x = (o_test_grid_temp[:,:,0]*data_grads[:,:,0] + o_test_grid_temp[:,:,1]*data_grads[:,:,1]) + (data_grads[:,:,4] + data_grads[:,:,6]) + data_grads[:,:,8] - (ScalingParameters.nu_mol)*(data_grads[:,:,10]+data_grads[:,:,11])  
+    f_y = (o_test_grid_temp[:,:,0]*data_grads[:,:,2] + o_test_grid_temp[:,:,1]*data_grads[:,:,3]) + (data_grads[:,:,5] + data_grads[:,:,7]) + data_grads[:,:,9] - (ScalingParameters.nu_mol)*(data_grads[:,:,12]+data_grads[:,:,13])
+    f_mass = data_grads[:,:,0] + data_grads[:,:,3]
+
+
+    levels_fd = np.linspace(-0.01,0.01,21)
+    plot.figure(1)
+    plot.subplot(3,1,1)
+    plot.contourf(X_grid,Y_grid,f_x,levels=levels_fd,extend='both')
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.subplot(3,1,2)
+    plot.contourf(X_grid,Y_grid,f_y,levels=levels_fd,extend='both')
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.subplot(3,1,3)
+    plot.contourf(X_grid,Y_grid,f_mass,levels=levels_fd,extend='both')
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.savefig(fig_dir+'ep'+str(training_steps)+'_RANS_residual_finite_difference.png',dpi=300)
+    plot.close(1)
+
+    plot.figure(1)
+    plot.subplot(3,1,1)
+    plot.contourf(X_grid,Y_grid,np.log10(np.abs(f_x+meps)),levels=21)
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.subplot(3,1,2)
+    plot.contourf(X_grid,Y_grid,np.log10(np.abs(f_y+meps)),levels=21)
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.subplot(3,1,3)
+    plot.contourf(X_grid,Y_grid,np.log10(np.abs(f_mass+meps)),levels=21)
+    plot.set_cmap('bwr')
+    plot.colorbar()
+    plot.savefig(fig_dir+'ep'+str(training_steps)+'_RANS_residual_finite_difference_log.png',dpi=300)
+    plot.close(1)
+
+
+
+
+    FANS_NN_grads = FANS_gradients(model_FANS,X_test,ScalingParameters)
+    FANS_NN_grads_grid = 1.0*np.reshape(NN_grads,data_grads.shape)
+    FANS_NN_grads_grid[cylinder_mask,:]=np.NaN
+
+    # governing equations
+    # f_xr = -omega*phi_xi+(phi_xr*ux_x + phi_yr*ux_y+ ux*phi_xr_x +uy*phi_xr_y ) + (tau_xx_r_x + tau_xy_r_y) + psi_r_x - (ScalingParameters.nu_mol)*(phi_xr_xx+phi_xr_yy)  
+    # f_xi =  omega*phi_xr+(phi_xi*ux_x + phi_yi*ux_y+ ux*phi_xi_x +uy*phi_xi_y ) + (tau_xx_i_x + tau_xy_i_y) + psi_i_x - (ScalingParameters.nu_mol)*(phi_xi_xx+phi_xi_yy)  
+    # f_yr = -omega*phi_yi+(phi_xr*uy_x + phi_yr*uy_y+ ux*phi_yr_x +uy*phi_yr_y ) + (tau_xy_r_x + tau_yy_r_y) + psi_r_y - (ScalingParameters.nu_mol)*(phi_yr_xx+phi_yr_yy) 
+    # f_yi =  omega*phi_yr+(phi_xi*uy_x + phi_yi*uy_y+ ux*phi_yi_x +uy*phi_yi_y ) + (tau_xy_i_x + tau_yy_i_y) + psi_i_y - (ScalingParameters.nu_mol)*(phi_yi_xx+phi_yi_yy)  
+    # f_mr = phi_xr_x + phi_yr_y
+    # f_mi = phi_xi_x + phi_yi_y
 
 ####### physics functions
 # mean model functions
@@ -424,20 +442,80 @@ def RANS_loss_wrapper(colloc_tensor_f,BC_ns,BC_p): # def custom_loss_wrapper(col
     return mean_loss
 
 @tf.function
+def RANS_gradients(model_RANS,ScalingParameters,colloc_tensor):
+    # the colloc tensor should be in FANS model scaling, so convert to 
+    colloc_tensor =  colloc_tensor*(ScalingParameters.MAX_x/ScalingParameters.mean_MAX_x)
+    # evaluate model and gradients:
+    up = model_RANS(colloc_tensor)
+    # knowns
+    ux = up[:,0]*ScalingParameters.MAX_ux
+    uy = up[:,1]*ScalingParameters.MAX_uy
+    uxux = up[:,2]*ScalingParameters.MAX_uxppuxpp
+    uxuy = up[:,3]*ScalingParameters.MAX_uxppuypp
+    uyuy = up[:,4]*ScalingParameters.MAX_uyppuypp
+    # unknowns
+    p = up[:,5]*ScalingParameters.MAX_p
+    
+    # compute the gradients of the quantities
+    
+    # first gradients
+    dux = tf.gradients((ux,), (colloc_tensor))[0]
+    duy = tf.gradients((uy,), (colloc_tensor))[0]
+    duxux = tf.gradients((uxux,), (colloc_tensor))[0]
+    duxuy = tf.gradients((uxuy,), (colloc_tensor))[0]
+    duyuy = tf.gradients((uyuy,), (colloc_tensor))[0]
+    dp = tf.gradients((p,), (colloc_tensor))[0]
+    # ux grads
+
+    ux_x = dux[:,0]/ScalingParameters.mean_MAX_x
+    ux_y = dux[:,1]/ScalingParameters.mean_MAX_y
+    
+    # uy gradient
+    uy_x = duy[:,0]/ScalingParameters.mean_MAX_x
+    uy_y = duy[:,1]/ScalingParameters.mean_MAX_y
+
+
+    # gradient unmodeled reynolds stresses
+    uxux_x = duxux[:,0]/ScalingParameters.mean_MAX_x
+    uxuy_x = duxuy[:,0]/ScalingParameters.mean_MAX_x
+    uxuy_y = duxuy[:,1]/ScalingParameters.mean_MAX_y
+    uyuy_y = duyuy[:,1]/ScalingParameters.mean_MAX_y
+
+    # pressure gradients
+    p_x = dp[:,0]/ScalingParameters.mean_MAX_x
+    p_y = dp[:,1]/ScalingParameters.mean_MAX_y
+
+    # second gradients
+    (dux_x) = tf.gradients((ux_x,),(colloc_tensor,))[0]
+    (dux_y) = tf.gradients((ux_y,),(colloc_tensor,))[0]
+    (duy_x) = tf.gradients((uy_x,),(colloc_tensor,))[0]
+    (duy_y) = tf.gradients((uy_y,),(colloc_tensor,))[0]
+    # and second derivative
+    ux_xx = dux_x[:,0]/ScalingParameters.mean_MAX_x
+    ux_yy = dux_y[:,1]/ScalingParameters.mean_MAX_y
+    uy_xx = duy_x[:,0]/ScalingParameters.mean_MAX_x
+    uy_yy = duy_y[:,1]/ScalingParameters.mean_MAX_y
+
+    # governing equations
+    return tf.stack((ux_x, ux_y, uy_x, uy_y, uxux_x, uxuy_x, uxuy_y, uyuy_y, p_x, p_y, ux_xx, ux_yy, uy_xx, uy_yy),axis=1)
+
+@tf.function
 def mean_grads_cartesian(model_mean,colloc_tensor,ScalingParameters):
     # here we actually calculate the velocity and gradients we need for the FANS equation from the mean model
-    mean_MAX_x = 10.0
-    u_mean = model_mean(colloc_tensor*(ScalingParameters.MAX_x/mean_MAX_x))
+    # the colloc tensor should be normalized by the FANS equation scale, so we convert to mean model scaling:
+    colloc_tensor = colloc_tensor*(ScalingParameters.MAX_x/ScalingParameters.mean_MAX_x)
+    # now predict and compute derivatives:
+    u_mean = model_mean(colloc_tensor)
     ux = u_mean[:,0]*ScalingParameters.MAX_ux
     uy = u_mean[:,1]*ScalingParameters.MAX_uy
 
     dux = tf.gradients(ux, colloc_tensor)[0]
-    ux_x = dux[:,0]/mean_MAX_x
-    ux_y = dux[:,1]/mean_MAX_x
+    ux_x = dux[:,0]/ScalingParameters.mean_MAX_x
+    ux_y = dux[:,1]/ScalingParameters.mean_MAX_x
 
     duy = tf.gradients(uy, colloc_tensor)[0]
-    uy_x = duy[:,0]/mean_MAX_x
-    uy_y = duy[:,1]/mean_MAX_x
+    uy_x = duy[:,0]/ScalingParameters.mean_MAX_x
+    uy_y = duy[:,1]/ScalingParameters.mean_MAX_x
 
     return tf.stack([ux,uy,ux_x,ux_y,uy_x,uy_y],axis=1)
 
@@ -465,7 +543,7 @@ def FANS_BC_no_slip(model_FANS,BC_points):
     tau_xy_i = up[:,7]*ScalingParameters.MAX_tau_xy_i
     tau_yy_r = up[:,8]*ScalingParameters.MAX_tau_yy_r
     tau_yy_i = up[:,9]*ScalingParameters.MAX_tau_yy_i
-    return tf.reduce_mean(tf.square(phi_xr))+tf.reduce_mean(tf.square(phi_xi))+tf.reduce_mean(tf.square(phi_yr))+tf.reduce_mean(tf.square(phi_yi))+tf.reduce_mean(tf.square(tau_xx_r))+tf.reduce_mean(tf.square(tau_xx_i))+tf.reduce_mean(tf.square(tau_xy_r))+tf.reduce_mean(tf.square(tau_xy_i))+tf.reduce_mean(tf.square(tau_yy_r))+tf.reduce_mean(tf.square(tau_yy_i))
+    return tf.reduce_mean(tf.square(phi_xr+phi_xi))+tf.reduce_mean(tf.square(phi_yr+phi_yi))+tf.reduce_mean(tf.square(tau_xx_r))+tf.reduce_mean(tf.square(tau_xx_i))+tf.reduce_mean(tf.square(tau_xy_r))+tf.reduce_mean(tf.square(tau_xy_i))+tf.reduce_mean(tf.square(tau_yy_r))+tf.reduce_mean(tf.square(tau_yy_i))
 
 @tf.function
 def FANS_boundary_loss(model_FANS,boundary_tuple,ScalingParameters):
@@ -475,6 +553,83 @@ def FANS_boundary_loss(model_FANS,boundary_tuple,ScalingParameters):
     return loss_no_slip + loss_pressure
 
 # fourier NN functions
+@tf.function
+def FANS_gradients(model_FANS,colloc_tensor,ScalingParameters):
+  
+    up = model_FANS(colloc_tensor)
+    # velocity fourier coefficients
+    phi_xr = up[:,0]*ScalingParameters.MAX_phi_xr
+    phi_xi = up[:,1]*ScalingParameters.MAX_phi_xi
+    phi_yr = up[:,2]*ScalingParameters.MAX_phi_yr
+    phi_yi = up[:,3]*ScalingParameters.MAX_phi_yi
+
+    # fourier coefficients of the fluctuating field
+    tau_xx_r = up[:,4]*ScalingParameters.MAX_tau_xx_r
+    tau_xx_i = up[:,5]*ScalingParameters.MAX_tau_xx_i
+    tau_xy_r = up[:,6]*ScalingParameters.MAX_tau_xy_r
+    tau_xy_i = up[:,7]*ScalingParameters.MAX_tau_xy_i
+    tau_yy_r = up[:,8]*ScalingParameters.MAX_tau_yy_r
+    tau_yy_i = up[:,9]*ScalingParameters.MAX_tau_yy_i
+    # unknowns, pressure fourier modes
+    psi_r = up[:,10]*ScalingParameters.MAX_psi
+    psi_i = up[:,11]*ScalingParameters.MAX_psi
+       
+    # phi_xr gradient
+    dphi_xr = tf.gradients(phi_xr, colloc_tensor)[0]
+    phi_xr_x = dphi_xr[:,0]/ScalingParameters.MAX_x
+    phi_xr_y = dphi_xr[:,1]/ScalingParameters.MAX_y
+    # and second derivative
+    phi_xr_xx = tf.gradients(phi_xr_x, colloc_tensor)[0][:,0]/ScalingParameters.MAX_x
+    phi_xr_yy = tf.gradients(phi_xr_y, colloc_tensor)[0][:,1]/ScalingParameters.MAX_y
+
+    # phi_xi gradient
+    dphi_xi = tf.gradients(phi_xi, colloc_tensor)[0]
+    phi_xi_x = dphi_xi[:,0]/ScalingParameters.MAX_x
+    phi_xi_y = dphi_xi[:,1]/ScalingParameters.MAX_y
+    # and second derivative
+    phi_xi_xx = tf.gradients(phi_xi_x, colloc_tensor)[0][:,0]/ScalingParameters.MAX_x
+    phi_xi_yy = tf.gradients(phi_xi_y, colloc_tensor)[0][:,1]/ScalingParameters.MAX_y
+
+    # phi_yr gradient
+    dphi_yr = tf.gradients(phi_yr, colloc_tensor)[0]
+    phi_yr_x = dphi_yr[:,0]/ScalingParameters.MAX_x
+    phi_yr_y = dphi_yr[:,1]/ScalingParameters.MAX_y
+    # and second derivative
+    phi_yr_xx = tf.gradients(phi_yr_x, colloc_tensor)[0][:,0]/ScalingParameters.MAX_x
+    phi_yr_yy = tf.gradients(phi_yr_y, colloc_tensor)[0][:,1]/ScalingParameters.MAX_y
+    
+    # phi_yi gradient
+    dphi_yi = tf.gradients(phi_yi, colloc_tensor)[0]
+    phi_yi_x = dphi_yi[:,0]/ScalingParameters.MAX_x
+    phi_yi_y = dphi_yi[:,1]/ScalingParameters.MAX_y
+    # and second derivative
+    phi_yi_xx = tf.gradients(phi_yi_x, colloc_tensor)[0][:,0]/ScalingParameters.MAX_x
+    phi_yi_yy = tf.gradients(phi_yi_y, colloc_tensor)[0][:,1]/ScalingParameters.MAX_y
+
+    # gradient reynolds stress fourier component, real
+    tau_xx_r_x = tf.gradients(tau_xx_r, colloc_tensor)[0][:,0]/ScalingParameters.MAX_x
+    dtau_xy_r = tf.gradients(tau_xy_r, colloc_tensor)[0]
+    tau_xy_r_x = dtau_xy_r[:,0]/ScalingParameters.MAX_x
+    tau_xy_r_y = dtau_xy_r[:,1]/ScalingParameters.MAX_y
+    tau_yy_r_y = tf.gradients(tau_yy_r, colloc_tensor)[0][:,1]/ScalingParameters.MAX_y
+    # gradient reynolds stress fourier component, complex
+    tau_xx_i_x = tf.gradients(tau_xx_i, colloc_tensor)[0][:,0]/ScalingParameters.MAX_x
+    dtau_xy_i = tf.gradients(tau_xy_i, colloc_tensor)[0]
+    tau_xy_i_x = dtau_xy_i[:,0]/ScalingParameters.MAX_x
+    tau_xy_i_y = dtau_xy_i[:,1]/ScalingParameters.MAX_y
+    tau_yy_i_y = tf.gradients(tau_yy_i, colloc_tensor)[0][:,1]/ScalingParameters.MAX_y
+
+    # pressure gradients
+    dpsi_r = tf.gradients(psi_r, colloc_tensor)[0]
+    psi_r_x = dpsi_r[:,0]/ScalingParameters.MAX_x
+    psi_r_y = dpsi_r[:,1]/ScalingParameters.MAX_y
+    dpsi_i = tf.gradients(psi_i, colloc_tensor)[0]
+    psi_i_x = dpsi_i[:,0]/ScalingParameters.MAX_x
+    psi_i_y = dpsi_i[:,1]/ScalingParameters.MAX_y
+
+
+    return tf.stack((phi_xr,phi_xi,phi_yr,phi_yi,phi_xr_x,phi_xr_y,phi_xi_x,phi_xi_y,phi_yr_x,phi_yr_y,phi_yi_x,phi_yi_y,tau_xx_r_x,tau_xx_i_x,tau_xy_r_x,tau_xy_r_y,tau_xy_i_x,tau_xy_i_y,tau_yy_r_y,tau_yy_i_y,psi_r_x,psi_r_y,psi_i_x,psi_i_y,phi_xr_xx,phi_xr_yy,phi_xi_xx,phi_xi_yy,phi_yr_xx,phi_yr_yy,phi_yi_xx,phi_yi_yy),axis=1)
+
 @tf.function
 def FANS_cartesian(model_FANS,colloc_tensor, mean_grads,ScalingParameters):
   
@@ -644,7 +799,7 @@ def boundary_points_function(n_cyl):
 @tf.function
 def compute_loss(x,y,colloc_x,mean_grads,boundary_tuple,ScalingParameters):
     y_pred = model_FANS(x,training=True)
-    data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:12]-y),axis=0),axis=0) 
+    data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:y.shape[1]]-y),axis=0),axis=0) 
     physics_loss = tf.cast(0.0,tf_dtype)#FANS_physics_loss(model_FANS,colloc_x,mean_grads,ScalingParameters) 
     boundary_loss = tf.cast(0.0,tf_dtype)#FANS_boundary_loss(model_FANS,boundary_tuple,ScalingParameters)
 
@@ -811,7 +966,7 @@ if __name__=="__main__":
     supersample_factor = int(sys.argv[3])
     job_hours = int(sys.argv[4])
 
-    job_name = 'mf4e_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
+    job_name = 'mfg_fbcf006_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
 
     LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -837,7 +992,7 @@ if __name__=="__main__":
         sys.path.append(HOMEDIR+'code/')
         # set number of cores to compute on 
 
-    from pinns_data_assimilation.lib.downsample import compute_downsample_inds_irregular
+    from pinns_data_assimilation.lib.downsample import compute_downsample_inds_center
     #tf.config.threading.set_intra_op_parallelism_threads(16)
     #tf.config.threading.set_inter_op_parallelism_threads(16)
         
@@ -855,7 +1010,7 @@ if __name__=="__main__":
     create_directory_if_not_exists(fig_dir)
 
     # read the data
-    base_dir = HOMEDIR+'data/mazi_fixed/'
+    base_dir = HOMEDIR+'data/mazi_fixed_grid/'
 
     fourierModeFile = h5py.File(base_dir+'fourierModes.mat','r')
     meanVelocityFile = h5py.File(base_dir+'meanVelocity.mat','r')
@@ -863,20 +1018,22 @@ if __name__=="__main__":
     meanPressureFile = h5py.File(base_dir+'meanPressure.mat','r')
     reynoldsStressFile = h5py.File(base_dir+'reynoldsStress.mat','r')
 
-    x = np.array(configFile['X'][0,:])
-    y = np.array(configFile['X'][1,:])
-    X = np.array(configFile['X']).transpose()
+    x = np.array(configFile['X_vec'][0,:])
+    X_grid = np.array(configFile['X_grid'])
+    y = np.array(configFile['X_vec'][1,:])
+    Y_grid = np.array(configFile['Y_grid'])
     global d
     d = np.array(configFile['cylinderDiameter'])
 
+    X = np.stack((x,y),axis=1)
     
 
-    ux = np.array(meanVelocityFile['meanVelocity'][:,0])
-    uy = np.array(meanVelocityFile['meanVelocity'][:,1])
+    ux = np.array(meanVelocityFile['meanVelocity'][0,:]).transpose()
+    uy = np.array(meanVelocityFile['meanVelocity'][1,:]).transpose()
 
-    uxux = np.array(reynoldsStressFile['reynoldsStress'][:,0])
-    uxuy = np.array(reynoldsStressFile['reynoldsStress'][:,1])
-    uyuy = np.array(reynoldsStressFile['reynoldsStress'][:,2])
+    uxux = np.array(reynoldsStressFile['reynoldsStress'][0,:]).transpose()
+    uxuy = np.array(reynoldsStressFile['reynoldsStress'][1,:]).transpose()
+    uyuy = np.array(reynoldsStressFile['reynoldsStress'][2,:]).transpose()
 
     p = np.array(meanPressureFile['meanPressure'])
 
@@ -898,6 +1055,7 @@ if __name__=="__main__":
     tau_yy_i = np.array(np.imag(fourierModeFile['stressModes'][:,mode_number,2]))
 
     fs = 10.0 #np.array(configFile['fs'])
+    omega_0 = np.array(fourierModeFile['modeFrequencies'][0])*2*np.pi
     omega = np.array(fourierModeFile['modeFrequencies'][mode_number])*2*np.pi
     print('Mode Frequency:',str(omega/(2*np.pi)))
 
@@ -909,6 +1067,8 @@ if __name__=="__main__":
     ScalingParameters.fs = fs
     ScalingParameters.MAX_x = 20.0
     ScalingParameters.MAX_y = 20.0 # we use the larger of the two spatial scalings
+    ScalingParameters.mean_MAX_x = 10.0
+    ScalingParameters.mean_MAX_y = 10.0 # if the scaling is different it should be specified here
     ScalingParameters.MAX_ux = np.max(ux.flatten())
     ScalingParameters.MAX_uy = np.max(uy.flatten())
     ScalingParameters.MIN_x = -2.0
@@ -932,12 +1092,12 @@ if __name__=="__main__":
     ScalingParameters.MAX_tau_yy_i = np.max(tau_yy_i.flatten())
 
     ScalingParameters.MAX_p= 1 # estimated maximum pressure, we should 
-    ScalingParameters.MAX_psi= 0.5 # chosen based on abs(max(psi))
+    ScalingParameters.MAX_psi= 0.2*(omega_0/omega) # chosen based on abs(max(psi)) # since this decays with frequency, we multiply by the inverse to prevent a scaling issue
     ScalingParameters.nu_mol = 0.0066667
     ScalingParameters.batch_size = 32
     ScalingParameters.colloc_batch_size = 32
     ScalingParameters.boundary_batch_size = 16
-    ScalingParameters.physics_loss_coefficient = tf.cast(3.16E-1,tf_dtype)
+    ScalingParameters.physics_loss_coefficient = tf.cast(1.0E-1,tf_dtype)
     ScalingParameters.boundary_loss_coefficient = tf.cast(1.0,tf_dtype)
     ScalingParameters.data_loss_coefficient = tf.cast(1.0,tf_dtype)
 
@@ -945,9 +1105,8 @@ if __name__=="__main__":
 
     global X_plot
     global Y_plot
-    x_plot = np.linspace(-2,10,40*12)
-    y_plot = np.linspace(-2,2,40*4)
-    X_grid_plot, Y_grid_plot = np.meshgrid(x_plot,y_plot)
+    X_grid_plot = X_grid
+    Y_grid_plot = Y_grid
     X_plot = np.stack((X_grid_plot.flatten(),Y_grid_plot.flatten()),axis=1)
 
     global F_test_grid
@@ -957,24 +1116,18 @@ if __name__=="__main__":
     F_test = np.stack((phi_xr/ScalingParameters.MAX_phi_xr,phi_xi/ScalingParameters.MAX_phi_xi,phi_yr/ScalingParameters.MAX_phi_yr,phi_yi/ScalingParameters.MAX_phi_yi,tau_xx_r/ScalingParameters.MAX_tau_xx_r,tau_xx_i/ScalingParameters.MAX_tau_xx_i,tau_xy_r/ScalingParameters.MAX_tau_xy_r,tau_xy_i/ScalingParameters.MAX_tau_xy_i,tau_yy_r/ScalingParameters.MAX_tau_yy_r,tau_yy_i/ScalingParameters.MAX_tau_yy_i,psi_r/ScalingParameters.MAX_psi,psi_i/ScalingParameters.MAX_psi),axis=1)
     # interpolate the test data to the regular grid for plotting, since this doesnt change we do it on initialization
     
-    if os.path.isfile(savedir+job_name+'_F_test_grid.h5'):
-        # this interpolation takes a long time so load from disk if its already done
-        F_test_file = h5py.File(savedir+job_name+'_F_test_grid.h5')
-        F_test_grid = np.array(F_test_file['F_test_grid'])
-    else:
-        # if not we create the test grid, interpolate, and save for later
-        F_test_grid = np.zeros([X_grid_plot.shape[0],X_grid_plot.shape[1],F_test.shape[1]])
-        # since the reference data is constant, we can interpolate it just once at the beginning
-        for c in range(F_test.shape[1]):
-            F_test_grid[:,:,c] = np.reshape(griddata(X,F_test[:,c],X_plot),X_grid_plot.shape)
 
-        h5f = h5py.File(savedir+job_name+'_F_test_grid.h5','w')
-        h5f.create_dataset('F_test_grid',data=F_test_grid)
-        h5f.close()
+    # reshape the reference data into a grid
+    F_test_grid = np.zeros([X_grid_plot.shape[0],X_grid_plot.shape[1],F_test.shape[1]])
+    for c in range(F_test.shape[1]):
+        F_test_grid[:,:,c] = np.reshape(F_test[:,c],X_grid_plot.shape)
+
+    # need to remove training points inside the cylinder, so make a mask
+    cylinder_mask = np.reshape(np.power(x,2.0)+np.power(y,2.0)<=np.power(d/2.0,2.0),[x.shape[0],])
 
     # if we are downsampling and then upsampling, downsample the source data
     if supersample_factor>0:
-        downsample_inds = compute_downsample_inds_irregular(supersample_factor,X,d)
+        downsample_inds, ndx,ndy = compute_downsample_inds_center(supersample_factor,X_grid[:,0],Y_grid[0,:].transpose())
         x = x[downsample_inds]
         y = y[downsample_inds]
         ux = ux[downsample_inds]
@@ -992,6 +1145,7 @@ if __name__=="__main__":
         tau_xy_i = tau_xy_i[downsample_inds]
         tau_yy_r = tau_yy_r[downsample_inds]
         tau_yy_i = tau_yy_i[downsample_inds]
+        cylinder_mask = cylinder_mask[downsample_inds]
         psi_r = psi_r[downsample_inds]
         psi_i = psi_i[downsample_inds]
 
@@ -1000,6 +1154,28 @@ if __name__=="__main__":
     print('max_y: ',ScalingParameters.MAX_y)
     print('min_y: ',ScalingParameters.MIN_y)
 
+    # remove the inside quantities (from interpolation to grid)
+    x = np.delete(x,np.nonzero(cylinder_mask),axis=0)
+    y = np.delete(y,np.nonzero(cylinder_mask),axis=0)
+    ux = np.delete(ux,np.nonzero(cylinder_mask),axis=0)
+    uy = np.delete(uy,np.nonzero(cylinder_mask),axis=0)
+    uxux = np.delete(uxux,np.nonzero(cylinder_mask),axis=0)
+    uxuy = np.delete(uxuy,np.nonzero(cylinder_mask),axis=0)
+    uyuy = np.delete(uyuy,np.nonzero(cylinder_mask),axis=0)
+
+    phi_xr = np.delete(phi_xr,np.nonzero(cylinder_mask),axis=0)
+    phi_xi = np.delete(phi_xi,np.nonzero(cylinder_mask),axis=0)
+    phi_yr = np.delete(phi_yr,np.nonzero(cylinder_mask),axis=0)
+    phi_yi = np.delete(phi_yi,np.nonzero(cylinder_mask),axis=0)
+    tau_xx_r = np.delete(tau_xx_r,np.nonzero(cylinder_mask),axis=0)
+    tau_xx_i = np.delete(tau_xx_i,np.nonzero(cylinder_mask),axis=0)
+    tau_xy_r = np.delete(tau_xy_r,np.nonzero(cylinder_mask),axis=0)
+    tau_xy_i = np.delete(tau_xy_i,np.nonzero(cylinder_mask),axis=0)
+    tau_yy_r = np.delete(tau_yy_r,np.nonzero(cylinder_mask),axis=0)
+    tau_yy_i = np.delete(tau_yy_i,np.nonzero(cylinder_mask),axis=0)
+
+    psi_r =  np.delete(psi_r,np.nonzero(cylinder_mask),axis=0)
+    psi_i =  np.delete(psi_i,np.nonzero(cylinder_mask),axis=0)
 
     # normalize the training data:
     x_train = x/ScalingParameters.MAX_x
@@ -1056,6 +1232,7 @@ if __name__=="__main__":
         # with psi
         F_train_backprop = np.stack((np.concatenate([phi_xr_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_xi_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_yr_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_yi_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xx_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xx_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xy_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xy_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_yy_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_yy_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([psi_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([psi_i_train for i in range(supersample_factor*supersample_factor)])),axis=1) # training data
         # without psi
+        #F_train_backprop = np.stack((np.concatenate([phi_xr_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_xi_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_yr_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([phi_yi_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xx_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xx_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xy_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_xy_i_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_yy_r_train for i in range(supersample_factor*supersample_factor)]),np.concatenate([tau_yy_i_train for i in range(supersample_factor*supersample_factor)])),axis=1) # training data
     else:
         X_train_backprop = 1.0*X_train_LBFGS
         O_train_backprop = 1.0*O_train_LBFGS
@@ -1064,26 +1241,25 @@ if __name__=="__main__":
     print('O_train.shape: ',O_train_backprop.shape)
     # the order here must be identical to inside the cost functions
     boundary_tuple  = boundary_points_function(720)
-    X_colloc = colloc_points_function(20000)
+    X_colloc = colloc_points_function(8000)
 
 
     tf_device_string ='/GPU:0'
     # create the NNs
-    from pinns_data_assimilation.lib.file_util import get_filepaths_with_glob
     from pinns_data_assimilation.lib.layers import QuadraticInputPassthroughLayer
     from pinns_data_assimilation.lib.layers import InputPassthroughLayer
     from pinns_data_assimilation.lib.layers import FourierPassthroughEmbeddingLayer
     from pinns_data_assimilation.lib.layers import FourierPassthroughReductionLayer
-    from pinns_data_assimilation.lib.layers import QresBlock
     # load the saved mean model
 
     with tf.device('/CPU:0'):
-        #model_mean = keras.models.load_model(HOMEDIR+'/output/mfg_mean008_output/mfg_mean008_ep54000_model.h5',custom_objects={'mean_loss':RANS_loss_wrapper(X_colloc,boundary_tuple[0],boundary_tuple[1]),'QresBlock':QresBlock})
-        model_mean = load_mean_custom()
+        mean_model_filename,mean_training_steps = find_highest_numbered_file(PROJECTDIR+'output/mfg_fbc003_001_S'+str(supersample_factor)+'/mfg_fbc003_001_S'+str(supersample_factor)+'_ep','[0-9]*','_model.h5')
+        model_mean = keras.models.load_model(mean_model_filename,custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer,'FourierPassthroughEmbeddingLayer':FourierPassthroughEmbeddingLayer,'FourierPassthroughReductionLayer':FourierPassthroughReductionLayer})
+        model_mean.trainable=False
 
     # get the values for the mean_data tensor
     mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters) # values at the collocation points
-    mean_data_plot = mean_grads_cartesian(model_mean,X_plot/ScalingParameters.MAX_x,ScalingParameters) # at the plotting points
+    mean_data_plot = mean_grads_cartesian(model_mean,X_plot*(1.0/ScalingParameters.MAX_x),ScalingParameters) # at the plotting points
 
 
 
@@ -1092,11 +1268,11 @@ if __name__=="__main__":
     # check if the model has been created before, if so load it
 
     optimizer = keras.optimizers.SGD(learning_rate=1E-4,momentum=0.0)
-    embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,90) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
+    embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,60) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
     # we need to check if there are already checkpoints for this job
-    model_file = get_filepaths_with_glob(PROJECTDIR+'output/'+job_name+'_output/',job_name+'_model.h5')
+    model_file,temp_trainingsteps = find_highest_numbered_file(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep','[0-9]*','_model.h5')
     # check if the model has been created, if so check if weights exist
-    if len(model_file)>0:
+    if model_file is not None:
         with tf.device(tf_device_string):
             model_FANS,training_steps = load_custom()
     else:
@@ -1105,29 +1281,29 @@ if __name__=="__main__":
         with tf.device(tf_device_string):        
             inputs = keras.Input(shape=(2,),name='coordinates')
             #lo = FourierPassthroughEmbeddingLayer(embedding_wavenumber_vector,2)(lo)
-            lo = QuadraticInputPassthroughLayer(70,2,activation='tanh',dtype=tf_dtype)(inputs)
+            lo = QuadraticInputPassthroughLayer(60,2,activation='tanh',dtype=tf_dtype)(inputs)
             for i in range(4):
-                lo = QuadraticInputPassthroughLayer(70,2,activation='tanh',dtype=tf_dtype)(lo)
+                lo = QuadraticInputPassthroughLayer(60,2,activation='tanh',dtype=tf_dtype)(lo)
             lo = FourierPassthroughReductionLayer(embedding_wavenumber_vector,30)(lo)
             for i in range(4):
-                lo = QuadraticInputPassthroughLayer(140,2,activation='tanh',dtype=tf_dtype)(lo)
+                lo = QuadraticInputPassthroughLayer(100,2,activation='tanh',dtype=tf_dtype)(lo)
             outputs = keras.layers.Dense(12,activation='linear',name='dynamical_quantities')(lo)
             model_FANS = keras.Model(inputs=inputs,outputs=outputs)
             model_FANS.summary()
             # save the model only on startup
-            model_FANS.save(savedir+job_name+'ep0_model.h5')
+            model_FANS.save(savedir+job_name+'_ep0_model.h5')
 
 
     # setup the training data
     # this time we randomly shuffle the order of X and O
     rng = np.random.default_rng()
 
-    if node_name==LOCAL_NODE:
+    #if node_name==LOCAL_NODE:
+    #    plot_near_wall_BC()
         #plot_err()
         #plot_NS_residual()
         #plot_frequencies()
-        plot_near_wall_BC()
-        exit()
+    #    exit()
 
     # train the network
     last_epoch_time = datetime.now()
@@ -1137,7 +1313,7 @@ if __name__=="__main__":
         # regular training with physics
         lr_schedule = np.array([1E-5, 3.16E-6, 1E-6,    0.0])
         ep_schedule = np.array([0,      30,     100,    200])
-        phys_schedule = np.array([3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1])
+        phys_schedule = np.array([1.0E-1, 1.0E-1, 1.0E-1, 1.0E-1, 1.0E-1, 1.0E-1, 1.0E-1])
         #lr_schedule = np.array([3.16E-7, 1E-7,    3.16E-8, 1E-8,    0.0])
         #ep_schedule = np.array([0,       50,      150,   300,       400,])
         #phys_schedule = np.array([3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1])
@@ -1172,20 +1348,21 @@ if __name__=="__main__":
             if np.mod(training_steps,10)==0:
                 if node_name==LOCAL_NODE:
                     plot_NS_residual()
-                    plot_err_fast()
+                    plot_err()
                     #plot_inlet_profile()
             if np.mod(training_steps,10)==0:
                 model_FANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
             if np.mod(training_steps,50)==0:
                     # rerandomize the collocation points 
                 boundary_tuple = boundary_points_function(720)
-                X_colloc = colloc_points_function(20000)
+                X_colloc = colloc_points_function(7000)
                 mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
             
             # check if we are out of time
             average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
             if (datetime.now()+average_epoch_time)>end_time:
                 model_FANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
+                model_FANS.save(savedir+job_name+'_ep'+str(np.uint(training_steps))+'_model.h5')
                 exit()
             last_epoch_time = datetime.now()
 
@@ -1197,7 +1374,7 @@ if __name__=="__main__":
         import tensorflow_probability as tfp
         L_iter = 0
         boundary_tuple = boundary_points_function(720)
-        X_colloc = colloc_points_function(20000) # one A100 max = 60k?
+        X_colloc = colloc_points_function(8000) # one A100 max = 60k?
         mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
         func = train_LBFGS(model_FANS,tf.cast(X_train_LBFGS,tf_dtype),tf.cast(F_train_LBFGS,tf_dtype),X_colloc,mean_data,boundary_tuple,ScalingParameters)
         init_params = tf.dynamic_stitch(func.idx, model_FANS.trainable_variables)
@@ -1220,12 +1397,13 @@ if __name__=="__main__":
             if (datetime.now()+average_epoch_time)>end_time:
                 #save_pred()
                 model_FANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
+                model_FANS.save(savedir+job_name+'_ep'+str(np.uint(training_steps))+'_model.h5')
                 exit()
 
             if np.mod(L_iter,10)==0:
                 model_FANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
                 boundary_tuple = boundary_points_function(720)
-                X_colloc = colloc_points_function(20000)
+                X_colloc = colloc_points_function(8000)
                 mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
                 func = train_LBFGS(model_FANS,tf.cast(X_train_LBFGS,tf_dtype),tf.cast(F_train_LBFGS,tf_dtype),X_colloc,mean_data,boundary_tuple,ScalingParameters)
                 init_params = tf.dynamic_stitch(func.idx, model_FANS.trainable_variables)
@@ -1233,7 +1411,7 @@ if __name__=="__main__":
             if node_name==LOCAL_NODE:
                 #save_pred()
                 model_FANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
-                plot_err_fast()
+                plot_err()
                 #plot_inlet_profile()
                 plot_NS_residual()
 
