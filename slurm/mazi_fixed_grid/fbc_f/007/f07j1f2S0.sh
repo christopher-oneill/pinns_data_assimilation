@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --account=def-martinuz
-#SBATCH --gres=gpu:a5000:1
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=31G
+#SBATCH --gres=gpu:a100:1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=63G
 #SBATCH --time=0-23:30
 #SBATCH --mail-user=christopher.mark.oneill@gmail.com
 #SBATCH --mail-type=ALL
