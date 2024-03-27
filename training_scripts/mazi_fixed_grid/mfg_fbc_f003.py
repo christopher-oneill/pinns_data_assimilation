@@ -1293,7 +1293,6 @@ if __name__=="__main__":
         training_steps = 0
         with tf.device(tf_device_string):        
             inputs = keras.Input(shape=(2,),name='coordinates')
-            #lo = FourierPassthroughEmbeddingLayer(embedding_wavenumber_vector,2)(lo)
             lo = QuadraticInputPassthroughLayer(60,2,activation='tanh',dtype=tf_dtype)(inputs)
             for i in range(4):
                 lo = QuadraticInputPassthroughLayer(60,2,activation='tanh',dtype=tf_dtype)(lo)
@@ -1305,6 +1304,7 @@ if __name__=="__main__":
             model_FANS.summary()
             # save the model only on startup
             model_FANS.save(savedir+job_name+'_ep0_model.h5')
+
 
 
     # setup the training data

@@ -15,6 +15,7 @@ def POD(fluctuating_velocity):
             A[c*nx:(c+1)*nx,:] = fluctuating_velocity[:,:,c]
     else:
         # case with one component, or where the component dimension was already concatenated along x
+        nc=1
         A = 1.0*fluctuating_velocity
     
     # compute the correlation matrix C
@@ -44,17 +45,18 @@ def POD(fluctuating_velocity):
         for j in range(modes_check):
             if i>=j:
                 mode_dot[i,j] = np.dot(Phi[:,i],Phi[:,j])
+                mode_dot[j,i] = mode_dot[i,j]
 
     assert(np.sum(np.abs(mode_dot-np.eye(modes_check))>1E-5,axis=(0,1))==0) # (ui,uj)_omega = delta_ij
 
 
     Ak = np.multiply(Ei,np.sqrt(nt*Lambda))
 
-    for i in [0,1,2,4]:
-        plot.figure(i+10)
-        plot.plot(np.arange(Lambda.shape[0]),Ak[:,i])
-        plot.xlim([0,200])
-    plot.show()
+    #for i in [0,1,2,4]:
+    #    plot.figure(i+10)
+    #    plot.plot(np.arange(Lambda.shape[0]),Ak[:,i])
+    #    plot.xlim([0,200])
+    #plot.show()
 
     print(np.max(np.abs(np.mean(Ak,axis=0))))
    
@@ -66,10 +68,14 @@ def POD(fluctuating_velocity):
     for i in range(modes_check):
         for j in range(modes_check):
             if i>=j:
-                mode_dot[i,j] = np.dot(Ak[:,i],Ak[:,j])
-    
-    assert(np.all(np.abs(mode_dot-np.multiply(np.eye(modes_check),Lambda[0:modes_check]))<1E-6)) # <ai aj> = Lambda_i delta_ij
-    assert(np.all(np.abs(np.sum(np.multiply(A,Phi[:,0]),axis=0).transpose()-Ak[:,0])<1E-6)) # ai = (um-u0,ui)_omega
+                mode_dot[i,j] = np.dot(Ak[:,i],Ak[:,j])/nt
+
+    #print('Phi.shape',Phi.shape)
+    #print('A.shape',A.shape)
+    #print('A*Phi.shape',np.multiply(A,np.reshape(Phi[:,0],[nx*nc,1])).shape)
+    ld_check = np.multiply(np.eye(modes_check),Lambda[0:modes_check])+1E-30
+    assert(np.all(np.abs(mode_dot-ld_check)<1E-6)) # <ai aj> = Lambda_i delta_ij
+    assert(np.all(np.abs(np.sum(np.multiply(A,np.reshape(Phi[:,0],[nx*nc,1])),axis=0).transpose()-Ak[:,0])<1E-6)) # ai = (um-u0,ui)_omega
 
     return Phi, Lambda, Ak
 

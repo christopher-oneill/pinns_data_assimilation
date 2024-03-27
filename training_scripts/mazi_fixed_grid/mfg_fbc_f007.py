@@ -181,23 +181,23 @@ def plot_err():
     cylinder_mask = (np.power(X_grid_plot,2.0)+np.power(Y_grid_plot,2.0))<=np.power(d/2.0,2.0)
 
     F_test_grid_temp = 1.0*F_test_grid
-    F_test_grid_temp[cylinder_mask,:] = np.NaN
     # normalize the pressure to 1
-    P_max_plot = np.real(np.nanmax(np.abs(F_test_grid_temp[:,:,10:12])))
-    #F_test_grid_temp[:,:,10:12] = F_test_grid_temp[:,:,10:12]/P_max_plot
+    F_test_grid_temp[cylinder_mask,:] = np.NaN
+    P_max_plot = np.nanmax(np.abs(F_test_grid_temp[:,:,10:12]))
+    F_test_grid_temp[:,:,10:12] = F_test_grid_temp[:,:,10:12]/P_max_plot
     
 
     pred_test = model_FANS(X_plot/ScalingParameters.MAX_x,training=False)
+    
     pred_test_grid = np.copy(np.reshape(pred_test,[X_grid_plot.shape[0],X_grid_plot.shape[1],12]))
+    
     pred_test_grid[cylinder_mask,:] = np.NaN
-    
-    #pred_test_grid[:,:,10:12] = pred_test_grid[:,:,10:12]/P_max_plot
-    
+    pred_test_grid[:,:,10:12] = pred_test_grid[:,:,10:12]/P_max_plot
 
 
     # interpolate the error
     err_test_grid = F_test_grid - pred_test_grid
-    err_test_grid[:,:,10:12] =err_test_grid[:,:,10:12]/P_max_plot
+
 
     plot.close('all')
 
@@ -554,7 +554,7 @@ def FANS_BC_no_slip(model_FANS,BC_points):
 @tf.function
 def FANS_boundary_loss(model_FANS,boundary_tuple,ScalingParameters):
     pts_no_slip, pts_pressure = boundary_tuple
-    loss_no_slip = tf.cast(0.0,tf_dtype)#FANS_BC_no_slip(model_FANS,pts_no_slip)
+    loss_no_slip = tf.cast(0.0,tf_dtype) # no no-slip, seems to increase pressure error
     loss_pressure = FANS_BC_pressure(model_FANS,pts_pressure)
     return loss_no_slip + loss_pressure
 
@@ -972,7 +972,7 @@ if __name__=="__main__":
     supersample_factor = int(sys.argv[3])
     job_hours = int(sys.argv[4])
 
-    job_name = 'mfg_fbcf005_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
+    job_name = 'mfg_fbcf007_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
 
     LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -1098,7 +1098,7 @@ if __name__=="__main__":
     ScalingParameters.MAX_tau_yy_i = np.max(tau_yy_i.flatten())
 
     ScalingParameters.MAX_p= 1 # estimated maximum pressure, we should 
-    ScalingParameters.MAX_psi= 0.2*(omega_0/omega) # chosen based on abs(max(psi)) # since this decays with frequency, we multiply by the inverse to prevent a scaling issue
+    ScalingParameters.MAX_psi= 0.2*np.power((omega_0/omega),2.0) # chosen based on abs(max(psi)) # since this decays with frequency, we multiply by the inverse to prevent a scaling issue
     ScalingParameters.nu_mol = 0.0066667
     ScalingParameters.batch_size = 32
     ScalingParameters.colloc_batch_size = 32
@@ -1242,8 +1242,8 @@ if __name__=="__main__":
     print('X_train.shape: ',X_train_backprop.shape)
     print('O_train.shape: ',O_train_backprop.shape)
     # the order here must be identical to inside the cost functions
-    boundary_tuple  = boundary_points_function(720)
-    X_colloc = colloc_points_function(8000)
+    boundary_tuple  = boundary_points_function(360)
+    X_colloc = colloc_points_function(25000)
 
 
     tf_device_string ='/GPU:0'
@@ -1283,12 +1283,12 @@ if __name__=="__main__":
         with tf.device(tf_device_string):        
             inputs = keras.Input(shape=(2,),name='coordinates')
             #lo = FourierPassthroughEmbeddingLayer(embedding_wavenumber_vector,2)(lo)
-            lo = QuadraticInputPassthroughLayer(60,2,activation='tanh',dtype=tf_dtype)(inputs)
+            lo = QuadraticInputPassthroughLayer(70,2,activation='tanh',dtype=tf_dtype)(inputs)
             for i in range(4):
-                lo = QuadraticInputPassthroughLayer(60,2,activation='tanh',dtype=tf_dtype)(lo)
-            lo = FourierPassthroughReductionLayer(embedding_wavenumber_vector,30)(lo)
+                lo = QuadraticInputPassthroughLayer(70,2,activation='tanh',dtype=tf_dtype)(lo)
+            lo = FourierPassthroughReductionLayer(embedding_wavenumber_vector,32)(lo)
             for i in range(4):
-                lo = QuadraticInputPassthroughLayer(100,2,activation='tanh',dtype=tf_dtype)(lo)
+                lo = QuadraticInputPassthroughLayer(140,32,activation='tanh',dtype=tf_dtype)(lo)
             outputs = keras.layers.Dense(12,activation='linear',name='dynamical_quantities')(lo)
             model_FANS = keras.Model(inputs=inputs,outputs=outputs)
             model_FANS.summary()
@@ -1300,12 +1300,12 @@ if __name__=="__main__":
     # this time we randomly shuffle the order of X and O
     rng = np.random.default_rng()
 
-    if node_name==LOCAL_NODE:
+    #if node_name==LOCAL_NODE:
     #    plot_near_wall_BC()
-        plot_err()
+        #plot_err()
         #plot_NS_residual()
         #plot_frequencies()
-        exit()
+    #    exit()
 
     # train the network
     last_epoch_time = datetime.now()
@@ -1356,8 +1356,8 @@ if __name__=="__main__":
                 model_FANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
             if np.mod(training_steps,50)==0:
                     # rerandomize the collocation points 
-                boundary_tuple = boundary_points_function(720)
-                X_colloc = colloc_points_function(7000)
+                boundary_tuple = boundary_points_function(360)
+                X_colloc = colloc_points_function(25000)
                 mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
             
             # check if we are out of time
@@ -1375,8 +1375,8 @@ if __name__=="__main__":
         # final polishing of solution using LBFGS
         import tensorflow_probability as tfp
         L_iter = 0
-        boundary_tuple = boundary_points_function(720)
-        X_colloc = colloc_points_function(8000) # one A100 max = 60k?
+        boundary_tuple = boundary_points_function(360)
+        X_colloc = colloc_points_function(25000) # one A100 max = 60k?
         mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
         func = train_LBFGS(model_FANS,tf.cast(X_train_LBFGS,tf_dtype),tf.cast(F_train_LBFGS,tf_dtype),X_colloc,mean_data,boundary_tuple,ScalingParameters)
         init_params = tf.dynamic_stitch(func.idx, model_FANS.trainable_variables)
@@ -1404,8 +1404,8 @@ if __name__=="__main__":
 
             if np.mod(L_iter,10)==0:
                 model_FANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
-                boundary_tuple = boundary_points_function(720)
-                X_colloc = colloc_points_function(8000)
+                boundary_tuple = boundary_points_function(360)
+                X_colloc = colloc_points_function(25000)
                 mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
                 func = train_LBFGS(model_FANS,tf.cast(X_train_LBFGS,tf_dtype),tf.cast(F_train_LBFGS,tf_dtype),X_colloc,mean_data,boundary_tuple,ScalingParameters)
                 init_params = tf.dynamic_stitch(func.idx, model_FANS.trainable_variables)
