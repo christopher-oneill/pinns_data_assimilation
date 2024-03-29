@@ -972,7 +972,7 @@ if __name__=="__main__":
     supersample_factor = int(sys.argv[3])
     job_hours = int(sys.argv[4])
 
-    job_name = 'mfg_fbcf007_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
+    job_name = 'mfg_fbcf007s_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
 
     LOCAL_NODE = 'DESKTOP-AMLVDAF'
@@ -1243,7 +1243,7 @@ if __name__=="__main__":
     print('O_train.shape: ',O_train_backprop.shape)
     # the order here must be identical to inside the cost functions
     boundary_tuple  = boundary_points_function(360)
-    X_colloc = colloc_points_function(25000)
+    X_colloc = colloc_points_function(8000)
 
 
     tf_device_string ='/GPU:0'
@@ -1357,7 +1357,7 @@ if __name__=="__main__":
             if np.mod(training_steps,50)==0:
                     # rerandomize the collocation points 
                 boundary_tuple = boundary_points_function(360)
-                X_colloc = colloc_points_function(25000)
+                X_colloc = colloc_points_function(8000)
                 mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
             
             # check if we are out of time
@@ -1376,7 +1376,7 @@ if __name__=="__main__":
         import tensorflow_probability as tfp
         L_iter = 0
         boundary_tuple = boundary_points_function(360)
-        X_colloc = colloc_points_function(25000) # one A100 max = 60k?
+        X_colloc = colloc_points_function(15000) # one A100 max = 60k?
         mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
         func = train_LBFGS(model_FANS,tf.cast(X_train_LBFGS,tf_dtype),tf.cast(F_train_LBFGS,tf_dtype),X_colloc,mean_data,boundary_tuple,ScalingParameters)
         init_params = tf.dynamic_stitch(func.idx, model_FANS.trainable_variables)
@@ -1405,7 +1405,7 @@ if __name__=="__main__":
             if np.mod(L_iter,10)==0:
                 model_FANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
                 boundary_tuple = boundary_points_function(360)
-                X_colloc = colloc_points_function(25000)
+                X_colloc = colloc_points_function(15000)
                 mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
                 func = train_LBFGS(model_FANS,tf.cast(X_train_LBFGS,tf_dtype),tf.cast(F_train_LBFGS,tf_dtype),X_colloc,mean_data,boundary_tuple,ScalingParameters)
                 init_params = tf.dynamic_stitch(func.idx, model_FANS.trainable_variables)
