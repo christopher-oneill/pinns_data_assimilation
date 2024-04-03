@@ -1300,12 +1300,12 @@ if __name__=="__main__":
     # this time we randomly shuffle the order of X and O
     rng = np.random.default_rng()
 
-    #if node_name==LOCAL_NODE:
+    if node_name==LOCAL_NODE:
     #    plot_near_wall_BC()
-        #plot_err()
-        #plot_NS_residual()
+        plot_err()
+        plot_NS_residual()
         #plot_frequencies()
-    #    exit()
+        exit()
 
     # train the network
     last_epoch_time = datetime.now()
