@@ -292,7 +292,7 @@ def save_pred():
     h5f.create_dataset('pred',data=pred)
     h5f.close()
     if ScalingParameters.physics_loss_coefficient!=0:
-        t_mx,t_my,t_mass = RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,tf.cast(i_test,tf_dtype))
+        t_mx,t_my,t_mass,t_cr = RANS_reynolds_stress_cartesian(model_RANS,ScalingParameters,tf.cast(i_test,tf_dtype))
         h5f = h5py.File(savedir+job_name+'_ep'+str(np.uint(training_steps))+'_error.mat','w')
         h5f.create_dataset('mxr',data=t_mx)
         h5f.create_dataset('myr',data=t_my)
@@ -742,7 +742,7 @@ job_name = 'mfg_fbc003_{:03d}_S{:d}'.format(job_number,supersample_factor)
 job_duration = timedelta(hours=job_hours,minutes=0)
 end_time = start_time+job_duration
 
-LOCAL_NODE = 'DESKTOP-AMLVDAF'
+LOCAL_NODE = 'DESKTOP-GMOIE9C'
 if node_name==LOCAL_NODE:
     import matplotlib
     import matplotlib.pyplot as plot
@@ -969,11 +969,12 @@ history_list = []
 
 
 if node_name == LOCAL_NODE:
-    plot_err()
-    plot_NS_residual()
+    #plot_err()
+    #plot_NS_residual()
     #plot_large()
     #plot_NS_large()
-    plot_gradients()
+    #plot_gradients()
+    save_pred()
     exit()
 
 backprop_flag = False

@@ -79,11 +79,11 @@ def load_custom():
     return model_FANS, training_steps
 
 def save_pred():
-    pred = model_FANS.predict(X_train,batch_size=32)
+    pred = model_FANS.predict(X_plot,batch_size=1024)
     h5f = h5py.File(savedir+job_name+'_ep'+str(np.uint(training_steps))+'_pred.mat','w')
     h5f.create_dataset('pred',data=pred)
     h5f.close()
-    t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = net_f_fourier_cartesian(f_colloc_train,mean_data)
+    t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = FANS_cartesian(model_FANS,X_plot,mean_data_plot,ScalingParameters) # model_FANS,colloc_tensor, mean_grads,ScalingParameters
     h5f = h5py.File(savedir+job_name+'_ep'+str(np.uint(training_steps))+'_error.mat','w')
     h5f.create_dataset('mxr',data=t_mxr)
     h5f.create_dataset('mxi',data=t_mxi)
@@ -975,7 +975,7 @@ if __name__=="__main__":
     job_name = 'mfg_fbcf007_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
 
-    LOCAL_NODE = 'DESKTOP-AMLVDAF'
+    LOCAL_NODE = 'DESKTOP-GMOIE9C'
     if node_name==LOCAL_NODE:
         import matplotlib.pyplot as plot
         import matplotlib
@@ -1302,9 +1302,10 @@ if __name__=="__main__":
 
     if node_name==LOCAL_NODE:
     #    plot_near_wall_BC()
-        plot_err()
-        plot_NS_residual()
+        #plot_err()
+        #plot_NS_residual()
         #plot_frequencies()
+        save_pred()
         exit()
 
     # train the network
