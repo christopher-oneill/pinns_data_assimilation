@@ -79,11 +79,11 @@ def load_custom():
     return model_FANS, training_steps
 
 def save_pred():
-    pred = model_FANS.predict(X_plot,batch_size=1024)
+    pred = model_FANS.predict(X_plot/ScalingParameters.MAX_x,batch_size=1024)
     h5f = h5py.File(savedir+job_name+'_ep'+str(np.uint(training_steps))+'_pred.mat','w')
     h5f.create_dataset('pred',data=pred)
     h5f.close()
-    t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = FANS_cartesian(model_FANS,X_plot,mean_data_plot,ScalingParameters) # model_FANS,colloc_tensor, mean_grads,ScalingParameters
+    t_mxr,t_mxi,t_myr,t_myi,t_massr,t_massi = FANS_cartesian(model_FANS,X_plot/ScalingParameters.MAX_x,mean_data_plot,ScalingParameters) # model_FANS,colloc_tensor, mean_grads,ScalingParameters
     h5f = h5py.File(savedir+job_name+'_ep'+str(np.uint(training_steps))+'_error.mat','w')
     h5f.create_dataset('mxr',data=t_mxr)
     h5f.create_dataset('mxi',data=t_mxi)

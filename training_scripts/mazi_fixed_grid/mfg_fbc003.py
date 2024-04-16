@@ -796,10 +796,6 @@ Y_grid = np.array(configFile['Y_grid'])
 global d
 d = np.array(configFile['cylinderDiameter'])
 
-
-
-
-
 ux = np.array(meanVelocityFile['meanVelocity'][0,:]).transpose()
 uy = np.array(meanVelocityFile['meanVelocity'][1,:]).transpose()
 
