@@ -186,6 +186,8 @@ for c in range(len(cases_list)):
     ax.text(8,1.5,'$u_{x,DNS}$',fontsize=5)
     if cases_supersample_factor[c]>1:
         dots = ax.plot(x_downsample,y_downsample,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
     fig.add_subplot(ax)
     
     cax=plot.Subplot(fig,inner[0][1])
@@ -203,6 +205,8 @@ for c in range(len(cases_list)):
     ax.yaxis.set_tick_params(labelsize=5)
     ax.xaxis.set_tick_params(labelbottom=False)
     ax.text(8,1.5,'$u_{x,PINN}$',fontsize=5)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[0][4])
@@ -212,11 +216,13 @@ for c in range(len(cases_list)):
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[0][6])
-    ux_plot = ax.contourf(X_grid,Y_grid,np.abs(ux_err_grid[c]/MAX_plot_ux)+1E-30,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap= matplotlib.colormaps['nipy_spectral'],extend='both')
+    ux_plot = ax.contourf(X_grid,Y_grid,np.abs(ux_err_grid[c]/MAX_plot_ux)+1E-30,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap= matplotlib.colormaps['hot_r'],extend='both')
     ax.set_aspect('equal')
     ax.set_ylabel('y/D',fontsize=5)
     ax.yaxis.set_tick_params(labelsize=5)
     ax.xaxis.set_tick_params(labelbottom=False)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
     ax.text(8,1.5,'$|\\frac{u_{x,DNS}-u_{x,PINN}}{max(u_{x,DNS})}|$',fontsize=5,color='w')
     fig.add_subplot(ax)
 
@@ -240,6 +246,8 @@ for c in range(len(cases_list)):
     ax.text(8,1.5,'$u_{y,DNS}$',fontsize=5)
     if cases_supersample_factor[c]>1:
         dots = ax.plot(x_downsample,y_downsample,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[1][1])
@@ -256,6 +264,8 @@ for c in range(len(cases_list)):
     ax.yaxis.set_tick_params(labelleft=False)
     ax.xaxis.set_tick_params(labelbottom=False)
     ax.text(8,1.5,'$u_{y,PINN},$',fontsize=5)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[1][4])
@@ -265,11 +275,13 @@ for c in range(len(cases_list)):
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[1][6])
-    uy_plot = ax.contourf(X_grid,Y_grid,np.abs(uy_err_grid[c]/MAX_plot_uy)+1E-30,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap= matplotlib.colormaps['nipy_spectral'],extend='both')
+    uy_plot = ax.contourf(X_grid,Y_grid,np.abs(uy_err_grid[c]/MAX_plot_uy)+1E-30,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap= matplotlib.colormaps['hot_r'],extend='both')
     ax.set_aspect('equal')
     ax.set_yticks(np.array([2.0,1.0,0.0,-1.0,-2.0]))
     ax.xaxis.set_tick_params(labelbottom=False)
     ax.yaxis.set_tick_params(labelleft=False)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
     t=ax.text(8,1.5,'$|\\frac{u_{y,DNS}-u_{y,PINN}}{max(u_{y,DNS})}|$',fontsize=5,color='w')
     fig.add_subplot(ax)
 
@@ -292,6 +304,8 @@ for c in range(len(cases_list)):
     ax.yaxis.set_tick_params(labelsize=5)
     ax.xaxis.set_tick_params(labelbottom=False)
     ax.text(9,1.5,'$p_{DNS}$',fontsize=5)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[2][1])
@@ -307,6 +321,8 @@ for c in range(len(cases_list)):
     ax.yaxis.set_tick_params(labelsize=5)
     ax.xaxis.set_tick_params(labelbottom=False)
     ax.text(9,1.5,'$p_{PINN}$',fontsize=5)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[2][4])
@@ -316,12 +332,14 @@ for c in range(len(cases_list)):
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[2][6])
-    p_plot = ax.contourf(X_grid,Y_grid,np.abs(p_err_grid[c]/MAX_plot_p)+1E-30,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap= matplotlib.colormaps['nipy_spectral'],extend='both')
+    p_plot = ax.contourf(X_grid,Y_grid,np.abs(p_err_grid[c]/MAX_plot_p)+1E-30,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap= matplotlib.colormaps['hot_r'],extend='both')
     ax.set_aspect('equal')
     ax.yaxis.set_tick_params(labelsize=5)
     ax.set_ylabel('y/D',fontsize=5)
     ax.xaxis.set_tick_params(labelsize=5)
     ax.set_xlabel('x/D',fontsize=5)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
     ax.text(8,1.5,'$|\\frac{p_{DNS}-p_{PINN}}{max(p_{DNS})}|$',fontsize=5,color='w')
     fig.add_subplot(ax)
 
@@ -336,13 +354,15 @@ for c in range(len(cases_list)):
     inner.append(gridspec.GridSpecFromSubplotSpec(3,3,subplot_spec=outer[3],wspace=0.05,hspace=0.1,width_ratios=[0.95,0.03,0.07]))
 
     ax = plot.Subplot(fig,inner[3][0])
-    m_plot =ax.contourf(X_grid,Y_grid,np.abs(mx_grid[c])+1E-30,levels=levels_mx,cmap= matplotlib.colormaps['nipy_spectral'],norm=matplotlib.colors.LogNorm(),extend='both')
+    m_plot =ax.contourf(X_grid,Y_grid,np.abs(mx_grid[c])+1E-30,levels=levels_mx,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
     ax.set_aspect('equal')
 
     ax.set_yticks(np.array([2.0,1.0,0.0,-1.0,-2.0]))
     ax.xaxis.set_tick_params(labelbottom=False)
     ax.yaxis.set_tick_params(labelleft=False)
     ax.text(9,1.5,'$NS_{x}$',fontsize=5,color='w')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[3][1])
@@ -352,13 +372,15 @@ for c in range(len(cases_list)):
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[3][3])
-    m_plot =ax.contourf(X_grid,Y_grid,np.abs(mx_grid[c])+1E-30,levels=levels_mx,cmap= matplotlib.colormaps['nipy_spectral'],norm=matplotlib.colors.LogNorm(),extend='both')
+    m_plot =ax.contourf(X_grid,Y_grid,np.abs(my_grid[c])+1E-30,levels=levels_mx,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
     ax.set_aspect('equal')
 
     ax.set_yticks(np.array([2.0,1.0,0.0,-1.0,-2.0]))
     ax.xaxis.set_tick_params(labelbottom=False)
     ax.yaxis.set_tick_params(labelleft=False)
     ax.text(9,1.5,'$NS_{y}$',fontsize=5,color='w')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[3][4])
@@ -368,13 +390,15 @@ for c in range(len(cases_list)):
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[3][6])
-    m_plot =ax.contourf(X_grid,Y_grid,np.abs(mx_grid[c])+1E-30,levels=levels_mx,cmap= matplotlib.colormaps['nipy_spectral'],norm=matplotlib.colors.LogNorm(),extend='both')
+    m_plot =ax.contourf(X_grid,Y_grid,np.abs(mass_grid[c])+1E-30,levels=levels_mx,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
     ax.set_aspect('equal')
     ax.set_xlabel('x/D',fontsize=5)
     ax.set_yticks(np.array([2.0,1.0,0.0,-1.0,-2.0]))
     ax.xaxis.set_tick_params(labelsize=5)
     ax.yaxis.set_tick_params(labelleft=False)
     ax.text(9,1.5,'$C$',fontsize=5,color='w')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[3][7])
@@ -383,7 +407,7 @@ for c in range(len(cases_list)):
     cbar.ax.set_yticklabels(ticklabs, fontsize=5)
     fig.add_subplot(cax)
 
-    plot.savefig(figures_dir+'mfg_fbc003_contours2_S'+str(cases_supersample_factor[c])+'.pdf')
+    plot.savefig(figures_dir+'logerr_mfg_fbc003_S'+str(cases_supersample_factor[c])+'.pdf')
 
 exit()
 

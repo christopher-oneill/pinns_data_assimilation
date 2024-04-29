@@ -101,8 +101,8 @@ def idft(X,f=None,t=None,fs=None):
         if X.shape[1] != f.size:
             raise ValueError('X and f should have the same number of frequencies')
             
-    if t.size != f.size:
-        raise ValueError('vector f and t should have the same size or scalar t should equal f.size')
+    #if t.size != f.size:
+    #    raise ValueError('vector f and t should have the same size or scalar t should equal f.size')
 
     f = np.reshape(f,[f.size,1])
     t = np.reshape(t,[1,t.size])
