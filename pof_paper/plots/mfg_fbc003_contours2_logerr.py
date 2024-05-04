@@ -102,6 +102,14 @@ MAX_err_ux = []
 MAX_err_uy = []
 MAX_err_p = []
 
+mean_err_ux = []
+mean_err_uy = []
+mean_err_p = []
+
+p95_err_ux = []
+p95_err_uy = []
+p95_err_p = []
+
 for c in range(n_cases):
     predFile = h5py.File(output_dir+cases_list[c],'r')
     
@@ -119,6 +127,15 @@ for c in range(n_cases):
     ux_err_grid.append(ux_grid-ux_pred_grid[c])
     uy_err_grid.append(uy_grid-uy_pred_grid[c])
     p_err_grid.append(p_grid-p_pred_grid[c])
+
+
+    mean_err_ux.append(np.nanmean(np.abs(ux-ux_pred[c])))
+    mean_err_uy.append(np.nanmean(np.abs(uy-uy_pred[c])))
+    mean_err_p.append(np.nanmean(np.abs(p-p_pred[c])))
+
+    p95_err_ux.append(np.nanpercentile(np.abs(ux-ux_pred[c]),95))
+    p95_err_uy.append(np.nanpercentile(np.abs(uy-uy_pred[c]),95))
+    p95_err_p.append(np.nanpercentile(np.abs(p-p_pred[c]),95))
 
     MAX_err_ux.append(np.nanmax(np.abs(ux-ux_pred[c])))
     MAX_err_uy.append(np.nanmax(np.abs(uy-uy_pred[c])))
@@ -141,14 +158,18 @@ for c in range(n_cases):
 
 
 
+dx = [] # array for supersample spacing
 
 
-fig = plot.figure(figsize=(7,7))
-plot.subplots_adjust(left=0.06,top=0.97,right=0.97,bottom=0.05)
-outer = gridspec.GridSpec(2,2,wspace=0.1,hspace=0.1)
-inner = []
+
+text_color_tolerance = 1E-1
 
 for c in range(len(cases_list)):
+    fig = plot.figure(figsize=(7,7))
+    plot.subplots_adjust(left=0.06,top=0.97,right=0.97,bottom=0.05)
+    outer = gridspec.GridSpec(2,2,wspace=0.1,hspace=0.1)
+    inner = []
+
     levels_err_ux = np.linspace(-MAX_err_ux[c],MAX_err_ux[c],21)#np.power(10,np.linspace(-4,0,21))
     levels_err_uy = np.linspace(-MAX_err_uy[c],MAX_err_uy[c],21)#np.power(10,np.linspace(-4,0,21))
     levels_err_p = np.linspace(-MAX_err_p[c],MAX_err_p[c],21)#np.power(10,np.linspace(-4,0,21))
@@ -163,14 +184,24 @@ for c in range(len(cases_list)):
 
     ticks_mx = np.array([1E-3,3E-3,1E-2,3E-2,1E-1,3E-1,1])
 
+    if cases_supersample_factor[c]==0:
+        dx.append(X_grid[1,0]-X_grid[0,0])
+
     if cases_supersample_factor[c]>0:
         linear_downsample_inds, ndx,ndy = compute_downsample_inds_center(cases_supersample_factor[c],X_grid[:,0],Y_grid[0,:].transpose())
 
         x_downsample = x[linear_downsample_inds]
         y_downsample = y[linear_downsample_inds]
+
+        x_ds_grid = (np.reshape(x_downsample,(ndy,ndx))).transpose()
+        y_ds_grid = (np.reshape(y_downsample,(ndy,ndx))).transpose()
+        dx.append(x_ds_grid[1,0]-x_ds_grid[0,0])
+
         valid_inds = np.power(np.power(x_downsample,2.0)+np.power(y_downsample,2.0),0.5)>0.5*d
         x_downsample = x_downsample[valid_inds]
         y_downsample = y_downsample[valid_inds]
+        
+
 
     # quadrant 1
 
@@ -183,11 +214,12 @@ for c in range(len(cases_list)):
     ax.set_ylabel('y/D',fontsize=5)
     ax.yaxis.set_tick_params(labelsize=5)
     ax.xaxis.set_tick_params(labelbottom=False)
-    ax.text(8,1.5,'$u_{x,DNS}$',fontsize=5)
+    ax.text(7,1.5,'$u_{x,DNS}$',fontsize=5)
     if cases_supersample_factor[c]>1:
         dots = ax.plot(x_downsample,y_downsample,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
+    ax.text(-1.75,1.5,'(aa)',fontsize=5)
     fig.add_subplot(ax)
     
     cax=plot.Subplot(fig,inner[0][1])
@@ -204,9 +236,10 @@ for c in range(len(cases_list)):
     ax.set_ylabel('y/D',fontsize=5)
     ax.yaxis.set_tick_params(labelsize=5)
     ax.xaxis.set_tick_params(labelbottom=False)
-    ax.text(8,1.5,'$u_{x,PINN}$',fontsize=5)
+    ax.text(7,1.5,'$u_{x,PINN}$',fontsize=5)
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
+    ax.text(-1.75,1.5,'(ab)',fontsize=5)
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[0][4])
@@ -216,14 +249,20 @@ for c in range(len(cases_list)):
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[0][6])
-    ux_plot = ax.contourf(X_grid,Y_grid,np.abs(ux_err_grid[c]/MAX_plot_ux)+1E-30,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap= matplotlib.colormaps['hot_r'],extend='both')
+    e_plot = np.abs(ux_err_grid[c]/MAX_plot_ux)+1E-30
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap= matplotlib.colormaps['hot_r'],extend='both')
     ax.set_aspect('equal')
     ax.set_ylabel('y/D',fontsize=5)
     ax.yaxis.set_tick_params(labelsize=5)
     ax.xaxis.set_tick_params(labelbottom=False)
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
-    ax.text(8,1.5,'$|\\frac{u_{x,DNS}-u_{x,PINN}}{max(u_{x,DNS})}|$',fontsize=5,color='w')
+    if np.mean(e_plot.ravel())>text_color_tolerance:
+        ax.text(7,1.5,'$|\\frac{u_{x,DNS}-u_{x,PINN}}{max(u_{x,DNS})}|$',fontsize=5,color='w')
+        ax.text(-1.75,1.5,'(ac)',fontsize=5,color='w')
+    else:
+        ax.text(7,1.5,'$|\\frac{u_{x,DNS}-u_{x,PINN}}{max(u_{x,DNS})}|$',fontsize=5,color='k')
+        ax.text(-1.75,1.5,'(ac)',fontsize=5,color='k')
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[0][7])
@@ -243,11 +282,12 @@ for c in range(len(cases_list)):
     ax.set_yticks(np.array([2.0,1.0,0.0,-1.0,-2.0]))
     ax.yaxis.set_tick_params(labelleft=False)
     ax.xaxis.set_tick_params(labelbottom=False)
-    ax.text(8,1.5,'$u_{y,DNS}$',fontsize=5)
+    ax.text(7,1.5,'$u_{y,DNS}$',fontsize=5)
     if cases_supersample_factor[c]>1:
         dots = ax.plot(x_downsample,y_downsample,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
+    ax.text(-1.75,1.5,'(ba)',fontsize=5)
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[1][1])
@@ -263,9 +303,10 @@ for c in range(len(cases_list)):
     ax.set_yticks(np.array([2.0,1.0,0.0,-1.0,-2.0]))
     ax.yaxis.set_tick_params(labelleft=False)
     ax.xaxis.set_tick_params(labelbottom=False)
-    ax.text(8,1.5,'$u_{y,PINN},$',fontsize=5)
+    ax.text(7,1.5,'$u_{y,PINN},$',fontsize=5)
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
+    ax.text(-1.75,1.5,'(bb)',fontsize=5)
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[1][4])
@@ -275,14 +316,20 @@ for c in range(len(cases_list)):
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[1][6])
-    uy_plot = ax.contourf(X_grid,Y_grid,np.abs(uy_err_grid[c]/MAX_plot_uy)+1E-30,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap= matplotlib.colormaps['hot_r'],extend='both')
+    e_plot =np.abs(uy_err_grid[c]/MAX_plot_uy)+1E-30
+    uy_plot = ax.contourf(X_grid,Y_grid,e_plot,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap= matplotlib.colormaps['hot_r'],extend='both')
     ax.set_aspect('equal')
     ax.set_yticks(np.array([2.0,1.0,0.0,-1.0,-2.0]))
     ax.xaxis.set_tick_params(labelbottom=False)
     ax.yaxis.set_tick_params(labelleft=False)
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
-    t=ax.text(8,1.5,'$|\\frac{u_{y,DNS}-u_{y,PINN}}{max(u_{y,DNS})}|$',fontsize=5,color='w')
+    if np.mean(e_plot.ravel())>text_color_tolerance:
+        t=ax.text(7,1.5,'$|\\frac{u_{y,DNS}-u_{y,PINN}}{max(u_{y,DNS})}|$',fontsize=5,color='w')
+        ax.text(-1.75,1.5,'(bc)',fontsize=5,color='w')
+    else:
+        t=ax.text(7,1.5,'$|\\frac{u_{y,DNS}-u_{y,PINN}}{max(u_{y,DNS})}|$',fontsize=5,color='k')
+        ax.text(-1.75,1.5,'(bc)',fontsize=5)
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[1][7])
@@ -303,9 +350,10 @@ for c in range(len(cases_list)):
     ax.set_ylabel('y/D',fontsize=5)
     ax.yaxis.set_tick_params(labelsize=5)
     ax.xaxis.set_tick_params(labelbottom=False)
-    ax.text(9,1.5,'$p_{DNS}$',fontsize=5)
+    ax.text(7,1.5,'$p_{DNS}$',fontsize=5)
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
+    ax.text(-1.75,1.5,'(ca)',fontsize=5)
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[2][1])
@@ -320,9 +368,10 @@ for c in range(len(cases_list)):
     ax.set_ylabel('y/D',fontsize=5)
     ax.yaxis.set_tick_params(labelsize=5)
     ax.xaxis.set_tick_params(labelbottom=False)
-    ax.text(9,1.5,'$p_{PINN}$',fontsize=5)
+    ax.text(7,1.5,'$p_{PINN}$',fontsize=5)
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
+    ax.text(-1.75,1.5,'(cb)',fontsize=5)
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[2][4])
@@ -332,7 +381,8 @@ for c in range(len(cases_list)):
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[2][6])
-    p_plot = ax.contourf(X_grid,Y_grid,np.abs(p_err_grid[c]/MAX_plot_p)+1E-30,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap= matplotlib.colormaps['hot_r'],extend='both')
+    e_plot = np.abs(p_err_grid[c]/MAX_plot_p)+1E-30
+    p_plot = ax.contourf(X_grid,Y_grid,e_plot,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap= matplotlib.colormaps['hot_r'],extend='both')
     ax.set_aspect('equal')
     ax.yaxis.set_tick_params(labelsize=5)
     ax.set_ylabel('y/D',fontsize=5)
@@ -340,7 +390,12 @@ for c in range(len(cases_list)):
     ax.set_xlabel('x/D',fontsize=5)
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
-    ax.text(8,1.5,'$|\\frac{p_{DNS}-p_{PINN}}{max(p_{DNS})}|$',fontsize=5,color='w')
+    if np.mean(e_plot.ravel())>text_color_tolerance:
+        ax.text(7,1.5,'$|\\frac{p_{DNS}-p_{PINN}}{max(p_{DNS})}|$',fontsize=5,color='w')
+        ax.text(-1.75,1.5,'(cc)',fontsize=5,color='w')
+    else:
+        ax.text(7,1.5,'$|\\frac{p_{DNS}-p_{PINN}}{max(p_{DNS})}|$',fontsize=5,color='k')
+        ax.text(-1.75,1.5,'(cc)',fontsize=5)
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[2][7])
@@ -354,13 +409,19 @@ for c in range(len(cases_list)):
     inner.append(gridspec.GridSpecFromSubplotSpec(3,3,subplot_spec=outer[3],wspace=0.05,hspace=0.1,width_ratios=[0.95,0.03,0.07]))
 
     ax = plot.Subplot(fig,inner[3][0])
-    m_plot =ax.contourf(X_grid,Y_grid,np.abs(mx_grid[c])+1E-30,levels=levels_mx,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
+    e_plot = np.abs(mx_grid[c])+1E-30
+    m_plot =ax.contourf(X_grid,Y_grid,e_plot,levels=levels_mx,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
     ax.set_aspect('equal')
 
     ax.set_yticks(np.array([2.0,1.0,0.0,-1.0,-2.0]))
     ax.xaxis.set_tick_params(labelbottom=False)
     ax.yaxis.set_tick_params(labelleft=False)
-    ax.text(9,1.5,'$NS_{x}$',fontsize=5,color='w')
+    if np.mean(e_plot.ravel())>text_color_tolerance:
+        ax.text(7,1.5,'$RANS_{x}$',fontsize=5,color='w')
+        ax.text(-1.75,1.5,'(da)',fontsize=5,color='w')
+    else:
+        ax.text(7,1.5,'$RANS_{x}$',fontsize=5,color='k')
+        ax.text(-1.75,1.5,'(da)',fontsize=5)
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     fig.add_subplot(ax)
@@ -372,13 +433,19 @@ for c in range(len(cases_list)):
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[3][3])
-    m_plot =ax.contourf(X_grid,Y_grid,np.abs(my_grid[c])+1E-30,levels=levels_mx,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
+    e_plot = np.abs(my_grid[c])+1E-30
+    m_plot =ax.contourf(X_grid,Y_grid,e_plot,levels=levels_mx,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
     ax.set_aspect('equal')
 
     ax.set_yticks(np.array([2.0,1.0,0.0,-1.0,-2.0]))
     ax.xaxis.set_tick_params(labelbottom=False)
     ax.yaxis.set_tick_params(labelleft=False)
-    ax.text(9,1.5,'$NS_{y}$',fontsize=5,color='w')
+    if np.mean(e_plot.ravel())>text_color_tolerance:
+        ax.text(7,1.5,'$RANS_{y}$',fontsize=5,color='w')
+        ax.text(-1.75,1.5,'(db)',fontsize=5,color='w')
+    else:
+        ax.text(7,1.5,'$RANS_{y}$',fontsize=5,color='k')
+        ax.text(-1.75,1.5,'(db)',fontsize=5)
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     fig.add_subplot(ax)
@@ -390,13 +457,19 @@ for c in range(len(cases_list)):
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[3][6])
-    m_plot =ax.contourf(X_grid,Y_grid,np.abs(mass_grid[c])+1E-30,levels=levels_mx,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
+    e_plot = np.abs(mass_grid[c])+1E-30
+    m_plot =ax.contourf(X_grid,Y_grid,e_plot,levels=levels_mx,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
     ax.set_aspect('equal')
     ax.set_xlabel('x/D',fontsize=5)
     ax.set_yticks(np.array([2.0,1.0,0.0,-1.0,-2.0]))
     ax.xaxis.set_tick_params(labelsize=5)
     ax.yaxis.set_tick_params(labelleft=False)
-    ax.text(9,1.5,'$C$',fontsize=5,color='w')
+    if np.mean(e_plot.ravel())>text_color_tolerance:
+        ax.text(7,1.5,'$C$',fontsize=5,color='w')
+        ax.text(-1.75,1.5,'(dc)',fontsize=5,color='w')
+    else:
+        ax.text(7,1.5,'$C$',fontsize=5,color='k')
+        ax.text(-1.75,1.5,'(dc)',fontsize=5)
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     fig.add_subplot(ax)
@@ -408,8 +481,80 @@ for c in range(len(cases_list)):
     fig.add_subplot(cax)
 
     plot.savefig(figures_dir+'logerr_mfg_fbc003_S'+str(cases_supersample_factor[c])+'.pdf')
+    plot.savefig(figures_dir+'logerr_mfg_fbc003_S'+str(cases_supersample_factor[c])+'.png',dpi=300)
 
-exit()
+    plot.close(fig)
 
 
+# error percent plot
+pts_per_d = 1.0/np.array(dx)
 
+fig,axs = plot.subplots(3,1)
+fig.set_size_inches(3.37,5.5)
+plot.subplots_adjust(left=0.2,top=0.95,right=0.97,bottom=0.09)
+
+mean_err_ux = np.array(mean_err_ux)
+mean_err_uy = np.array(mean_err_uy)
+mean_err_p = np.array(mean_err_p)
+
+p95_err_ux = np.array(p95_err_ux)
+p95_err_uy = np.array(p95_err_uy)
+p95_err_p = np.array(p95_err_p)
+
+MAX_err_ux = np.array(MAX_err_ux)
+MAX_err_uy = np.array(MAX_err_uy)
+MAX_err_p = np.array(MAX_err_p)
+
+error_x_tick_labels = ['40','20','10','5','2.5','1.25']
+
+supersample_factors = np.array(cases_supersample_factor)
+mean_plt,=axs[0].plot(pts_per_d,mean_err_ux,linewidth=0,marker='o',color='black',markersize=3,markerfacecolor='black')
+p95_plt,=axs[0].plot(pts_per_d,p95_err_ux,linewidth=0,marker='^',color='orange',markersize=3,markerfacecolor='orange')
+max_plt,=axs[0].plot(pts_per_d,MAX_err_ux,linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+axs[0].set_xscale('log')
+axs[0].set_xticks(pts_per_d)
+axs[0].xaxis.set_tick_params(labelbottom=False)
+axs[0].set_yscale('log')
+axs[0].set_ylim(2E-4,1E0)
+#axs[0].set_yticks([0.1,0.5,1.0,2.0])
+#axs[0].set_yticklabels([0.1,0.5,1.0,2.0])
+axs[0].set_ylabel("Relative Error")
+axs[0].set_title('$u_x$')
+axs[0].legend([mean_plt,p95_plt,max_plt],['Mean','95th Percentile','Max'],fontsize=6)
+axs[0].grid('on')
+axs[0].text(0.45,1.0,'(a)',fontsize=10)
+
+axs[1].plot(pts_per_d,mean_err_uy,linewidth=0,marker='o',color='black',markersize=3,markerfacecolor='black')
+axs[1].plot(pts_per_d,p95_err_uy,linewidth=0,marker='^',color='orange',markersize=3,markerfacecolor='orange')
+axs[1].plot(pts_per_d,MAX_err_uy,linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+axs[1].set_xscale('log')
+axs[1].set_xticks(pts_per_d)
+axs[1].xaxis.set_tick_params(labelbottom=False)
+axs[1].set_yscale('log')
+axs[1].set_ylim(2E-4,1E0)
+#axs[1].set_yticks([0.1,0.5,1.0])
+#axs[1].set_yticklabels([0.1,0.5,1.0])
+axs[1].set_ylabel("Relative Error")
+axs[1].set_title('$u_y$')
+axs[1].grid('on')
+axs[1].text(0.45,1.0,'(b)',fontsize=10)
+
+axs[2].plot(pts_per_d,mean_err_p,linewidth=0,marker='o',color='black',markersize=3,markerfacecolor='black')
+axs[2].plot(pts_per_d,p95_err_p,linewidth=0,marker='^',color='orange',markersize=3,markerfacecolor='orange')
+axs[2].plot(pts_per_d,MAX_err_p,linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+axs[2].set_xscale('log')
+axs[2].set_xticks(pts_per_d)
+axs[2].set_xticklabels(error_x_tick_labels)
+axs[2].set_yscale('log')
+axs[2].set_ylim(2E-4,1E0)
+#axs[2].set_yticks([0.1,0.5,1.0,2.0])
+#axs[2].set_yticklabels([0.1,0.5,1.0,2.0])
+axs[2].set_xlabel('Pts/D')
+axs[2].set_ylabel("Relative Error")
+axs[2].set_title('$p$')
+axs[2].grid('on')
+axs[2].text(0.45,1.0,'(c)',fontsize=10)
+
+#fig.tight_layout()
+plot.savefig(figures_dir+'logerr_mfg_fbc003_error.pdf')
+plot.savefig(figures_dir+'logerr_mfg_fbc003_error.png',dpi=300)

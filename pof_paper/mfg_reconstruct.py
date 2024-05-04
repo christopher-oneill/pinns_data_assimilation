@@ -30,6 +30,9 @@ ScalingParameters.f =[]
 ScalingParameters.f.append(UserScalingParameters())
 ScalingParameters.f.append(UserScalingParameters())
 ScalingParameters.f.append(UserScalingParameters())
+ScalingParameters.f.append(UserScalingParameters())
+ScalingParameters.f.append(UserScalingParameters())
+ScalingParameters.f.append(UserScalingParameters())
 
 # load the reference data
 base_dir = data_dir
@@ -82,7 +85,7 @@ phi_x_ref = []
 phi_y_ref = []
 psi_ref = []
 
-for mode_number in [0,1,2]:
+for mode_number in [0,1,2,3,4,5]:
     fourierModeFile = h5py.File(base_dir+'fourierModes.mat','r')
     phi_xr = np.array(np.real(fourierModeFile['velocityModes'][:,mode_number,0]))
     phi_xi = np.array(np.imag(fourierModeFile['velocityModes'][:,mode_number,0]))
@@ -125,7 +128,7 @@ ux_rec_ref = ux_rec_ref + np.reshape(ux,[ScalingParameters.mean.nx,1])
 uy_rec_ref = uy_rec_ref + np.reshape(uy,[ScalingParameters.mean.nx,1])
 p_rec_ref = p_rec_ref + np.reshape(p,[ScalingParameters.mean.nx,1])
 
-for c in [0,1,2]:
+for c in [0,1,2,3,4,5]:
     ux_i,t_i = idft(np.reshape(phi_x_ref[c],[ScalingParameters.mean.nx,1]),f=ScalingParameters.f[c].f,t=np.reshape(t,[1,t.size]),fs=ScalingParameters.mean.fs)
     ux_rec_ref = ux_rec_ref+2.0*ux_i
 
@@ -141,6 +144,7 @@ for c in [0,1,2]:
     h5f.create_dataset('p',data=p_rec_ref)
     h5f.close()
 
+exit()
 
 ux_pred = []
 uy_pred = []

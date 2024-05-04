@@ -133,9 +133,10 @@ for c in range(len(rec_mode_vec)):
         levels_ux_err = np.geomspace(1E-3,1,21)#np.linspace(-MAX_ux_err,MAX_ux_err,21)
         levels_uy_err = np.geomspace(1E-3,1,21)#np.linspace(-MAX_uy_err,MAX_uy_err,21)
         levels_p_err = np.geomspace(1E-3,1,21)#np.linspace(-MAX_p_err,MAX_p_err,21)
-        levels_vorticity_err = np.geomspace(1E-3,1,21)#np.linspace(-MAX_vorticity_err,MAX_vorticity_err,21)
+        levels_vorticity_err = np.geomspace(1E-3,10,21)#np.linspace(-MAX_vorticity_err,MAX_vorticity_err,21)
 
         ticks_err = np.array([1E-3,3E-3,1E-2,3E-2,1E-1,3E-1,1])
+        ticks_vorticity_err = np.array([1E-3,3E-3,1E-2,3E-2,1E-1,3E-1,1,3E0,1E1])
 
         if cases_supersample_factor[s]>0:
             linear_downsample_inds, ndx,ndy = compute_downsample_inds_center(cases_supersample_factor[s],X_grid[:,0],Y_grid[0,:].transpose())
@@ -158,8 +159,11 @@ for c in range(len(rec_mode_vec)):
         ax.yaxis.set_tick_params(labelsize=5)
         ax.xaxis.set_tick_params(labelbottom=False)
         ax.text(7,1.5,'$u_{x,DNS}$',fontsize=5)
+        ax.text(-1.75,1.5,'(aa)',fontsize=5,color='k')
         if cases_supersample_factor[s]>1:
             dots = ax.plot(x_downsample,y_downsample,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+        circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+        ax.add_patch(circle)
         fig.add_subplot(ax)
         
         cax=plot.Subplot(fig,inner[0][1])
@@ -177,6 +181,9 @@ for c in range(len(rec_mode_vec)):
         ax.yaxis.set_tick_params(labelsize=5)
         ax.xaxis.set_tick_params(labelbottom=False)
         ax.text(7,1.5,'$u_{x,FMD}$',fontsize=5)
+        ax.text(-1.75,1.5,'(ab)',fontsize=5,color='k')
+        circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+        ax.add_patch(circle)
         fig.add_subplot(ax)
 
         cax=plot.Subplot(fig,inner[0][4])
@@ -191,7 +198,10 @@ for c in range(len(rec_mode_vec)):
         ax.set_ylabel('y/D',fontsize=5)
         ax.yaxis.set_tick_params(labelsize=5)
         ax.xaxis.set_tick_params(labelbottom=False)
-        ax.text(7,1.5,'$\\frac{u_{x,DNS}-u_{x,FMD}}{max(|u_{x_DNS}|)}$',fontsize=5,color='k')
+        ax.text(7,1.5,'$|\\frac{u_{x,DNS}-u_{x,FMD}}{max(|u_{x,DNS}|)}|$',fontsize=5,color='k')
+        ax.text(-1.75,1.5,'(ac)',fontsize=5,color='k')
+        circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+        ax.add_patch(circle)
         fig.add_subplot(ax)
 
         cax=plot.Subplot(fig,inner[0][7])
@@ -213,8 +223,11 @@ for c in range(len(rec_mode_vec)):
         ax.yaxis.set_tick_params(labelleft=False)
         ax.xaxis.set_tick_params(labelbottom=False)
         ax.text(7,1.5,'$u_{y,DNS}$',fontsize=5)
+        ax.text(-1.75,1.5,'(ba)',fontsize=5,color='k')
         if cases_supersample_factor[s]>1:
             dots = ax.plot(x_downsample,y_downsample,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+        circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+        ax.add_patch(circle)
         fig.add_subplot(ax)
 
         cax=plot.Subplot(fig,inner[1][1])
@@ -230,6 +243,9 @@ for c in range(len(rec_mode_vec)):
         ax.yaxis.set_tick_params(labelleft=False)
         ax.xaxis.set_tick_params(labelbottom=False)
         ax.text(7,1.5,'$u_{y,FMD}$',fontsize=5)
+        ax.text(-1.75,1.5,'(bb)',fontsize=5,color='k')
+        circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+        ax.add_patch(circle)
         fig.add_subplot(ax)
 
         cax=plot.Subplot(fig,inner[1][4])
@@ -244,7 +260,10 @@ for c in range(len(rec_mode_vec)):
         ax.set_yticks(np.array([2.0,1.0,0.0,-1.0,-2.0]))
         ax.xaxis.set_tick_params(labelbottom=False)
         ax.yaxis.set_tick_params(labelleft=False)
-        t=ax.text(7,1.5,'$\\frac{u_{y,DNS}-u_{y,FMD}}{max(|u_{y,DNS}|)}$',fontsize=5,color='k')
+        circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+        ax.add_patch(circle)
+        t=ax.text(7,1.5,'$|\\frac{u_{y,DNS}-u_{y,FMD}}{max(|u_{y,DNS}|)}|$',fontsize=5,color='k')
+        ax.text(-1.75,1.5,'(bc)',fontsize=5,color='k')
         fig.add_subplot(ax)
 
         cax=plot.Subplot(fig,inner[1][7])
@@ -267,6 +286,9 @@ for c in range(len(rec_mode_vec)):
         ax.yaxis.set_tick_params(labelsize=5)
         ax.xaxis.set_tick_params(labelbottom=False)
         ax.text(7,1.5,'$p_{DNS}$',fontsize=5)
+        ax.text(-1.75,1.5,'(ca)',fontsize=5,color='k')
+        circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+        ax.add_patch(circle)
         fig.add_subplot(ax)
 
         cax=plot.Subplot(fig,inner[2][1])
@@ -282,6 +304,9 @@ for c in range(len(rec_mode_vec)):
         ax.yaxis.set_tick_params(labelsize=5)
         ax.xaxis.set_tick_params(labelbottom=False)
         ax.text(7,1.5,'$p_{FMD}$',fontsize=5)
+        ax.text(-1.75,1.5,'(cb)',fontsize=5,color='k')
+        circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+        ax.add_patch(circle)
         fig.add_subplot(ax)
 
         cax=plot.Subplot(fig,inner[2][4])
@@ -297,12 +322,15 @@ for c in range(len(rec_mode_vec)):
         ax.set_ylabel('y/D',fontsize=5)
         ax.xaxis.set_tick_params(labelsize=5)
         ax.set_xlabel('x/D',fontsize=5)
-        ax.text(7,1.5,'$\\frac{p_{DNS}-p_{FMD}}{max(|p_{DNS}|)}$',fontsize=5,color='k')
+        ax.text(7,1.5,'$|\\frac{p_{DNS}-p_{FMD}}{max(|p_{DNS}|)}|$',fontsize=5,color='k')
+        ax.text(-1.75,1.5,'(cc)',fontsize=5,color='k')
+        circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+        ax.add_patch(circle)
         fig.add_subplot(ax)
 
         cax=plot.Subplot(fig,inner[2][7])
         # [-MAX_p_err,-MAX_p_err/2,0.0,MAX_p_err/2.0,MAX_p_err]
-        cbar = plot.colorbar(p_plot,cax,ticks=ticks_err,format=tkr.FormatStrFormatter('%.2e'))
+        cbar = plot.colorbar(p_plot,cax,ticks=ticks_err,format=tkr.FormatStrFormatter('%.0e'))
         ticklabs = cbar.ax.get_yticklabels()
         cbar.ax.set_yticklabels(ticklabs, fontsize=5)
         fig.add_subplot(cax)
@@ -318,6 +346,9 @@ for c in range(len(rec_mode_vec)):
         ax.xaxis.set_tick_params(labelbottom=False)
         ax.yaxis.set_tick_params(labelleft=False)
         ax.text(7,1.5,'$\omega_{DNS}$',fontsize=5)
+        ax.text(-1.75,1.5,'(da)',fontsize=5,color='k')
+        circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+        ax.add_patch(circle)
         fig.add_subplot(ax)
 
         cax=plot.Subplot(fig,inner[3][1])
@@ -333,6 +364,9 @@ for c in range(len(rec_mode_vec)):
         ax.xaxis.set_tick_params(labelbottom=False)
         ax.yaxis.set_tick_params(labelleft=False)
         ax.text(7,1.5,'$\omega_{FMD}$',fontsize=5)
+        ax.text(-1.75,1.5,'(db)',fontsize=5,color='k')
+        circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+        ax.add_patch(circle)
         fig.add_subplot(ax)
 
         cax=plot.Subplot(fig,inner[3][4])
@@ -348,22 +382,23 @@ for c in range(len(rec_mode_vec)):
         ax.xaxis.set_tick_params(labelsize=5)
         ax.yaxis.set_tick_params(labelleft=False)
         ax.set_xlabel('x/D',fontsize=5)
-        ax.text(7,1.5,'$\omega_{DNS}-\omega_{FMD}$',fontsize=5,color='k')
+        circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+        ax.add_patch(circle)
+        ax.text(7,1.5,'$|\omega_{DNS}-\omega_{FMD}|$',fontsize=5,color='k')
+        ax.text(-1.75,1.5,'(dc)',fontsize=5,color='k')
         fig.add_subplot(ax)
 
         cax=plot.Subplot(fig,inner[3][7])
         #[-MAX_vorticity_err,-MAX_vorticity_err/2,0.0,MAX_vorticity_err/2,MAX_vorticity_err]
         # [-MAX_vorticity_ref,-MAX_vorticity_ref/2,0.0,MAX_vorticity_ref/2,MAX_vorticity_ref]
-        cbar = plot.colorbar(p_plot,cax,ticks=ticks_err,format=tkr.FormatStrFormatter('%.2e'))
+        cbar = plot.colorbar(p_plot,cax,ticks=ticks_vorticity_err,format=tkr.FormatStrFormatter('%.0e'))
         ticklabs = cbar.ax.get_yticklabels()
         cbar.ax.set_yticklabels(ticklabs, fontsize=5)
         fig.add_subplot(cax)
 
         plot.savefig(figures_dir+'logerr_snapshot'+str(snap_ind)+'_contours_ref_recref_c'+str(rec_mode_vec[c])+'.pdf')
+        plot.savefig(figures_dir+'logerr_snapshot'+str(snap_ind)+'_contours_ref_recref_c'+str(rec_mode_vec[c])+'.png',dpi=300)
         plot.close(fig)
-
-
-exit()
 
 
 # load the reconstuctions and compute the reynolds stresses
@@ -433,10 +468,13 @@ for c in range(len(rec_mode_vec)):
             MAX_p_err = np.nanmax(np.abs(p_err.ravel()))
             MAX_vorticity_err = np.nanmax(np.abs(vorticity_err.ravel()))
 
-            levels_ux_err = np.linspace(-MAX_ux_err,MAX_ux_err,21)
-            levels_uy_err = np.linspace(-MAX_uy_err,MAX_uy_err,21)
-            levels_p_err = np.linspace(-MAX_p_err,MAX_p_err,21)
-            levels_vorticity_err = np.linspace(-MAX_vorticity_err,MAX_vorticity_err,21)
+            levels_ux_err = np.geomspace(1E-3,1,21)#np.linspace(-MAX_ux_err,MAX_ux_err,21)
+            levels_uy_err = np.geomspace(1E-3,1,21)#np.linspace(-MAX_uy_err,MAX_uy_err,21)
+            levels_p_err = np.geomspace(1E-3,1,21)#np.linspace(-MAX_p_err,MAX_p_err,21)
+            levels_vorticity_err = np.geomspace(1E-3,10,21)#np.linspace(-MAX_vorticity_err,MAX_vorticity_err,21)
+
+            ticks_err = np.array([1E-3,3E-3,1E-2,3E-2,1E-1,3E-1,1])
+            ticks_vorticity_err = np.array([1E-3,3E-3,1E-2,3E-2,1E-1,3E-1,1,3E0,1E1])
 
             if cases_supersample_factor[s]>0:
                 linear_downsample_inds, ndx,ndy = compute_downsample_inds_center(cases_supersample_factor[s],X_grid[:,0],Y_grid[0,:].transpose())
@@ -459,8 +497,11 @@ for c in range(len(rec_mode_vec)):
             ax.yaxis.set_tick_params(labelsize=5)
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.text(7,1.5,'$u_{x,DNS}$',fontsize=5)
+            ax.text(-1.75,1.5,'(aa)',fontsize=5,color='k')
             if cases_supersample_factor[s]>1:
                 dots = ax.plot(x_downsample,y_downsample,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
             
             cax=plot.Subplot(fig,inner[0][1])
@@ -478,6 +519,9 @@ for c in range(len(rec_mode_vec)):
             ax.yaxis.set_tick_params(labelsize=5)
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.text(7,1.5,'$u_{x,PINN}$',fontsize=5)
+            ax.text(-1.75,1.5,'(ab)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[0][4])
@@ -487,17 +531,20 @@ for c in range(len(rec_mode_vec)):
             fig.add_subplot(cax)
 
             ax = plot.Subplot(fig,inner[0][6])
-            ux_plot = ax.contourf(X_grid,Y_grid,np.abs(ux_err),levels=levels_ux_err,cmap= matplotlib.colormaps['nipy_spectral'],norm=matplotlib.colors.LogNorm(),extend='both')
+            ux_plot = ax.contourf(X_grid,Y_grid,np.abs(ux_err),levels=levels_ux_err,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
             ax.set_aspect('equal')
             ax.set_ylabel('y/D',fontsize=5)
             ax.yaxis.set_tick_params(labelsize=5)
             ax.xaxis.set_tick_params(labelbottom=False)
-            ax.text(7,1.5,'$\\frac{u_{x,DNS}-u_{x,PINN}}{max(|u_{x,DNS}|)}$',fontsize=5,color='k')
+            ax.text(7,1.5,'$|\\frac{u_{x,DNS}-u_{x,PINN}}{max(|u_{x,DNS}|)}|$',fontsize=5,color='k')
+            ax.text(-1.75,1.5,'(ac)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[0][7])
             # [MAX_ux_err,MAX_ux_err/2,0.0,-MAX_ux_err/2,-MAX_ux_err]
-            cbar = plot.colorbar(ux_plot,cax,ticks=ticks_err,format=tkr.FormatStrFormatter('%.2e'))
+            cbar = plot.colorbar(ux_plot,cax,ticks=ticks_err,format=tkr.FormatStrFormatter('%.0e'))
             ticklabs = cbar.ax.get_yticklabels()
             cbar.ax.set_yticklabels(ticklabs, fontsize=5)
             fig.add_subplot(cax)
@@ -514,8 +561,11 @@ for c in range(len(rec_mode_vec)):
             ax.yaxis.set_tick_params(labelleft=False)
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.text(7,1.5,'$u_{y,DNS}$',fontsize=5)
+            ax.text(-1.75,1.5,'(ba)',fontsize=5,color='k')
             if cases_supersample_factor[s]>1:
                 dots = ax.plot(x_downsample,y_downsample,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[1][1])
@@ -531,6 +581,9 @@ for c in range(len(rec_mode_vec)):
             ax.yaxis.set_tick_params(labelleft=False)
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.text(7,1.5,'$u_{y,PINN}$',fontsize=5)
+            ax.text(-1.75,1.5,'(bb)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[1][4])
@@ -540,17 +593,20 @@ for c in range(len(rec_mode_vec)):
             fig.add_subplot(cax)
 
             ax = plot.Subplot(fig,inner[1][6])
-            uy_plot = ax.contourf(X_grid,Y_grid,np.abs(uy_err),levels=levels_uy_err,cmap= matplotlib.colormaps['nipy_spectral'],norm=matplotlib.colors.LogNorm(),extend='both')
+            uy_plot = ax.contourf(X_grid,Y_grid,np.abs(uy_err),levels=levels_uy_err,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
             ax.set_aspect('equal')
             ax.set_yticks(np.array([2.0,1.0,0.0,-1.0,-2.0]))
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.yaxis.set_tick_params(labelleft=False)
-            t=ax.text(7,1.5,'$\\frac{u_{y,DNS}-u_{y,PINN}}{max(|u_{y,DNS}|)}$',fontsize=5,color='k')
+            t=ax.text(7,1.5,'$|\\frac{u_{y,DNS}-u_{y,PINN}}{max(|u_{y,DNS}|)}|$',fontsize=5,color='k')
+            ax.text(-1.75,1.5,'(bc)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[1][7])
             # [MAX_uy_err,MAX_uy_err/2,0.0,-MAX_uy_err/2,-MAX_uy_err]
-            cbar = plot.colorbar(uy_plot,cax,ticks=ticks_err,format=tkr.FormatStrFormatter('%.2e'))
+            cbar = plot.colorbar(uy_plot,cax,ticks=ticks_err,format=tkr.FormatStrFormatter('%.0e'))
             ticklabs = cbar.ax.get_yticklabels()
             cbar.ax.set_yticklabels(ticklabs, fontsize=5)
             fig.add_subplot(cax)
@@ -568,6 +624,9 @@ for c in range(len(rec_mode_vec)):
             ax.yaxis.set_tick_params(labelsize=5)
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.text(7,1.5,'$p_{DNS}$',fontsize=5)
+            ax.text(-1.75,1.5,'(ca)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[2][1])
@@ -583,6 +642,9 @@ for c in range(len(rec_mode_vec)):
             ax.yaxis.set_tick_params(labelsize=5)
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.text(7,1.5,'$p_{PINN}$',fontsize=5)
+            ax.text(-1.75,1.5,'(cb)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[2][4])
@@ -592,18 +654,21 @@ for c in range(len(rec_mode_vec)):
             fig.add_subplot(cax)
 
             ax = plot.Subplot(fig,inner[2][6])
-            p_plot = ax.contourf(X_grid,Y_grid,np.abs(p_err),levels=levels_p_err,cmap= matplotlib.colormaps['nipy_spectral'],extend='both')
+            p_plot = ax.contourf(X_grid,Y_grid,np.abs(p_err),levels=levels_p_err,norm=matplotlib.colors.LogNorm(),cmap= matplotlib.colormaps['hot_r'],extend='both')
             ax.set_aspect('equal')
             ax.yaxis.set_tick_params(labelsize=5)
             ax.set_ylabel('y/D',fontsize=5)
             ax.xaxis.set_tick_params(labelsize=5)
             ax.set_xlabel('x/D',fontsize=5)
-            ax.text(7,1.5,'$\\frac{p_{DNS}-p_{PINN}}{max(|p_{DNS}|)}$',fontsize=5,color='k')
+            ax.text(7,1.5,'$|\\frac{p_{DNS}-p_{PINN}}{max(|p_{DNS}|)}|$',fontsize=5,color='k')
+            ax.text(-1.75,1.5,'(cc)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[2][7])
             # [MAX_p_err,MAX_p_err/2,0.0,-MAX_p_err/2,-MAX_p_err]
-            cbar = plot.colorbar(p_plot,cax,ticks=ticks_err,format=tkr.FormatStrFormatter('%.2e'))
+            cbar = plot.colorbar(p_plot,cax,ticks=ticks_err,format=tkr.FormatStrFormatter('%.0e'))
             ticklabs = cbar.ax.get_yticklabels()
             cbar.ax.set_yticklabels(ticklabs, fontsize=5)
             fig.add_subplot(cax)
@@ -619,6 +684,9 @@ for c in range(len(rec_mode_vec)):
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.yaxis.set_tick_params(labelleft=False)
             ax.text(7,1.5,'$\omega_{DNS}$',fontsize=5)
+            ax.text(-1.75,1.5,'(da)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[3][1])
@@ -634,6 +702,9 @@ for c in range(len(rec_mode_vec)):
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.yaxis.set_tick_params(labelleft=False)
             ax.text(7,1.5,'$\omega_{PINN}$',fontsize=5)
+            ax.text(-1.75,1.5,'(db)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[3][4])
@@ -643,25 +714,29 @@ for c in range(len(rec_mode_vec)):
             fig.add_subplot(cax)
 
             ax = plot.Subplot(fig,inner[3][6])
-            p_plot = ax.contourf(X_grid,Y_grid,np.abs(vorticity_err),levels=levels_vorticity,cmap= matplotlib.colormaps['nipy_spectral'],norm=matplotlib.colors.LogNorm(),extend='both')
+            p_plot = ax.contourf(X_grid,Y_grid,np.abs(vorticity_err),levels=levels_vorticity_err,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
             ax.set_aspect('equal')
             ax.yaxis.set_tick_params(labelsize=5)
             ax.xaxis.set_tick_params(labelsize=5)
             ax.yaxis.set_tick_params(labelleft=False)
             ax.set_xlabel('x/D',fontsize=5)
-            ax.text(7,1.5,'$\omega_{DNS}-\omega_{PINN}$',fontsize=5,color='k')
+            ax.text(7,1.5,'$|\omega_{DNS}-\omega_{PINN}|$',fontsize=5,color='k')
+            ax.text(-1.75,1.5,'(dc)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[3][7])
             # [-MAX_vorticity_err,-MAX_vorticity_err/2,0.0,MAX_vorticity_err/2,MAX_vorticity_err]
             # [-MAX_vorticity_ref,-MAX_vorticity_ref/2,0.0,MAX_vorticity_ref/2,MAX_vorticity_ref]
-            cbar = plot.colorbar(p_plot,cax,ticks=ticks_err,format=tkr.FormatStrFormatter('%.2e'))
+            cbar = plot.colorbar(p_plot,cax,ticks=ticks_vorticity_err,format=tkr.FormatStrFormatter('%.0e'))
             ticklabs = cbar.ax.get_yticklabels()
             cbar.ax.set_yticklabels(ticklabs, fontsize=5)
             fig.add_subplot(cax)
 
 
             plot.savefig(figures_dir+'logerr_snapshot'+str(snapshots[sn])+'_contours_ref_pinn_S'+str(cases_supersample_factor[s])+'_c'+str(rec_mode_vec[c])+'.pdf')
+            plot.savefig(figures_dir+'logerr_snapshot'+str(snapshots[sn])+'_contours_ref_pinn_S'+str(cases_supersample_factor[s])+'_c'+str(rec_mode_vec[c])+'.png',dpi=300)
             plot.close(fig)
 
             # fourier truncated original data versus the pinn data
@@ -676,10 +751,13 @@ for c in range(len(rec_mode_vec)):
             MAX_p_err = np.nanmax(np.abs(p_err.ravel()))
             MAX_vorticity_err = np.nanmax(np.abs(vorticity_err.ravel()))
 
-            levels_ux_err = np.linspace(-MAX_ux_err,MAX_ux_err,21)
-            levels_uy_err = np.linspace(-MAX_uy_err,MAX_uy_err,21)
-            levels_p_err = np.linspace(-MAX_p_err,MAX_p_err,21)
-            levels_vorticity_err = np.linspace(-MAX_vorticity_err,MAX_vorticity_err,21)
+            levels_ux_err = np.geomspace(1E-3,1,21)#np.linspace(-MAX_ux_err,MAX_ux_err,21)
+            levels_uy_err = np.geomspace(1E-3,1,21)#np.linspace(-MAX_uy_err,MAX_uy_err,21)
+            levels_p_err = np.geomspace(1E-3,1,21)#np.linspace(-MAX_p_err,MAX_p_err,21)
+            levels_vorticity_err = np.geomspace(1E-3,10,21)#np.linspace(-MAX_vorticity_err,MAX_vorticity_err,21)
+
+            ticks_err = np.array([1E-3,3E-3,1E-2,3E-2,1E-1,3E-1,1])
+            ticks_vorticity_err = np.array([1E-3,3E-3,1E-2,3E-2,1E-1,3E-1,1,3E0,1E1])
 
             fig = plot.figure(figsize=(7,7))
             plot.subplots_adjust(left=0.06,top=0.97,right=0.97,bottom=0.05)
@@ -698,8 +776,11 @@ for c in range(len(rec_mode_vec)):
             ax.yaxis.set_tick_params(labelsize=5)
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.text(7,1.5,'$u_{x,FMD}$',fontsize=5)
+            ax.text(-1.75,1.5,'(aa)',fontsize=5,color='k')
             if cases_supersample_factor[s]>1:
                 dots = ax.plot(x_downsample,y_downsample,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
             
             cax=plot.Subplot(fig,inner[0][1])
@@ -707,6 +788,8 @@ for c in range(len(rec_mode_vec)):
             cbar = plot.colorbar(ux_plot,cax,ticks=[MAX_ux_ref,MAX_ux_ref/2,0.0,-MAX_ux_ref/2,-MAX_ux_ref],format=tkr.FormatStrFormatter('%.3f'))
             ticklabs = cbar.ax.get_yticklabels()
             cbar.ax.set_yticklabels(ticklabs, fontsize=5)
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(cax)
             
 
@@ -717,6 +800,9 @@ for c in range(len(rec_mode_vec)):
             ax.yaxis.set_tick_params(labelsize=5)
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.text(7,1.5,'$u_{x,PINN}$',fontsize=5)
+            ax.text(-1.75,1.5,'(ab)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[0][4])
@@ -726,17 +812,20 @@ for c in range(len(rec_mode_vec)):
             fig.add_subplot(cax)
 
             ax = plot.Subplot(fig,inner[0][6])
-            ux_plot = ax.contourf(X_grid,Y_grid,np.abs(ux_err),levels=levels_ux_err,cmap= matplotlib.colormaps['nipy_spectral'],norm=matplotlib.colors.LogNorm(),extend='both')
+            ux_plot = ax.contourf(X_grid,Y_grid,np.abs(ux_err),levels=levels_ux_err,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
             ax.set_aspect('equal')
             ax.set_ylabel('y/D',fontsize=5)
             ax.yaxis.set_tick_params(labelsize=5)
             ax.xaxis.set_tick_params(labelbottom=False)
-            ax.text(7,1.5,'$\\frac{u_{x,FMD}-u_{x,PINN}}{max(|u_{x,DNS}|)}$',fontsize=5,color='k')
+            ax.text(7,1.5,'$|\\frac{u_{x,FMD}-u_{x,PINN}}{max(|u_{x,DNS}|)}|$',fontsize=5,color='k')
+            ax.text(-1.75,1.5,'(ac)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[0][7])
             # [MAX_ux_err,MAX_ux_err/2,0.0,-MAX_ux_err/2,-MAX_ux_err]
-            cbar = plot.colorbar(ux_plot,cax,ticks=ticks_err,format=tkr.FormatStrFormatter('%.2e'))
+            cbar = plot.colorbar(ux_plot,cax,ticks=ticks_err,format=tkr.FormatStrFormatter('%.0e'))
             ticklabs = cbar.ax.get_yticklabels()
             cbar.ax.set_yticklabels(ticklabs, fontsize=5)
             fig.add_subplot(cax)
@@ -753,8 +842,11 @@ for c in range(len(rec_mode_vec)):
             ax.yaxis.set_tick_params(labelleft=False)
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.text(7,1.5,'$u_{y,FMD}$',fontsize=5)
+            ax.text(-1.75,1.5,'(ba)',fontsize=5,color='k')
             if cases_supersample_factor[s]>1:
                 dots = ax.plot(x_downsample,y_downsample,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[1][1])
@@ -770,6 +862,9 @@ for c in range(len(rec_mode_vec)):
             ax.yaxis.set_tick_params(labelleft=False)
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.text(7,1.5,'$u_{y,PINN}$',fontsize=5)
+            ax.text(-1.75,1.5,'(bb)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[1][4])
@@ -779,17 +874,20 @@ for c in range(len(rec_mode_vec)):
             fig.add_subplot(cax)
 
             ax = plot.Subplot(fig,inner[1][6])
-            uy_plot = ax.contourf(X_grid,Y_grid,np.abs(uy_err),levels=levels_uy_err,cmap= matplotlib.colormaps['nipy_spectral'],norm=matplotlib.colors.LogNorm(),extend='both')
+            uy_plot = ax.contourf(X_grid,Y_grid,np.abs(uy_err),levels=levels_uy_err,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
             ax.set_aspect('equal')
             ax.set_yticks(np.array([2.0,1.0,0.0,-1.0,-2.0]))
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.yaxis.set_tick_params(labelleft=False)
-            t=ax.text(7,1.5,'$\\frac{u_{y,FMD}-u_{y,PINN}}{max(|u_{y,DNS}|)}$',fontsize=5,color='k')
+            t=ax.text(7,1.5,'$|\\frac{u_{y,FMD}-u_{y,PINN}}{max(|u_{y,DNS}|)}|$',fontsize=5,color='k')
+            ax.text(-1.75,1.5,'(bc)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[1][7])
             # [MAX_uy_err,MAX_uy_err/2,0.0,-MAX_uy_err/2,-MAX_uy_err]
-            cbar = plot.colorbar(uy_plot,cax,ticks=ticks_err,format=tkr.FormatStrFormatter('%.2e'))
+            cbar = plot.colorbar(uy_plot,cax,ticks=ticks_err,format=tkr.FormatStrFormatter('%.0e'))
             ticklabs = cbar.ax.get_yticklabels()
             cbar.ax.set_yticklabels(ticklabs, fontsize=5)
             fig.add_subplot(cax)
@@ -807,6 +905,9 @@ for c in range(len(rec_mode_vec)):
             ax.yaxis.set_tick_params(labelsize=5)
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.text(7,1.5,'$p_{FMD}$',fontsize=5)
+            ax.text(-1.75,1.5,'(ca)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[2][1])
@@ -822,6 +923,9 @@ for c in range(len(rec_mode_vec)):
             ax.yaxis.set_tick_params(labelsize=5)
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.text(7,1.5,'$p_{PINN}$',fontsize=5)
+            ax.text(-1.75,1.5,'(cb)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[2][4])
@@ -831,18 +935,21 @@ for c in range(len(rec_mode_vec)):
             fig.add_subplot(cax)
 
             ax = plot.Subplot(fig,inner[2][6])
-            p_plot = ax.contourf(X_grid,Y_grid,np.abs(p_err),levels=levels_p_err,cmap= matplotlib.colormaps['nipy_spectral'],norm=matplotlib.colors.LogNorm(),extend='both')
+            p_plot = ax.contourf(X_grid,Y_grid,np.abs(p_err),levels=levels_p_err,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
             ax.set_aspect('equal')
             ax.yaxis.set_tick_params(labelsize=5)
             ax.set_ylabel('y/D',fontsize=5)
             ax.xaxis.set_tick_params(labelsize=5)
             ax.set_xlabel('x/D',fontsize=5)
-            ax.text(7,1.5,'$\\frac{p_{FMD}-p_{PINN}}{max(|p_{DNS}|)}$',fontsize=5,color='k')
+            ax.text(7,1.5,'$|\\frac{p_{FMD}-p_{PINN}}{max(|p_{DNS}|)}|$',fontsize=5,color='k')
+            ax.text(-1.75,1.5,'(cc)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[2][7])
             # [MAX_p_err,MAX_p_err/2,0.0,-MAX_p_err/2,-MAX_p_err]
-            cbar = plot.colorbar(p_plot,cax,ticks=ticks_err,format=tkr.FormatStrFormatter('%.2e'))
+            cbar = plot.colorbar(p_plot,cax,ticks=ticks_err,format=tkr.FormatStrFormatter('%.0e'))
             ticklabs = cbar.ax.get_yticklabels()
             cbar.ax.set_yticklabels(ticklabs, fontsize=5)
             fig.add_subplot(cax)
@@ -858,6 +965,9 @@ for c in range(len(rec_mode_vec)):
             ax.yaxis.set_tick_params(labelleft=False)
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.text(7,1.5,'$\omega_{FMD}$',fontsize=5)
+            ax.text(-1.75,1.5,'(da)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[3][1])
@@ -873,6 +983,9 @@ for c in range(len(rec_mode_vec)):
             ax.yaxis.set_tick_params(labelleft=False)
             ax.xaxis.set_tick_params(labelbottom=False)
             ax.text(7,1.5,'$\omega_{PINN}$',fontsize=5)
+            ax.text(-1.75,1.5,'(db)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[3][4])
@@ -882,23 +995,27 @@ for c in range(len(rec_mode_vec)):
             fig.add_subplot(cax)
 
             ax = plot.Subplot(fig,inner[3][6])
-            p_plot = ax.contourf(X_grid,Y_grid,np.abs(vorticity_err),levels=levels_vorticity,cmap= matplotlib.colormaps['nipy_spectral'],norm=matplotlib.colors.LogNorm(),extend='both')
+            p_plot = ax.contourf(X_grid,Y_grid,np.abs(vorticity_err),levels=levels_vorticity_err,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
             ax.set_aspect('equal')
             ax.yaxis.set_tick_params(labelsize=5)
             ax.xaxis.set_tick_params(labelsize=5)
             ax.yaxis.set_tick_params(labelleft=False)
             ax.set_xlabel('x/D',fontsize=5)
-            ax.text(7,1.5,'$\omega_{FMD}-\omega_{PINN}$',fontsize=5,color='w')
+            ax.text(7,1.5,'$|\omega_{FMD}-\omega_{PINN}|$',fontsize=5,color='k')
+            ax.text(-1.75,1.5,'(dc)',fontsize=5,color='k')
+            circle = plot.Circle((0,0),0.5,color='k',fill=False,zorder=2)
+            ax.add_patch(circle)
             fig.add_subplot(ax)
 
             cax=plot.Subplot(fig,inner[3][7])
             # [-MAX_vorticity_err,-MAX_vorticity_err/2,0.0,MAX_vorticity_err/2,MAX_vorticity_err]
             # [-MAX_vorticity_ref,-MAX_vorticity_ref/2,0.0,MAX_vorticity_ref/2,MAX_vorticity_ref]
-            cbar = plot.colorbar(p_plot,cax,ticks=ticks_err,format=tkr.FormatStrFormatter('%.2e'))
+            cbar = plot.colorbar(p_plot,cax,ticks=ticks_vorticity_err,format=tkr.FormatStrFormatter('%.0e'))
             ticklabs = cbar.ax.get_yticklabels()
             cbar.ax.set_yticklabels(ticklabs, fontsize=5)
             fig.add_subplot(cax)
 
 
             plot.savefig(figures_dir+'logerr_snapshot'+str(snapshots[sn])+'_contours_recref_pinn_S'+str(cases_supersample_factor[s])+'_c'+str(rec_mode_vec[c])+'.pdf')
+            plot.savefig(figures_dir+'logerr_snapshot'+str(snapshots[sn])+'_contours_recref_pinn_S'+str(cases_supersample_factor[s])+'_c'+str(rec_mode_vec[c])+'.png',dpi=300)
             plot.close(fig)
