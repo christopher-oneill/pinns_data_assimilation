@@ -1192,19 +1192,26 @@ max_err_ux_PINN_FMD = np.array(max_err_ux_PINN_FMD)
 max_err_uy_PINN_FMD = np.array(max_err_uy_PINN_FMD)
 max_err_p_PINN_FMD = np.array(max_err_p_PINN_FMD)
 
-if False:
+
+
+if True:
 
 
 
 
 
-
+    print('Err FMD instantaneous velocity')
     error_x_tick_labels = ['40','20','10','5','2.5','1.25']
     error_y_tick_labels = ['1E-3','1E-2','1E-1','1E0']
     error_y_ticks = [1E-3,1E-2,1E-1,1E0]
     error_ylim = [1E-3,1E0]
 
     for c in range(len(rec_mode_vec)):
+        print('Mode ',c)
+        print('mean ux FMD: ',mean_err_ux_FMD[0,c],'mean uy FMD: ',mean_err_uy_FMD[0,c],'mean p FMD: ',mean_err_p_FMD[0,c],)
+        print('max ux FMD: ',max_err_ux_FMD[0,c],'max uy FMD: ',max_err_uy_FMD[0,c],'max p FMD: ',max_err_p_FMD[0,c],)
+        
+
         fig,axs = plot.subplots(3,1)
         fig.set_size_inches(3.37,5.5)
         plot.subplots_adjust(left=0.2,top=0.95,right=0.97,bottom=0.09)
@@ -1265,44 +1272,66 @@ if True:
     for c in range(len(rec_mode_vec)):
     
         error_x_tick_labels = ['40','20','10','5','2.5','1.25']
-        error_y_tick_labels = ['1E-4','1E-3','1E-2','1E-1','1']
+        error_y_tick_labels = ['1E-3','1E-2','1E-1','1']
 
-        fig,axs = plot.subplots(1,1)
-        fig.set_size_inches(3.37,3.0)
-        plot.subplots_adjust(left=0.2,top=0.95,right=0.97,bottom=0.15)
+        fig = plot.figure(figsize=(3.37,4.0))
+        plot.subplots_adjust(left=0.2,top=0.99,right=0.97,bottom=0.1)
+        outer = gridspec.GridSpec(2,1,wspace=0.1,hspace=0.1,height_ratios=[0.6,0.4])
 
-        mean_plt_uxux,=axs.plot(pts_per_d*0.9,mean_err_ux_FMD[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
-        max_plt_uxux,=axs.plot(pts_per_d*0.9,max_err_ux_FMD[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
-        mean_plt_uxuy,=axs.plot(pts_per_d*0.9,mean_err_uy_FMD[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
-        max_plt_uxuy,=axs.plot(pts_per_d*0.9,max_err_uy_FMD[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
-        mean_plt_uyuy,=axs.plot(pts_per_d*0.9,mean_err_p_FMD[:,c],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
-        max_plt_uyuy,=axs.plot(pts_per_d*0.9,max_err_p_FMD[:,c],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
+        ax = plot.Subplot(fig,outer[0])
 
-        mean_plt_uxux,=axs.plot(pts_per_d,mean_err_ux_PINN_FMD[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
-        max_plt_uxux,=axs.plot(pts_per_d,max_err_ux_PINN_FMD[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
-        mean_plt_uxuy,=axs.plot(pts_per_d,mean_err_uy_PINN_FMD[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
-        max_plt_uxuy,=axs.plot(pts_per_d,max_err_uy_PINN_FMD[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
-        mean_plt_uyuy,=axs.plot(pts_per_d,mean_err_p_PINN_FMD[:,c],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
-        max_plt_uyuy,=axs.plot(pts_per_d,max_err_p_PINN_FMD[:,c],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
+        line_x = np.array([1.0,55.0])
+        mean_plt_uxux,=ax.plot(line_x,[mean_err_ux_FMD[0,c],mean_err_ux_FMD[mean_err_ux_FMD.shape[0]-1,c]],linewidth=0.75,linestyle='-',marker='',color='blue',markersize=3,markerfacecolor='blue')
+        max_plt_uxux,=ax.plot(line_x,[max_err_ux_FMD[0,c],max_err_ux_FMD[max_err_ux_FMD.shape[0]-1,c]],linewidth=0.75,linestyle='--',marker='',color='blue',markersize=3,markerfacecolor='blue')
+        mean_plt_uxuy,=ax.plot(line_x,[mean_err_uy_FMD[0,c],mean_err_uy_FMD[mean_err_uy_FMD.shape[0]-1,c]],linewidth=0.75,linestyle='-',marker='',color='red',markersize=3,markerfacecolor='red')
+        max_plt_uxuy,=ax.plot(line_x,[max_err_uy_FMD[0,c],max_err_uy_FMD[max_err_uy_FMD.shape[0]-1,c]],linewidth=0.75,linestyle='--',marker='',color='red',markersize=3,markerfacecolor='red')
+        mean_plt_uyuy,=ax.plot(line_x,[mean_err_p_FMD[0,c],mean_err_p_FMD[mean_err_p_FMD.shape[0]-1,c]],linewidth=0.75,linestyle='-',marker='',color='green',markersize=3,markerfacecolor='green')
+        max_plt_uyuy,=ax.plot(line_x,[max_err_p_FMD[0,c],max_err_p_FMD[max_err_p_FMD.shape[0]-1,c]],linewidth=0.75,linestyle='--',marker='',color='green',markersize=3,markerfacecolor='green')
 
-        mean_plt_uxux,=axs.plot(pts_per_d*1.1,mean_err_ux[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
-        max_plt_uxux,=axs.plot(pts_per_d*1.1,max_err_ux[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
-        mean_plt_uxuy,=axs.plot(pts_per_d*1.1,mean_err_uy[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
-        max_plt_uxuy,=axs.plot(pts_per_d*1.1,max_err_uy[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
-        mean_plt_uyuy,=axs.plot(pts_per_d*1.1,mean_err_p[:,c],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
-        max_plt_uyuy,=axs.plot(pts_per_d*1.1,max_err_p[:,c],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
+        mean_plt_uxux,=ax.plot(pts_per_d*0.9,mean_err_ux[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
+        max_plt_uxux,=ax.plot(pts_per_d*0.9,max_err_ux[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
+        mean_plt_uxuy,=ax.plot(pts_per_d*1.0,mean_err_uy[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
+        max_plt_uxuy,=ax.plot(pts_per_d*1.0,max_err_uy[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+        mean_plt_uyuy,=ax.plot(pts_per_d*1.1,mean_err_p[:,c],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
+        max_plt_uyuy,=ax.plot(pts_per_d*1.1,max_err_p[:,c],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
 
-        axs.set_xscale('log')
-        axs.set_xticks(pts_per_d)
-        axs.set_xticklabels(error_x_tick_labels,fontsize=8)
-        axs.set_yscale('log')
-        axs.set_ylim(5E-5,1E2)
-        axs.set_yticks([1E-4,1E-3,1E-2,1E-1,1],labels=error_y_tick_labels,fontsize=8)
-        axs.set_ylabel("Relative Error",fontsize=7)
-        axs.legend([mean_plt_uxux,max_plt_uxux,mean_plt_uxuy,max_plt_uxuy,mean_plt_uyuy,max_plt_uyuy,],['Mean $u_x$','Max $u_x$','Mean $u_y$','Max $u_y$','Mean $p$','Max $p$',],fontsize=8,ncols=2)
-        axs.grid('on')
-        axs.set_xlabel('Pts/D',fontsize=7)
+        ax.set_xscale('log')
+        ax.set_xticks(pts_per_d)
+        ax.set_xticklabels(error_x_tick_labels,fontsize=8)
+        ax.xaxis.set_tick_params(labelbottom=False)
+        ax.set_yscale('log')
+        ax.text(1.1,5E0,'(a)',fontsize=8)
+        ax.set_ylim(1E-3,1E1)
+        ax.set_xlim(1.0,55.0)
+        ax.set_yticks([1E-3,1E-2,1E-1,1],labels=error_y_tick_labels,fontsize=8)
+        ax.set_ylabel("Relative Error",fontsize=8)
+        ax.legend([mean_plt_uxux,max_plt_uxux,mean_plt_uxuy,max_plt_uxuy,mean_plt_uyuy,max_plt_uyuy,],['Mean $u_x$','Max $u_x$','Mean $u_y$','Max $u_y$','Mean $p$','Max $p$',],fontsize=8,ncols=2)
+        ax.grid('on')
+        
+        fig.add_subplot(ax)
+        ax = plot.Subplot(fig,outer[1])
 
+        mean_plt_uxux,=ax.plot(pts_per_d*0.9,mean_err_ux_PINN_FMD[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
+        max_plt_uxux,=ax.plot(pts_per_d*0.9,max_err_ux_PINN_FMD[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
+        mean_plt_uxuy,=ax.plot(pts_per_d,mean_err_uy_PINN_FMD[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
+        max_plt_uxuy,=ax.plot(pts_per_d,max_err_uy_PINN_FMD[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+        mean_plt_uyuy,=ax.plot(pts_per_d*1.1,mean_err_p_PINN_FMD[:,c],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
+        max_plt_uyuy,=ax.plot(pts_per_d*1.1,max_err_p_PINN_FMD[:,c],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
+
+        ax.set_xscale('log')
+        ax.set_xticks(pts_per_d)
+        ax.set_xticklabels(error_x_tick_labels,fontsize=8)
+        ax.set_yscale('log')
+        ax.set_ylim(5E-4,5E0)
+        ax.set_xlim(1.0,55.0)
+        ax.text(1.1,2E0,'(b)',fontsize=8)
+        ax.set_yticks([1E-3,1E-2,1E-1,1],labels=error_y_tick_labels,fontsize=8)
+        ax.set_ylabel("Relative Error",fontsize=8)
+        #ax.legend([mean_plt_uxux,max_plt_uxux,mean_plt_uxuy,max_plt_uxuy,mean_plt_uyuy,max_plt_uyuy,],['Mean $u_x$','Max $u_x$','Mean $u_y$','Max $u_y$','Mean $p$','Max $p$',],fontsize=8,ncols=2)
+        ax.grid('on')
+        ax.set_xlabel('$D/\Delta x$',fontsize=8)
+
+        fig.add_subplot(ax)
 
         #fig.tight_layout()
         plot.savefig(figures_dir+'logerr_ref_pinn_instantaneous_f'+str(rec_mode_vec[c])+'_error_FMD.pdf')

@@ -41,9 +41,7 @@ class UserScalingParameters(object):
 ScalingParameters = UserScalingParameters()
 ScalingParameters.mean = UserScalingParameters()
 ScalingParameters.f =[]
-ScalingParameters.f.append(UserScalingParameters())
-ScalingParameters.f.append(UserScalingParameters())
-ScalingParameters.f.append(UserScalingParameters())
+
 
 # load the reference data
 base_dir = data_dir
@@ -73,6 +71,10 @@ ScalingParameters.mean.MAX_y = 10.0
 ScalingParameters.mean.MAX_p = 1.0
 ScalingParameters.mean.nu_mol = 0.0066667
 
+ux = np.array(meanVelocityFile['meanVelocity'][0,:]).transpose()
+uy = np.array(meanVelocityFile['meanVelocity'][1,:]).transpose()
+p = np.array(meanPressureFile['meanPressure'][0,:]).transpose()
+
 phi_xr_ref = []
 phi_xi_ref = []
 phi_yr_ref = []
@@ -81,7 +83,8 @@ psi_r_ref = []
 psi_i_ref = []
 
 # load reference data
-for mode_number in [0,1,2]:
+for mode_number in [0,1,2,3,4,5]:
+    ScalingParameters.f.append(UserScalingParameters())
     fourierModeFile = h5py.File(base_dir+'fourierModes.mat','r')
     phi_xr = np.array(np.real(fourierModeFile['velocityModes'][:,mode_number,0]))
     phi_xr_ref.append(phi_xr)
@@ -127,6 +130,12 @@ mean_err_phi_yr = []
 mean_err_phi_yi = []
 mean_err_psi_r = []
 mean_err_psi_i = []
+mean_mx_r = []
+mean_mx_i = []
+mean_my_r = []
+mean_my_i = []
+mean_mass_r = []
+mean_mass_i = []
 
 p95_err_phi_xr = []
 p95_err_phi_xi = []
@@ -142,6 +151,13 @@ max_err_phi_yi = []
 max_err_psi_r = []
 max_err_psi_i = []
 
+max_mx_r = []
+max_mx_i = []
+max_my_r = []
+max_my_i = []
+max_mass_r = []
+max_mass_i = []
+
 for s in range(len(cases_supersample_factor)):
     phi_xr_pred.append([])
     phi_yr_pred.append([])
@@ -156,6 +172,13 @@ for s in range(len(cases_supersample_factor)):
     mean_err_phi_yi.append([])
     mean_err_psi_r.append([])
     mean_err_psi_i.append([])
+    
+    mean_mx_r.append([])
+    mean_mx_i.append([])
+    mean_my_r.append([])
+    mean_my_i.append([])
+    mean_mass_r.append([])
+    mean_mass_i.append([])
 
     p95_err_phi_xr.append([])
     p95_err_phi_xi.append([])
@@ -170,6 +193,13 @@ for s in range(len(cases_supersample_factor)):
     max_err_phi_yi.append([])
     max_err_psi_r.append([])
     max_err_psi_i.append([])
+
+    max_mx_r.append([])
+    max_mx_i.append([])
+    max_my_r.append([])
+    max_my_i.append([])
+    max_mass_r.append([])
+    max_mass_i.append([])
 
     for c in [0,1,2]:
         pred_f_file = h5py.File(output_dir+cases_list_f[c][s],'r')
@@ -199,6 +229,13 @@ for s in range(len(cases_supersample_factor)):
         mean_err_psi_r[s].append(np.nanmean(np.abs(psi_r_pred[s][c]-psi_r_ref[c]))/temp_MAX_psi_r)
         mean_err_psi_i[s].append(np.nanmean(np.abs(psi_i_pred-psi_i_ref[c]))/temp_MAX_psi_i)
 
+        mean_mx_r[s].append(np.nanmean(np.abs(mx_r_pred[s][c])))
+        mean_mx_i[s].append(np.nanmean(np.abs((np.array(phys_f_file['mxi'])).ravel())))
+        mean_my_r[s].append(np.nanmean(np.abs(my_r_pred[s][c])))
+        mean_my_i[s].append(np.nanmean(np.abs((np.array(phys_f_file['myi'])).ravel())))
+        mean_mass_r[s].append(np.nanmean(np.abs(mass_r_pred[s][c])))
+        mean_mass_i[s].append(np.nanmean(np.abs((np.array(phys_f_file['massi'])).ravel())))
+
         p95_err_phi_xr[s].append(np.nanpercentile(np.abs(phi_xr_pred[s][c]-phi_xr_ref[c]),95)/temp_MAX_phi_xr)
         p95_err_phi_xi[s].append(np.nanpercentile(np.abs(phi_xi_pred-phi_xi_ref[c]),95)/temp_MAX_phi_xi)
         p95_err_phi_yr[s].append(np.nanpercentile(np.abs(phi_yr_pred[s][c]-phi_yr_ref[c]),95)/temp_MAX_phi_yr)
@@ -212,6 +249,21 @@ for s in range(len(cases_supersample_factor)):
         max_err_phi_yi[s].append(np.nanmax(np.abs(phi_yi_pred-phi_yi_ref[c]))/temp_MAX_phi_yi)
         max_err_psi_r[s].append(np.nanmax(np.abs(psi_r_pred[s][c]-psi_r_ref[c]))/temp_MAX_psi_r)
         max_err_psi_i[s].append(np.nanmax(np.abs(psi_i_pred-psi_i_ref[c]))/temp_MAX_psi_i)
+
+        max_mx_r[s].append(np.nanmax(np.abs(mx_r_pred[s][c])))
+        max_mx_i[s].append(np.nanmax(np.abs((np.array(phys_f_file['mxi'])).ravel())))
+        max_my_r[s].append(np.nanmax(np.abs(my_r_pred[s][c])))
+        max_my_i[s].append(np.nanmax(np.abs((np.array(phys_f_file['myi'])).ravel())))
+        max_mass_r[s].append(np.nanmax(np.abs(mass_r_pred[s][c])))
+        max_mass_i[s].append(np.nanmax(np.abs((np.array(phys_f_file['massi'])).ravel())))
+
+print('Mean Field Max amplitudes')
+print('ux: ',np.nanmax(np.abs(ux.ravel())),'uy: ',np.nanmax(np.abs(uy.ravel())),'p: ',np.nanmax(np.abs(p.ravel())))
+
+print('Fourier Mode Max amplitudes')
+for c in range(6):
+    print('Mode ',c)
+    print('phi_x: ',np.nanmax([np.nanmax(np.abs(phi_xr_ref[c].ravel())),np.nanmax(np.abs(phi_xi_ref[c].ravel()))]),'phi_y: ',np.nanmax([np.nanmax(np.abs(phi_yr_ref[c].ravel())),np.nanmax(np.abs(phi_yi_ref[c].ravel()))]),'psi: ',np.nanmax([np.nanmax(np.abs(psi_r_ref[c].ravel())),np.nanmax(np.abs(psi_i_ref[c].ravel()))]))
 
 
 dx = [] # array for supersample spacing
@@ -1900,7 +1952,6 @@ if True:
     
 
 
-exit()
 
 # error percent plot
 pts_per_d = 1.0/np.array(dx)
@@ -1945,6 +1996,9 @@ max_err_phi_y = np.max(max_err_phi_y,axis=1)
 max_err_psi = np.stack((max_err_psi_r,max_err_psi_i),axis=1)
 max_err_psi = np.max(max_err_psi,axis=1)
 
+for c in [2]:
+    print('S=16')
+    print()
 
 error_x_tick_labels = ['40','20','10','5','2.5','1.25']
 error_y_ticks = [1E-3,1E-2,1E-1,1]

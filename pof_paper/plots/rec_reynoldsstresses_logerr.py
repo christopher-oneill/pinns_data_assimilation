@@ -747,7 +747,7 @@ if True:
         x_downsample2 = x_downsample2[valid_inds]
         y_downsample2 = y_downsample2[valid_inds]
 
-    text_corner_mask = (np.multiply(x_downsample1>6.5,y_downsample1>1))<1
+    text_corner_mask = (np.multiply(x_downsample1>5.75,y_downsample1>0.8))<1
     x_downsample1 = x_downsample1[text_corner_mask]
     y_downsample1 = y_downsample1[text_corner_mask]
     text_corner_mask = (np.multiply(x_downsample1>6.3,y_downsample1<-1.5))<1
@@ -757,7 +757,7 @@ if True:
     x_downsample1 = x_downsample1[text_corner_mask]
     y_downsample1 = y_downsample1[text_corner_mask]
 
-    text_corner_mask = (np.multiply(x_downsample2>6.5,y_downsample2>1))<1
+    text_corner_mask = (np.multiply(x_downsample2>5.75,y_downsample2>0.8))<1
     x_downsample2 = x_downsample2[text_corner_mask]
     y_downsample2 = y_downsample2[text_corner_mask]
     text_corner_mask = (np.multiply(x_downsample2>6.3,y_downsample2<-1.5))<1
@@ -843,8 +843,8 @@ if True:
     levels_mx = np.geomspace(1E-3,1,11)
 
     # mode 0 summary, dual log scale error plots
-    fig = plot.figure(figsize=(3.37,6))
-    plot.subplots_adjust(left=0.1,top=0.99,right=0.88,bottom=0.05)
+    fig = plot.figure(figsize=(3.37,8.25))
+    plot.subplots_adjust(left=0.1,top=0.99,right=0.88,bottom=0.04)
     outer = gridspec.GridSpec(9,1,wspace=0.1,hspace=0.1)
     inner = []
 
@@ -859,7 +859,7 @@ if True:
     ax.yaxis.set_tick_params(labelsize=8)
     ax.set_xticks(x_ticks)
     ax.xaxis.set_tick_params(labelbottom=False)
-    ax.text(8,1.4,'$\overline{u\'_xu\'_x}_{DNS}$',fontsize=8)
+    ax.text(7.5,1.3,'$\overline{u\'_xu\'_x}_{DNS}$',fontsize=8)
     ax.text(-1.85,1.45,'(a)',fontsize=8)
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
@@ -893,7 +893,7 @@ if True:
     ax.add_patch(circle)
     if cases_supersample_factor[s]>1:
         dots = ax.plot(x_downsample1,y_downsample1,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
-    ax.text(6.5,1.3,'$\\overline{u\'_xu\'_x}_{PINN}-\overline{u\'_xu\'_x}_{DNS}}{max(\overline{u\'_xu\'_x}_{DNS})}$',fontsize=8,color='k')
+    ax.text(6,1.2,'$\\frac{\overline{u\'_xu\'_x}_{PINN}-\overline{u\'_xu\'_x}_{DNS}}{max(|\overline{u\'_xu\'_x}_{DNS}|)}$',fontsize=8,color='k')
     ax.text(-1.85,1.45,'(b)',fontsize=8)
     ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
@@ -935,7 +935,7 @@ if True:
     ax.add_patch(circle)
     if cases_supersample_factor[s]>1:
         dots = ax.plot(x_downsample2,y_downsample2,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
-    ax.text(6.5,1.3,'$\\overline{u\'_xu\'_x}_{PINN}-\overline{u\'_xu\'_x}_{DNS}}{max(\overline{u\'_xu\'_x}_{DNS})}$',fontsize=8,color='k')
+    ax.text(6,1.2,'$\\frac{\overline{u\'_xu\'_x}_{PINN}-\overline{u\'_xu\'_x}_{DNS}}{max(|\overline{u\'_xu\'_x}_{DNS}|)}$',fontsize=8,color='k')
     ax.text(-1.85,1.45,'(c)',fontsize=8)
     ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
@@ -956,7 +956,7 @@ if True:
     ax.yaxis.set_tick_params(labelsize=8)
     ax.set_xticks(x_ticks)
     ax.xaxis.set_tick_params(labelbottom=False)
-    ax.text(8,1.4,'$\overline{u\'_xu\'_y}_{DNS}$',fontsize=8)
+    ax.text(7.5,1.3,'$\overline{u\'_xu\'_y}_{DNS}$',fontsize=8)
     ax.text(-1.85,1.45,'(d)',fontsize=8)
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
@@ -991,7 +991,7 @@ if True:
     ax.add_patch(circle)
     if cases_supersample_factor[s]>1:
         dots = ax.plot(x_downsample1,y_downsample1,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
-    ax.text(7,1.3,'$\\overline{u\'_xu\'_y}_{PINN}-\overline{u\'_xu\'_y}_{DNS}}{max(\overline{u\'_xu\'_y}_{DNS})}$',fontsize=8,color='k')
+    ax.text(6,1.2,'$\\frac{\overline{u\'_xu\'_y}_{PINN}-\overline{u\'_xu\'_y}_{DNS}}{max(|\overline{u\'_xu\'_y}_{DNS}|)}$',fontsize=8,color='k')
     ax.text(-1.85,1.45,'(e)',fontsize=8)
     ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
@@ -1017,15 +1017,15 @@ if True:
     ux_plot = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
     ax.set_aspect('equal')
     ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
-    ax.set_xlabel('x/D',fontsize=8,labelpad=-1)
     ax.yaxis.set_tick_params(labelsize=8)
     ax.set_xticks(x_ticks)
     ax.xaxis.set_tick_params(labelsize=8)
+    ax.xaxis.set_tick_params(labelbottom=False)
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     if cases_supersample_factor[s]>1:
         dots = ax.plot(x_downsample2,y_downsample2,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
-    ax.text(7,1.3,'$\\overline{u\'_xu\'_y}_{PINN}-\overline{u\'_xu\'_y}_{DNS}}{max(\overline{u\'_xu\'_y}_{DNS})}$',fontsize=8,color='k')
+    ax.text(6,1.2,'$\\frac{\overline{u\'_xu\'_y}_{PINN}-\overline{u\'_xu\'_y}_{DNS}}{max(|\overline{u\'_xu\'_y}_{DNS}|)}$',fontsize=8,color='k')
     ax.text(-1.85,1.45,'(f)',fontsize=8)
     ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
@@ -1045,8 +1045,8 @@ if True:
     ax.yaxis.set_tick_params(labelsize=8)
     ax.set_xticks(x_ticks)
     ax.xaxis.set_tick_params(labelbottom=False)
-    ax.text(8,1.4,'$\overline{u\'_xu\'_y}_{DNS}$',fontsize=8)
-    ax.text(-1.85,1.45,'(d)',fontsize=8)
+    ax.text(7.5,1.3,'$\overline{u\'_xu\'_y}_{DNS}$',fontsize=8)
+    ax.text(-1.85,1.45,'(g)',fontsize=8)
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     fig.add_subplot(ax)
@@ -1080,8 +1080,8 @@ if True:
     ax.add_patch(circle)
     if cases_supersample_factor[s]>1:
         dots = ax.plot(x_downsample1,y_downsample1,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
-    ax.text(7,1.3,'$\\overline{u\'_yu\'_y}_{PINN}-\overline{u\'_yu\'_y}_{DNS}}{max(\overline{u\'_yu\'_y}_{DNS})}$',fontsize=8,color='k')
-    ax.text(-1.85,1.45,'(e)',fontsize=8)
+    ax.text(6,1.2,'$\\frac{\overline{u\'_yu\'_y}_{PINN}-\overline{u\'_yu\'_y}_{DNS}}{max(|\overline{u\'_yu\'_y}_{DNS}|)}$',fontsize=8,color='k')
+    ax.text(-1.85,1.45,'(h)',fontsize=8)
     ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
@@ -1114,8 +1114,8 @@ if True:
     ax.add_patch(circle)
     if cases_supersample_factor[s]>1:
         dots = ax.plot(x_downsample2,y_downsample2,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
-    ax.text(7,1.3,'$\\overline{u\'_yu\'_y}_{PINN}-\overline{u\'_yu\'_y}_{DNS}}{max(\overline{u\'_yu\'_y}_{DNS})}$',fontsize=8,color='k')
-    ax.text(-1.85,1.45,'(f)',fontsize=8)
+    ax.text(6,1.2,'$\\frac{\overline{u\'_yu\'_y}_{PINN}-\overline{u\'_yu\'_y}_{DNS}}{max(|\overline{u\'_yu\'_y}_{DNS}|)}$',fontsize=8,color='k')
+    ax.text(-1.85,1.45,'(i)',fontsize=8)
     ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
@@ -1269,6 +1269,12 @@ max_err_uxuy_PINN_FMD = np.array(max_err_uxuy_PINN_FMD)
 max_err_uyuy_PINN_FMD = np.array(max_err_uyuy_PINN_FMD)
 
 
+print('Err FMD Reynolds Stresses')
+for c in [2]:
+    print('Mode ',c)
+    print('mean uxux: ',mean_err_uxux_FMD[0,c],'mean uxuy: ',mean_err_uxuy_FMD[0,c],'mean uyuy: ',mean_err_uyuy_FMD[0,c],)
+    print('max uxux: ',max_err_uxux_FMD[0,c],'max uxuy: ',max_err_uxuy_FMD[0,c],'max uyuy: ',max_err_uyuy_FMD[0,c],)
+
 
 for c in [0,1,2]:
     error_x_tick_labels = ['40','20','10','5','2.5','1.25']
@@ -1317,7 +1323,7 @@ for c in [0,1,2]:
     axs[2].set_ylim(5E-5,1E0)
     axs[2].set_yticks([1E-4,1E-3,1E-2,1E-1],labels=error_y_tick_labels,fontsize=7)
     #axs[2].set_yticklabels([0.1,0.5,1.0,2.0])
-    axs[2].set_xlabel('Pts/D',fontsize=7)
+    axs[2].set_xlabel('$D/\Delta x$',fontsize=7)
     axs[2].set_ylabel("Relative Error",fontsize=7)
     axs[2].set_title('$\overline{u\'_{y}u\'_{y}}$')
     axs[2].grid('on')
@@ -1337,24 +1343,20 @@ for c in [0,1,2]:
     fig.set_size_inches(3.37,3.0)
     plot.subplots_adjust(left=0.2,top=0.95,right=0.97,bottom=0.15)
 
-    mean_plt_uxux,=axs.plot(pts_per_d*0.9,mean_err_uxux_FMD[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
-    max_plt_uxux,=axs.plot(pts_per_d*0.9,max_err_uxux_FMD[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
-    mean_plt_uxuy,=axs.plot(pts_per_d*0.9,mean_err_uxuy_FMD[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
-    max_plt_uxuy,=axs.plot(pts_per_d*0.9,max_err_uxuy_FMD[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
-    mean_plt_uyuy,=axs.plot(pts_per_d*0.9,mean_err_uyuy_FMD[:,c],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
-    max_plt_uyuy,=axs.plot(pts_per_d*0.9,max_err_uyuy_FMD[:,c],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
+    line_x = np.array([1.0,55.0])
 
-    mean_plt_uxux,=axs.plot(pts_per_d,mean_err_uxux_PINN_FMD[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
-    max_plt_uxux,=axs.plot(pts_per_d,max_err_uxux_PINN_FMD[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
-    mean_plt_uxuy,=axs.plot(pts_per_d,mean_err_uxuy_PINN_FMD[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
-    max_plt_uxuy,=axs.plot(pts_per_d,max_err_uxuy_PINN_FMD[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
-    mean_plt_uyuy,=axs.plot(pts_per_d,mean_err_uyuy_PINN_FMD[:,c],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
-    max_plt_uyuy,=axs.plot(pts_per_d,max_err_uyuy_PINN_FMD[:,c],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
 
-    mean_plt_uxux,=axs.plot(pts_per_d*1.1,mean_err_uxux[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
-    max_plt_uxux,=axs.plot(pts_per_d*1.1,max_err_uxux[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
-    mean_plt_uxuy,=axs.plot(pts_per_d*1.1,mean_err_uxuy[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
-    max_plt_uxuy,=axs.plot(pts_per_d*1.1,max_err_uxuy[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+    mean_plt_uxux,=axs.plot(line_x,[mean_err_uxux_FMD[0,c],mean_err_uxux_FMD[mean_err_uxux_FMD.shape[0]-1,c]],linewidth=0.75,linestyle='-',marker='',color='blue',markersize=0,markerfacecolor='blue')
+    max_plt_uxux,=axs.plot(line_x,[max_err_uxux_FMD[0,c],max_err_uxux_FMD[max_err_uxux_FMD.shape[0]-1,c]],linewidth=0.75,linestyle='--',marker='',color='blue',markersize=0,markerfacecolor='blue')
+    mean_plt_uxuy,=axs.plot(line_x,[mean_err_uxuy_FMD[0,c],mean_err_uxuy_FMD[mean_err_uxuy_FMD.shape[0]-1,c]],linewidth=0.75,linestyle='-',marker='',color='red',markersize=0,markerfacecolor='red')
+    max_plt_uxuy,=axs.plot(line_x,[max_err_uxuy_FMD[0,c],max_err_uxuy_FMD[max_err_uxuy_FMD.shape[0]-1,c]],linewidth=0.75,linestyle='--',marker='',color='red',markersize=0,markerfacecolor='red')
+    mean_plt_uyuy,=axs.plot(line_x,[mean_err_uyuy_FMD[0,c],mean_err_uyuy_FMD[mean_err_uyuy_FMD.shape[0]-1,c]],linewidth=0.75,linestyle='-',marker='',color='green',markersize=0,markerfacecolor='green')
+    max_plt_uyuy,=axs.plot(line_x,[max_err_uyuy_FMD[0,c],max_err_uyuy_FMD[max_err_uyuy_FMD.shape[0]-1,c]],linewidth=0.75,linestyle='--',marker='',color='green',markersize=0,markerfacecolor='green')
+
+    mean_plt_uxux,=axs.plot(pts_per_d*0.9,mean_err_uxux[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
+    max_plt_uxux,=axs.plot(pts_per_d*0.9,max_err_uxux[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
+    mean_plt_uxuy,=axs.plot(pts_per_d,mean_err_uxuy[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
+    max_plt_uxuy,=axs.plot(pts_per_d,max_err_uxuy[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
     mean_plt_uyuy,=axs.plot(pts_per_d*1.1,mean_err_uyuy[:,c],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
     max_plt_uyuy,=axs.plot(pts_per_d*1.1,max_err_uyuy[:,c],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
 
@@ -1363,11 +1365,12 @@ for c in [0,1,2]:
     axs.set_xticklabels(error_x_tick_labels,fontsize=8)
     axs.set_yscale('log')
     axs.set_ylim(5E-5,1E1)
+    axs.set_xlim(1.0,55.0)
     axs.set_yticks([1E-4,1E-3,1E-2,1E-1,1],labels=error_y_tick_labels,fontsize=8)
-    axs.set_ylabel("Relative Error",fontsize=7)
+    axs.set_ylabel("Relative Error",fontsize=8)
     axs.legend([mean_plt_uxux,max_plt_uxux,mean_plt_uxuy,max_plt_uxuy,mean_plt_uyuy,max_plt_uyuy,],['Mean $\overline{u\'_xu\'_x}$','Max $\overline{u\'_xu\'_x}$','Mean $\overline{u\'_xu\'_y}$','Max $\overline{u\'_xu\'_y}$','Mean $\overline{u\'_yu\'_y}$','Max $\overline{u\'_yu\'_y}$',],fontsize=8,ncols=2)
     axs.grid('on')
-    axs.set_xlabel('Pts/D',fontsize=7)
+    axs.set_xlabel('$D/\Delta x$',fontsize=8)
 
 
     #fig.tight_layout()
