@@ -1268,6 +1268,16 @@ max_err_uxux_PINN_FMD = np.array(max_err_uxux_PINN_FMD)
 max_err_uxuy_PINN_FMD = np.array(max_err_uxuy_PINN_FMD)
 max_err_uyuy_PINN_FMD = np.array(max_err_uyuy_PINN_FMD)
 
+print('Err PINN Reynolds Stresses')
+for c in [2]:
+    print('Mode ',c)
+    print('mean uxux: ',mean_err_uxux[:,c])
+    print('max uxux: ',max_err_uxux[:,c])
+    print('mean uxuy: ',mean_err_uxuy[:,c])
+    print('max uxuy: ',max_err_uxuy[:,c])
+    print('mean uyuy: ',mean_err_uyuy[:,c])
+    print('max uyuy: ',max_err_uyuy[:,c])
+
 
 print('Err FMD Reynolds Stresses')
 for c in [2]:

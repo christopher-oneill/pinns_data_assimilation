@@ -96,7 +96,7 @@ for c in range(len(rec_mode_vec)):
 
 
 
-snapshots = [500,1100,2050,3333] # 
+snapshots = [1100] # 
 
 MAX_ux_ref = np.nanmax(np.abs(ux_ref.ravel()))
 MAX_uy_ref = np.nanmax(np.abs(uy_ref.ravel()))
@@ -1058,6 +1058,588 @@ if False:
                 plot.savefig(figures_dir+'logerr_snapshot'+str(snapshots[sn])+'_contours_recref_pinn_S'+str(cases_supersample_factor[s])+'_c'+str(rec_mode_vec[c])+'.png',dpi=300)
                 plot.close(fig)
 
+
+
+if True:
+    # plot comparing the FMD error with the PINN error
+    sn=0
+
+    s=4
+    c=2
+    if cases_supersample_factor[s]>0:
+        linear_downsample_inds, ndx,ndy = compute_downsample_inds_center(cases_supersample_factor[s],X_grid[:,0],Y_grid[0,:].transpose())
+
+        x_downsample1 = x[linear_downsample_inds]
+        y_downsample1 = y[linear_downsample_inds]
+
+        valid_inds = (np.power(np.power(x_downsample1,2.0)+np.power(y_downsample1,2.0),0.5)>0.5*d).ravel()
+
+        x_downsample1 = x_downsample1[valid_inds]
+        y_downsample1 = y_downsample1[valid_inds]
+
+    text_corner_mask = (np.multiply(x_downsample1>6.5,y_downsample1>1))<1
+    x_downsample1 = x_downsample1[text_corner_mask]
+    y_downsample1 = y_downsample1[text_corner_mask]
+    text_corner_mask = (np.multiply(x_downsample1>6.3,y_downsample1<-1.5))<1
+    x_downsample1 = x_downsample1[text_corner_mask]
+    y_downsample1 = y_downsample1[text_corner_mask]
+    text_corner_mask = (np.multiply(x_downsample1<-1,y_downsample1>1.5))<1
+    x_downsample1 = x_downsample1[text_corner_mask]
+    y_downsample1 = y_downsample1[text_corner_mask]
+
+    s=5
+    c=2
+    if cases_supersample_factor[s]>0:
+        linear_downsample_inds, ndx,ndy = compute_downsample_inds_center(cases_supersample_factor[s],X_grid[:,0],Y_grid[0,:].transpose())
+
+        x_downsample2 = x[linear_downsample_inds]
+        y_downsample2 = y[linear_downsample_inds]
+
+        valid_inds = (np.power(np.power(x_downsample2,2.0)+np.power(y_downsample2,2.0),0.5)>0.5*d).ravel()
+
+        x_downsample2 = x_downsample2[valid_inds]
+        y_downsample2 = y_downsample2[valid_inds]
+
+    text_corner_mask = (np.multiply(x_downsample2>6.5,y_downsample2>1))<1
+    x_downsample2 = x_downsample2[text_corner_mask]
+    y_downsample2 = y_downsample2[text_corner_mask]
+    text_corner_mask = (np.multiply(x_downsample2>6.3,y_downsample2<-1.5))<1
+    x_downsample2 = x_downsample2[text_corner_mask]
+    y_downsample2 = y_downsample2[text_corner_mask]
+    text_corner_mask = (np.multiply(x_downsample2<-1,y_downsample2>1.5))<1
+    x_downsample2 = x_downsample2[text_corner_mask]
+    y_downsample2 = y_downsample2[text_corner_mask]
+
+    s=4
+    c=2
+
+
+    # dual log version
+
+    from matplotlib.colors import LinearSegmentedColormap
+
+    cdict3 = {'red':   [(0.0,  1.0, 1.0), # white
+                        (0.33,  1.0, 1.0), # orange
+                        (0.66,  1.0, 1.0), # pink
+                        (1.0,  1.0, 1.0)], # red 
+
+             'green': [(0.0,  0.0, 1.0),
+                        (0.33, 170/255.0, 170/255.0), # (0.33, 170.0/255.0, 170.0/255.0),
+                        (0.66, 0.0, 0.0),
+                        (1.0,  0.0, 0.0)],
+
+            'blue':  [(0.0,  0.0, 1.0),
+                        (0.33,  0.0, 0.0),
+                        (0.66,  1.0, 1.0),
+                        (1.0,  0.0, 0.0)]}
+
+
+    cmap1 = LinearSegmentedColormap('WhiteYellowPinkRed',cdict3)
+    cmap1.set_bad('white',alpha=0.0)
+
+    
+    cdict4 = {'red':   [(0.0,  1.0, 1.0),
+                        (0.33,  0.0, 0.0),
+                        (0.66,  0.0, 0.0),
+                        (1.0,  0.0, 0.0)],
+
+             'green': [(0.0,  0.0, 1.0),
+                        (0.33, 1.0, 1.0),
+                        (0.66,  1.0, 1.0),
+                        (1.0,  0.0, 0.0)],
+
+            'blue':  [(0.0,  0.0, 1.0),
+                        (0.33,  0.0, 0.0),
+                        (0.66,  1.0, 1.0),
+                        (1.0,  1.0, 1.0)]}
+
+    cmap2 = LinearSegmentedColormap('WhiteGreenCyanBlue',cdict4)
+    cmap2.set_bad('white',alpha=0.0)
+    
+    cdict5 = {'red':   [(0.0,  0.0, 0.0),
+                        (0.16,  0.0, 0.0),
+                        (0.33,  0.0, 0.0),
+                        (0.5,  1.0, 1.0), # white
+                        (0.66,  1.0, 1.0), # orange
+                        (0.83,  1.0, 1.0), # pink
+                        (1.0,  1.0, 1.0)], # red 
+
+             'green': [(0.0,  0.0, 0.0),
+                        (0.16,  1.0, 1.0),
+                        (0.33,  1.0, 1.0),
+                        (0.5,  1.0, 1.0),
+                        (0.66, 170.0/255.0, 170.0/255.0), # (0.33, 170.0/255.0, 170.0/255.0),
+                        (0.83, 0.0, 0.0),
+                        (1.0,  0.0, 0.0)],
+
+            'blue':  [(0.0,  1.0, 1.0),
+                        (0.16,  1.0, 1.0),
+                        (0.33,  0.0, 0.0),
+                        (0.5,  1.0, 1.0),
+                        (0.66,  0.0, 0.0),
+                        (0.83,  1.0, 1.0),
+                        (1.0,  0.0, 0.0)]}
+    # for the colobars only
+    cmap3 = LinearSegmentedColormap('BlueCyanGreenWhiteYellowPinkRed',cdict5)
+    cmap3.set_bad('white',alpha=0.0)
+
+    dual_log_cbar_norm = matplotlib.colors.CenteredNorm(0.0,1.0)
+    dual_log_cbar_ticks = [-1,-0.666,-0.333,0,0.333,0.666,1]
+    dual_log_cbar_labels = ['-1','-1e-1','-1e-2','0','1e-2','1e-1','1']
+
+    levels_mx = np.geomspace(1E-3,1,11)
+
+    # mode 0 summary, dual log scale error plots
+    fig = plot.figure(figsize=(3.37,3.3))
+    plot.subplots_adjust(left=0.1,top=0.99,right=0.88,bottom=0.15)
+    outer = gridspec.GridSpec(3,1,wspace=0.1,hspace=0.1)
+    inner = []
+
+    MAX_plot_ux_ref = np.nanmax(np.abs(ux_ref.ravel()))
+    levels_ux_ref = np.linspace(-MAX_plot_ux_ref,MAX_plot_ux_ref,21)
+
+    x_ticks = np.array([-2,0,2,4,6,8,10])
+    
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    ax = plot.Subplot(fig,inner[0][0])
+    ux_plot = ax.contourf(X_grid,Y_grid,ux_ref[:,:,snapshots[sn]],levels=levels_ux_ref,cmap= matplotlib.colormaps['bwr'],extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.text(8,1.4,'$u_{x,DNS}$',fontsize=8)
+    ax.text(-1.85,1.45,'(a)',fontsize=8)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    fig.add_subplot(ax)
+
+    cax=plot.Subplot(fig,inner[0][1])
+    cax.set(xmargin=0.5)
+    cbar = plot.colorbar(ux_plot,cax,ticks=[MAX_plot_ux_ref,MAX_plot_ux_ref/2,0.0,-MAX_plot_ux_ref/2,-MAX_plot_ux_ref],format=tkr.FormatStrFormatter('%.2f'))
+    ticklabs = cbar.ax.get_yticklabels()
+    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    fig.add_subplot(cax)
+            
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    ax = plot.Subplot(fig,inner[1][0])
+
+    e_plot = (ux_rec[s][c][:,:,snapshots[sn]]-ux_ref[:,:,snapshots[sn]])/MAX_plot_ux_ref
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    if cases_supersample_factor[s]>1:
+        dots = ax.plot(x_downsample1,y_downsample1,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    ax.text(6.5,1.3,'$\\frac{u_{x,PINN}-u_{x,DNS}}{max(|u_{x,DNS}|)}$',fontsize=8,color='k')
+    ax.text(-1.85,1.45,'(b)',fontsize=8)
+    ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    fig.add_subplot(ax)
+
+    # check bar
+    #cax=plot.Subplot(fig,inner[1][1])
+    #cbar = plot.colorbar(ux_plot,cax,ticks=[1E-3,1E-2,1E-1,1],extend='both')
+    #ticklabs = cbar.ax.get_yticklabels()
+    #cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    #fig.add_subplot(cax)
+
+    # dual log colorbar
+    cax=plot.Subplot(fig,inner[1][1])
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
+    fig.add_subplot(cax)
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    ax = plot.Subplot(fig,inner[2][0])
+
+    e_plot = (ux_FMD[c][:,:,snapshots[sn]]-ux_ref[:,:,snapshots[sn]])/MAX_plot_ux_ref
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
+    ax.set_xlabel('x/D',fontsize=8,labelpad=0)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=True)
+    ax.xaxis.set_tick_params(labelsize=8)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    #if cases_supersample_factor[s]>1:
+    #    dots = ax.plot(x_downsample1,y_downsample1,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    ax.text(6.5,1.3,'$\\frac{u_{x,FMD}-u_{x,DNS}}{max(|u_{x,DNS}|)}$',fontsize=8,color='k')
+    ax.text(-1.85,1.45,'(c)',fontsize=8)
+    ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    fig.add_subplot(ax)
+
+    # check bar
+    #cax=plot.Subplot(fig,inner[1][1])
+    #cbar = plot.colorbar(ux_plot,cax,ticks=[1E-3,1E-2,1E-1,1],extend='both')
+    #ticklabs = cbar.ax.get_yticklabels()
+    #cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    #fig.add_subplot(cax)
+
+    # dual log colorbar
+    cax=plot.Subplot(fig,inner[2][1])
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
+    fig.add_subplot(cax)
+
+
+    plot.savefig(figures_dir+'logerr_snapshot'+str(snapshots[sn])+'_contours_ux_ref_recref_pinn_S'+str(cases_supersample_factor[s])+'_c'+str(rec_mode_vec[c])+'.pdf')
+    plot.savefig(figures_dir+'logerr_snapshot'+str(snapshots[sn])+'_contours_ux_ref_recref_pinn_S'+str(cases_supersample_factor[s])+'_c'+str(rec_mode_vec[c])+'.png',dpi=300)
+    plot.close(fig)
+
+    
+    # combined figure of S16,S32
+
+    # dual log scale error plots
+    fig = plot.figure(figsize=(3.37,8.0))
+    plot.subplots_adjust(left=0.1,top=0.99,right=0.88,bottom=0.05)
+    outer = gridspec.GridSpec(9,1,wspace=0.1,hspace=0.1)
+    inner = []
+
+    MAX_plot_ux_ref = np.nanmax(np.abs(ux_ref.ravel()))
+    levels_ux_ref = np.linspace(-MAX_plot_ux_ref,MAX_plot_ux_ref,21)
+    MAX_plot_uy_ref = np.nanmax(np.abs(uy_ref.ravel()))
+    levels_uy_ref = np.linspace(-MAX_plot_uy_ref,MAX_plot_uy_ref,21)
+    MAX_plot_p_ref = np.nanmax(np.abs(p_ref.ravel()))
+    levels_p_ref = np.linspace(-MAX_plot_p_ref,MAX_plot_p_ref,21)
+
+    x_ticks = np.array([-2,0,2,4,6,8,10])
+    
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    ax = plot.Subplot(fig,inner[0][0])
+    ux_plot = ax.contourf(X_grid,Y_grid,ux_FMD[c][:,:,snapshots[sn]],levels=levels_ux_ref,cmap= matplotlib.colormaps['bwr'],extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.text(8,1.4,'$u_{x,FMD}$',fontsize=8)
+    ax.text(-1.85,1.45,'(a)',fontsize=8)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    fig.add_subplot(ax)
+
+    cax=plot.Subplot(fig,inner[0][1])
+    cax.set(xmargin=0.5)
+    cbar = plot.colorbar(ux_plot,cax,ticks=[MAX_plot_ux_ref,MAX_plot_ux_ref/2,0.0,-MAX_plot_ux_ref/2,-MAX_plot_ux_ref],format=tkr.FormatStrFormatter('%.2f'))
+    ticklabs = cbar.ax.get_yticklabels()
+    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    fig.add_subplot(cax)
+            
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    ax = plot.Subplot(fig,inner[1][0])
+
+    e_plot = (ux_rec[s][c][:,:,snapshots[sn]]-ux_FMD[c][:,:,snapshots[sn]])/MAX_plot_ux_ref
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    if cases_supersample_factor[s]>1:
+        dots = ax.plot(x_downsample1,y_downsample1,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    ax.text(6.5,1.3,'$\\frac{u_{x,PINN}-u_{x,FMD}}{max(|u_{x,DNS}|)}$',fontsize=8,color='k')
+    ax.text(-1.85,1.45,'(b)',fontsize=8)
+    ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    fig.add_subplot(ax)
+
+    # check bar
+    #cax=plot.Subplot(fig,inner[1][1])
+    #cbar = plot.colorbar(ux_plot,cax,ticks=[1E-3,1E-2,1E-1,1],extend='both')
+    #ticklabs = cbar.ax.get_yticklabels()
+    #cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    #fig.add_subplot(cax)
+
+    # dual log colorbar
+    cax=plot.Subplot(fig,inner[1][1])
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
+    fig.add_subplot(cax)
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    ax = plot.Subplot(fig,inner[2][0])
+    s=5
+    e_plot = (ux_rec[s][c][:,:,snapshots[sn]]-ux_FMD[c][:,:,snapshots[sn]])/MAX_plot_ux_ref
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=True)
+    ax.xaxis.set_tick_params(labelsize=8)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    if cases_supersample_factor[s]>1:
+        dots = ax.plot(x_downsample2,y_downsample2,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    ax.text(6.5,1.3,'$\\frac{u_{x,PINN}-u_{x,FMD}}{max(|u_{x,DNS}|)}$',fontsize=8,color='k')
+    ax.text(-1.85,1.45,'(c)',fontsize=8)
+    ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    fig.add_subplot(ax)
+
+    # check bar
+    #cax=plot.Subplot(fig,inner[1][1])
+    #cbar = plot.colorbar(ux_plot,cax,ticks=[1E-3,1E-2,1E-1,1],extend='both')
+    #ticklabs = cbar.ax.get_yticklabels()
+    #cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    #fig.add_subplot(cax)
+
+    # dual log colorbar
+    cax=plot.Subplot(fig,inner[2][1])
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
+    fig.add_subplot(cax)
+
+
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[3],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    ax = plot.Subplot(fig,inner[3][0])
+    ux_plot = ax.contourf(X_grid,Y_grid,uy_FMD[c][:,:,snapshots[sn]],levels=levels_uy_ref,cmap= matplotlib.colormaps['bwr'],extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.text(8,1.4,'$u_{y,FMD}$',fontsize=8)
+    ax.text(-1.85,1.45,'(d)',fontsize=8)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    fig.add_subplot(ax)
+
+    cax=plot.Subplot(fig,inner[3][1])
+    cax.set(xmargin=0.5)
+    cbar = plot.colorbar(ux_plot,cax,ticks=[MAX_plot_uy_ref,MAX_plot_uy_ref/2,0.0,-MAX_plot_uy_ref/2,-MAX_plot_uy_ref],format=tkr.FormatStrFormatter('%.2f'))
+    ticklabs = cbar.ax.get_yticklabels()
+    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    fig.add_subplot(cax)
+            
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[4],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    ax = plot.Subplot(fig,inner[4][0])
+    s=4
+    e_plot = (uy_rec[s][c][:,:,snapshots[sn]]-uy_FMD[c][:,:,snapshots[sn]])/MAX_plot_uy_ref
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    if cases_supersample_factor[s]>1:
+        dots = ax.plot(x_downsample1,y_downsample1,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    ax.text(6.5,1.3,'$\\frac{u_{y,PINN}-u_{y,FMD}}{max(|u_{y,DNS}|)}$',fontsize=8,color='k')
+    ax.text(-1.85,1.45,'(e)',fontsize=8)
+    ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    fig.add_subplot(ax)
+
+    # check bar
+    #cax=plot.Subplot(fig,inner[1][1])
+    #cbar = plot.colorbar(ux_plot,cax,ticks=[1E-3,1E-2,1E-1,1],extend='both')
+    #ticklabs = cbar.ax.get_yticklabels()
+    #cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    #fig.add_subplot(cax)
+
+    # dual log colorbar
+    cax=plot.Subplot(fig,inner[4][1])
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
+    fig.add_subplot(cax)
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[5],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    ax = plot.Subplot(fig,inner[5][0])
+    s=5
+    e_plot = (uy_rec[s][c][:,:,snapshots[sn]]-uy_FMD[c][:,:,snapshots[sn]])/MAX_plot_uy_ref
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=True)
+    ax.xaxis.set_tick_params(labelsize=8)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    if cases_supersample_factor[s]>1:
+        dots = ax.plot(x_downsample2,y_downsample2,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    ax.text(6.5,1.3,'$\\frac{u_{y,PINN}-u_{y,FMD}}{max(|u_{y,DNS}|)}$',fontsize=8,color='k')
+    ax.text(-1.85,1.45,'(f)',fontsize=8)
+    ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    fig.add_subplot(ax)
+
+    # check bar
+    #cax=plot.Subplot(fig,inner[1][1])
+    #cbar = plot.colorbar(ux_plot,cax,ticks=[1E-3,1E-2,1E-1,1],extend='both')
+    #ticklabs = cbar.ax.get_yticklabels()
+    #cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    #fig.add_subplot(cax)
+
+    # dual log colorbar
+    cax=plot.Subplot(fig,inner[5][1])
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
+    fig.add_subplot(cax)
+  
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[6],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    ax = plot.Subplot(fig,inner[6][0])
+    ux_plot = ax.contourf(X_grid,Y_grid,p_FMD[c][:,:,snapshots[sn]],levels=levels_p_ref,cmap= matplotlib.colormaps['bwr'],extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.text(8,1.4,'$p_{FMD}$',fontsize=8)
+    ax.text(-1.85,1.45,'(g)',fontsize=8)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    fig.add_subplot(ax)
+
+    cax=plot.Subplot(fig,inner[6][1])
+    cax.set(xmargin=0.5)
+    cbar = plot.colorbar(ux_plot,cax,ticks=[MAX_plot_p_ref,MAX_plot_p_ref/2,0.0,-MAX_plot_p_ref/2,-MAX_plot_p_ref],format=tkr.FormatStrFormatter('%.2f'))
+    ticklabs = cbar.ax.get_yticklabels()
+    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    fig.add_subplot(cax)
+            
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[7],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    ax = plot.Subplot(fig,inner[7][0])
+    s=4
+    e_plot = (p_rec[s][c][:,:,snapshots[sn]]-p_FMD[c][:,:,snapshots[sn]])/MAX_plot_p_ref
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    #if cases_supersample_factor[s]>1:
+    #    dots = ax.plot(x_downsample1,y_downsample1,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    ax.text(6.5,1.3,'$\\frac{p_{PINN}-p_{FMD}}{max(|p_{DNS}|)}$',fontsize=8,color='k')
+    ax.text(-1.85,1.45,'(h)',fontsize=8)
+    ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    fig.add_subplot(ax)
+
+    # check bar
+    #cax=plot.Subplot(fig,inner[1][1])
+    #cbar = plot.colorbar(ux_plot,cax,ticks=[1E-3,1E-2,1E-1,1],extend='both')
+    #ticklabs = cbar.ax.get_yticklabels()
+    #cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    #fig.add_subplot(cax)
+
+    # dual log colorbar
+    cax=plot.Subplot(fig,inner[7][1])
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
+    fig.add_subplot(cax)
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[8],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    ax = plot.Subplot(fig,inner[8][0])
+    s=5
+    e_plot = (p_rec[s][c][:,:,snapshots[sn]]-p_FMD[c][:,:,snapshots[sn]])/MAX_plot_p_ref
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
+    ax.set_xlabel('x/D',fontsize=8,labelpad=0)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=True)
+    ax.xaxis.set_tick_params(labelsize=8)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    #if cases_supersample_factor[s]>1:
+    #    dots = ax.plot(x_downsample2,y_downsample2,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    ax.text(6.5,1.3,'$\\frac{p_{PINN}-p_{FMD}}{max(|p_{DNS}|)}$',fontsize=8,color='k')
+    ax.text(-1.85,1.45,'(i)',fontsize=8)
+    ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    fig.add_subplot(ax)
+
+    cax=plot.Subplot(fig,inner[8][1])
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
+    fig.add_subplot(cax)
+
+    plot.savefig(figures_dir+'logerr_snapshot'+str(snapshots[sn])+'_contours_recref_pinn_S16S32_c2_condensed.pdf')
+    plot.savefig(figures_dir+'logerr_snapshot'+str(snapshots[sn])+'_contours_recref_pinn_S16S32_c2_condensed.png',dpi=300)
+    plot.close(fig)
+
+
 dx = [] # array for supersample spacing
 for s in range(len(cases_supersample_factor)):
     dx.append([])
@@ -1074,7 +1656,6 @@ for s in range(len(cases_supersample_factor)):
             x_ds_grid = (np.reshape(x_downsample,(ndy,ndx))).transpose()
             y_ds_grid = (np.reshape(y_downsample,(ndy,ndx))).transpose()
             dx[s].append(x_ds_grid[1,0]-x_ds_grid[0,0])
-
 
 mean_err_ux = []
 mean_err_uy = []
@@ -1195,11 +1776,6 @@ max_err_p_PINN_FMD = np.array(max_err_p_PINN_FMD)
 
 
 if True:
-
-
-
-
-
     print('Err FMD instantaneous velocity')
     error_x_tick_labels = ['40','20','10','5','2.5','1.25']
     error_y_tick_labels = ['1E-3','1E-2','1E-1','1E0']
@@ -1268,6 +1844,23 @@ if True:
         plot.close(fig)
 
 
+for c in [2]:
+
+    print('FMD truncation ',c)
+    print('error relative to DNS: ')
+    print('mean ux: ',mean_err_ux[:,c])
+    print('max ux: ',max_err_ux[:,c])
+    print('mean uy: ',mean_err_uy[:,c])
+    print('max uy: ',max_err_uy[:,c])
+    print('mean p: ',mean_err_p[:,c])
+    print('max p: ',max_err_p[:,c])
+    print('error relative to FMD:')
+    print('mean ux: ',mean_err_ux_PINN_FMD[:,c])
+    print('max ux: ',max_err_ux_PINN_FMD[:,c])
+    print('mean uy: ',mean_err_uy_PINN_FMD[:,c])
+    print('max uy: ',max_err_uy_PINN_FMD[:,c])
+    print('mean p: ',mean_err_p_PINN_FMD[:,c])
+    print('max p: ',max_err_p_PINN_FMD[:,c])
 if True:
     for c in range(len(rec_mode_vec)):
     

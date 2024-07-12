@@ -728,6 +728,8 @@ if True:
         plot.savefig(figures_dir+filename+'.png',dpi=300)
         plot.close(fig)
 
+
+
     fig,axs = plot.subplots(1,1)
     fig.set_size_inches(3.37,3.37)
     plot.subplots_adjust(left=0.17,top=0.95,right=0.9,bottom=0.15)
@@ -841,6 +843,9 @@ if True:
     mean_error_PINN_imag = np.zeros([len(cases_supersample_factor),])
     max_error_PINN_imag = np.zeros([len(cases_supersample_factor),])
 
+    mean_error_PINN = np.zeros([len(cases_supersample_factor),])
+    max_error_PINN = np.zeros([len(cases_supersample_factor),])
+
 
 
     for s in range(len(supersample_factors_ds)):
@@ -907,11 +912,15 @@ if True:
 
         err_E_ij_real = (np.real(E_ij_LOM_matrix)-np.real(E_ij_pred_matrix[:,:,s]))/np.nanmax(np.abs(np.real(E_ij_LOM_matrix)),axis=0)
         err_E_ij_imag = (np.imag(E_ij_LOM_matrix)-np.imag(E_ij_pred_matrix[:,:,s]))/np.nanmax(np.abs(np.imag(E_ij_LOM_matrix)),axis=0)
+        err_E_ij = (E_ij_pred_matrix[:,:,s]-E_ij_LOM_matrix)/np.nanmax(np.abs(E_ij_LOM_matrix),axis=0)
 
         mean_error_PINN_real[s]=np.nanmean(np.abs(err_E_ij_real))
         max_error_PINN_real[s] = np.nanmax(np.abs(err_E_ij_real))
         mean_error_PINN_imag[s]=np.nanmean(np.abs(err_E_ij_imag))
         max_error_PINN_imag[s] = np.nanmax(np.abs(err_E_ij_imag))
+
+        mean_error_PINN[s] = np.nanmean(np.abs(err_E_ij))
+        max_error_PINN[s] = np.nanmax(np.abs(err_E_ij))
 
         #err_E_ij_pred_real_pos = 1.0*err_E_ij_real
         #err_E_ij_pred_real_pos[err_E_ij_pred_real_pos<0]=np.NaN
@@ -1111,6 +1120,8 @@ if True:
     max_error_ds_real = np.zeros([len(supersample_factors_ds),])
     mean_error_ds_imag = np.zeros([len(supersample_factors_ds),])
     max_error_ds_imag = np.zeros([len(supersample_factors_ds),])
+    mean_error_ds = np.zeros([len(supersample_factors_ds),])
+    max_error_ds = np.zeros([len(supersample_factors_ds),])
     
     for s in range(len(supersample_factors_ds)):
 
@@ -1153,11 +1164,15 @@ if True:
 
         err_E_ij_real = (np.real(E_ij_LOM_matrix)-np.real(E_ij_ds_LOM_matrix[:,:,s]))/np.nanmax(np.abs(np.real(E_ij_LOM_matrix)),axis=0)
         err_E_ij_imag = (np.imag(E_ij_LOM_matrix)-np.imag(E_ij_ds_LOM_matrix[:,:,s]))/np.nanmax(np.abs(np.imag(E_ij_LOM_matrix)),axis=0)
+        err_E_ij = np.abs(E_ij_LOM_matrix-E_ij_ds_LOM_matrix[:,:,s])/np.nanmax(np.abs(E_ij_LOM_matrix),axis=0)
 
         mean_error_ds_real[s]=np.nanmean(np.abs(err_E_ij_real))
         max_error_ds_real[s] = np.nanmax(np.abs(err_E_ij_real))
         mean_error_ds_imag[s]=np.nanmean(np.abs(err_E_ij_imag))
         max_error_ds_imag[s] = np.nanmax(np.abs(err_E_ij_imag))
+
+        mean_error_ds[s]=np.nanmean(err_E_ij)
+        max_error_ds[s] = np.nanmax(err_E_ij)
 
         #err_E_ij_ds_real_pos = 1.0*err_E_ij_real
         #err_E_ij_ds_real_pos[err_E_ij_ds_real_pos<0]=np.NaN
@@ -1357,92 +1372,154 @@ if True:
         freq_indices = np.arange(-n_LOM,n_LOM+1)
         freq_mesh_i,freq_mesh_j = np.meshgrid(freq_indices,freq_indices)
 
-        temp_E_ij_real_pos = np.real(1.0*E_ij_LOM_matrix)
-        temp_E_ij_real_pos[temp_E_ij_real_pos<0]=np.NaN
-        temp_E_ij_real_pos[(temp_E_ij_real_pos>0)*(temp_E_ij_real_pos<1E-4)]=0.0
-        temp_E_ij_real_neg = np.real(1.0*E_ij_LOM_matrix)
-        temp_E_ij_real_neg[temp_E_ij_real_neg>=0]=np.NaN
-        temp_E_ij_real_neg = np.abs(temp_E_ij_real_neg)
-        temp_E_ij_real_neg[(temp_E_ij_real_neg>0)*(temp_E_ij_real_neg<1E-4)]=0.0
+        from matplotlib.colors import LinearSegmentedColormap
 
-        temp_E_ij_imag_pos = np.imag(1.0*E_ij_LOM_matrix)
-        temp_E_ij_imag_pos[temp_E_ij_imag_pos<0]=np.NaN
-        temp_E_ij_imag_pos[(temp_E_ij_imag_pos>0)*(temp_E_ij_imag_pos<1E-4)]=0.0
-        temp_E_ij_imag_neg = np.imag(1.0*E_ij_LOM_matrix)
-        temp_E_ij_imag_neg[temp_E_ij_imag_neg>=0]=np.NaN
-        temp_E_ij_imag_neg = np.abs(temp_E_ij_imag_neg)
-        temp_E_ij_imag_neg[(temp_E_ij_imag_neg>0)*(temp_E_ij_imag_neg<1E-4)]=0.0
+        cdict3 = {'red':   [(0.0,  1.0, 1.0), # white
+                            (1.0,  1.0, 1.0)], # red 
 
-        temp_E_ij_pred_real_pos = np.real(1.0*E_ij_pred_matrix[:,:,s]) #
-        temp_E_ij_pred_real_pos[temp_E_ij_pred_real_pos<0]=np.NaN
-        temp_E_ij_pred_real_pos[(temp_E_ij_pred_real_pos>0)*(temp_E_ij_pred_real_pos<1E-4)]=0.0
-        temp_E_ij_pred_real_neg = np.real(1.0*E_ij_pred_matrix[:,:,s]) # 
-        temp_E_ij_pred_real_neg[temp_E_ij_pred_real_neg>=0]=np.NaN
-        temp_E_ij_pred_real_neg = np.abs(temp_E_ij_pred_real_neg)
-        temp_E_ij_pred_real_neg[(temp_E_ij_pred_real_neg>0)*(temp_E_ij_pred_real_neg<1E-4)]=0.0
+                'green': [(0.0,  0.0, 1.0),
+                            (1.0,  0.0, 0.0)],
 
-        temp_E_ij_pred_imag_pos = np.imag(1.0*E_ij_pred_matrix[:,:,s])
-        temp_E_ij_pred_imag_pos[temp_E_ij_pred_imag_pos<0]=np.NaN
-        temp_E_ij_pred_imag_pos[(temp_E_ij_pred_imag_pos>0)*(temp_E_ij_pred_imag_pos<1E-4)]=0.0
-        temp_E_ij_pred_imag_neg = np.imag(1.0*E_ij_pred_matrix[:,:,s])
-        temp_E_ij_pred_imag_neg[temp_E_ij_pred_imag_neg>=0]=np.NaN
-        temp_E_ij_pred_imag_neg = np.abs(temp_E_ij_pred_imag_neg)
-        temp_E_ij_pred_imag_neg[(temp_E_ij_pred_imag_neg>0)*(temp_E_ij_pred_imag_neg<1E-4)]=0.0
+                'blue':  [(0.0,  0.0, 1.0),
+                            (1.0,  0.0, 0.0)]}
 
-        temp_E_ij_ds_real_pos = np.real(1.0*E_ij_ds_LOM_matrix[:,:,s])
-        temp_E_ij_ds_real_pos[temp_E_ij_ds_real_pos<0]=np.NaN
-        temp_E_ij_ds_real_pos[(temp_E_ij_ds_real_pos>0)*(temp_E_ij_ds_real_pos<1E-4)]=0.0
-        temp_E_ij_ds_real_neg = np.real(1.0*E_ij_ds_LOM_matrix[:,:,s])
-        temp_E_ij_ds_real_neg[temp_E_ij_ds_real_neg>=0]=np.NaN
-        temp_E_ij_ds_real_neg = np.abs(temp_E_ij_ds_real_neg)
-        temp_E_ij_ds_real_neg[(temp_E_ij_ds_real_neg>0)*(temp_E_ij_ds_real_neg<1E-4)]=0.0
 
-        temp_E_ij_ds_imag_pos = np.imag(1.0*E_ij_ds_LOM_matrix[:,:,s])
-        temp_E_ij_ds_imag_pos[temp_E_ij_ds_imag_pos<0]=np.NaN
-        temp_E_ij_ds_imag_pos[(temp_E_ij_ds_imag_pos>0)*(temp_E_ij_ds_imag_pos<1E-4)]=0.0
-        temp_E_ij_ds_imag_neg = np.imag(1.0*E_ij_ds_LOM_matrix[:,:,s])
-        temp_E_ij_ds_imag_neg[temp_E_ij_ds_imag_neg>=0]=np.NaN
-        temp_E_ij_ds_imag_neg = np.abs(temp_E_ij_ds_imag_neg)
-        temp_E_ij_ds_imag_neg[(temp_E_ij_ds_imag_neg>0)*(temp_E_ij_ds_imag_neg<1E-4)]=0.0
-        
-        err_E_ij_ds_real = (np.real(E_ij_ds_LOM_matrix[:,:,s])-np.real(E_ij_LOM_matrix))/np.nanmax(np.abs(np.real(E_ij_LOM_matrix)),axis=0)
-        err_E_ij_ds_imag = (np.imag(E_ij_ds_LOM_matrix[:,:,s])-np.imag(E_ij_LOM_matrix))/np.nanmax(np.abs(np.imag(E_ij_LOM_matrix)),axis=0)
-
-        err_E_ij_pinn_real = (np.real(E_ij_pred_matrix[:,:,s])-np.real(E_ij_LOM_matrix))/np.nanmax(np.abs(np.real(E_ij_LOM_matrix)),axis=0)
-        err_E_ij_pinn_imag = (np.imag(E_ij_pred_matrix[:,:,s])-np.imag(E_ij_LOM_matrix))/np.nanmax(np.abs(np.imag(E_ij_LOM_matrix)),axis=0)
-
-        MAX_E_ij = np.nanmax([np.nanmax(temp_E_ij_real_pos.ravel()),np.nanmax(temp_E_ij_real_neg.ravel()),np.nanmax(temp_E_ij_imag_pos.ravel()),np.nanmax(temp_E_ij_imag_neg.ravel()),np.nanmax(temp_E_ij_pred_real_pos.ravel()),np.nanmax(temp_E_ij_pred_real_neg.ravel()),np.nanmax(temp_E_ij_pred_imag_pos.ravel()),np.nanmax(temp_E_ij_pred_imag_neg.ravel())]) 
-
-        #MAX_err_E_ij = np.nanmax([np.nanmax(err_E_ij_pred_real_pos.ravel()),np.nanmax(err_E_ij_pred_real_neg.ravel()),np.nanmax(err_E_ij_pred_imag_pos.ravel()),np.nanmax(err_E_ij_pred_imag_neg.ravel()),])
-        MAX_err_E_ij_ds = np.nanmax([np.nanmax(np.abs(err_E_ij_ds_real.ravel())),np.nanmax(np.abs(err_E_ij_ds_imag.ravel()))])
-        MAX_err_E_ij_pinn = np.nanmax([np.nanmax(np.abs(err_E_ij_pinn_real.ravel())),np.nanmax(np.abs(err_E_ij_pinn_imag.ravel()))])
-
-        cmap1 = matplotlib.colormaps['Reds']
+        cmap1 = LinearSegmentedColormap('WhiteRed',cdict3)
         cmap1.set_bad('white',alpha=0.0)
-        cmap2 = matplotlib.colormaps['Blues']
-        cmap2.set_bad('white',alpha=0.0)
 
-        cmaperr = matplotlib.colormaps['jet']
-        cmaperr.set_bad('white',alpha=0.0)
+        
+        cdict4 = {'red':   [(0.0,  1.0, 1.0),
+                            (1.0,  0.0, 0.0)],
+
+                'green': [(0.0,  0.0, 1.0),
+                            (1.0,  0.0, 0.0)],
+
+                'blue':  [(0.0,  0.0, 1.0),
+                            (1.0,  1.0, 1.0)]}
+
+        cmap2 = LinearSegmentedColormap('WhiteBlue',cdict4)
+        cmap2.set_bad('white',alpha=0.0)
+        
+        cdict5 = {'red':   [(0.0,  0.0, 0.0),
+                            (0.5,  1.0, 1.0), # white
+                            (1.0,  1.0, 1.0)], # red 
+
+                'green': [(0.0,  0.0, 0.0),
+                            (0.5,  1.0, 1.0),
+                            (1.0,  0.0, 0.0)],
+
+                'blue':  [(0.0,  1.0, 1.0),
+                            (0.5,  1.0, 1.0),
+                            (1.0,  0.0, 0.0)]}
+        # for the colobars only
+        cmap3 = LinearSegmentedColormap('BlueWhiteRed',cdict5)
+        cmap3.set_bad('white',alpha=0.0)
+
+        cdict13 = {'red':   [(0.0,  1.0, 1.0), # white
+                        (0.33,  1.0, 1.0), # orange
+                        (0.66,  1.0, 1.0), # pink
+                        (1.0,  1.0, 1.0)], # red 
+
+             'green': [(0.0,  0.0, 1.0),
+                        (0.33, 170/255.0, 170/255.0), # (0.33, 170.0/255.0, 170.0/255.0),
+                        (0.66, 0.0, 0.0),
+                        (1.0,  0.0, 0.0)],
+
+            'blue':  [(0.0,  0.0, 1.0),
+                        (0.33,  0.0, 0.0),
+                        (0.66,  1.0, 1.0),
+                        (1.0,  0.0, 0.0)]}
+
+
+        cmap11 = LinearSegmentedColormap('WhiteYellowPinkRed',cdict13)
+        cmap1.set_bad('white',alpha=0.0)
+
+        
+        cdict14 = {'red':   [(0.0,  1.0, 1.0),
+                            (0.33,  0.0, 0.0),
+                            (0.66,  0.0, 0.0),
+                            (1.0,  0.0, 0.0)],
+
+                'green': [(0.0,  0.0, 1.0),
+                            (0.33, 1.0, 1.0),
+                            (0.66,  1.0, 1.0),
+                            (1.0,  0.0, 0.0)],
+
+                'blue':  [(0.0,  0.0, 1.0),
+                            (0.33,  0.0, 0.0),
+                            (0.66,  1.0, 1.0),
+                            (1.0,  1.0, 1.0)]}
+
+        cmap12 = LinearSegmentedColormap('WhiteGreenCyanBlue',cdict14)
+        cmap12.set_bad('white',alpha=0.0)
+        
+        cdict15 = {'red':   [(0.0,  0.0, 0.0),
+                            (0.16,  0.0, 0.0),
+                            (0.33,  0.0, 0.0),
+                            (0.5,  1.0, 1.0), # white
+                            (0.66,  1.0, 1.0), # orange
+                            (0.83,  1.0, 1.0), # pink
+                            (1.0,  1.0, 1.0)], # red 
+
+                'green': [(0.0,  0.0, 0.0),
+                            (0.16,  1.0, 1.0),
+                            (0.33,  1.0, 1.0),
+                            (0.5,  1.0, 1.0),
+                            (0.66, 170.0/255.0, 170.0/255.0), # (0.33, 170.0/255.0, 170.0/255.0),
+                            (0.83, 0.0, 0.0),
+                            (1.0,  0.0, 0.0)],
+
+                'blue':  [(0.0,  1.0, 1.0),
+                            (0.16,  1.0, 1.0),
+                            (0.33,  0.0, 0.0),
+                            (0.5,  1.0, 1.0),
+                            (0.66,  0.0, 0.0),
+                            (0.83,  1.0, 1.0),
+                            (1.0,  0.0, 0.0)]}
+        # for the colobars only
+        cmap13 = LinearSegmentedColormap('BlueCyanGreenWhiteYellowPinkRed',cdict15)
+        cmap13.set_bad('white',alpha=0.0)
+
+        dual_log_cbar_norm = matplotlib.colors.CenteredNorm(0.0,1.0)
+        dual_log_cbar_ticks = [-1,-0.5,0,0.5,1]
+        dual_log_cbar_labels = ['-1','-1e-2','$\pm$1e-4','1e-2','1']
+
+        err_log_cbar_norm = matplotlib.colors.CenteredNorm(0.0,1.0)
+        err_log_cbar_ticks = [-1,-0.75,-0.5,-0.25,0,0.25,0.5,0.75,1]
+        err_log_cbar_labels = ['-1','-1e-1','-1e-2','-1e-3','$\pm$1e-4','1e-3','1e-2','1e-1','1']
+
+
+
+        MAX_E_ij = np.nanmax(np.abs(E_ij_LOM_matrix.ravel()))
+        print(MAX_E_ij)
 
         # make the mode energy crossplot
         fig = plot.figure(figsize=(3.37,6.5))
-        plot.subplots_adjust(left=0.1,top=0.99,right=0.85,bottom=0.05)
-        outer = gridspec.GridSpec(5,3,wspace=0.05,hspace=0.1,height_ratios=[1,1,1,1,1],width_ratios=[0.45,0.45,0.05])
-         
+        plot.subplots_adjust(left=0.1,top=0.99,right=0.85,bottom=0.07)
+        outer = gridspec.GridSpec(5,1,wspace=0.05,hspace=0.1,height_ratios=[1,1,1,1,1])
+        inner = []
 
-        cbar_ticks = [1E-4,1E-3,1E-2,1E-1,1,1E1]
         xy_ticks = [-2,0,2,]
         xy_minor_ticks = [-3,-1,1,3,]
 
         ylabelpad = -5
-        xlabelpad = 0
+        xlabelpad = 0       
 
-        ax = plot.Subplot(fig,outer[0])
+        # reference
+        e_plot = np.real(E_ij_LOM_matrix)/MAX_E_ij
+        e_plot_p =e_plot+1E-30
+        e_plot_p[e_plot_p<=0]=np.NaN
+        e_plot_n = e_plot
+        e_plot_n[e_plot_n>0]=np.NaN
+        e_plot_n = np.abs(e_plot_n)
+
+        inner.append(gridspec.GridSpecFromSubplotSpec(1,3,subplot_spec=outer[0],wspace=0.05,hspace=0.1,width_ratios=[0.48,0.48,0.04]))
+        ax = plot.Subplot(fig,inner[0][0])
         ax.set_aspect('equal')
-        p_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,temp_E_ij_real_pos,cmap=cmap1,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=MAX_E_ij))
-        n_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,temp_E_ij_real_neg,cmap=cmap2,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=MAX_E_ij))
-        ax.text(-3,2.5,'(aa)',fontsize=8)
+
+        p_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_p,cmap=cmap1,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
+        n_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_n,cmap=cmap2,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
+        ax.text(-3,2.5,'(a)',fontsize=8)
         #ax.text(-0.5,-3.4,'$R(\Delta E_{ij,DNS})$',fontsize=8)
         ax.set_yticks(xy_ticks)
         ax.set_yticks(xy_minor_ticks,minor=True)
@@ -1456,239 +1533,259 @@ if True:
         ax.set_ylabel('$f_{j}/f_{1}$',fontsize=8,labelpad=ylabelpad)
         fig.add_subplot(ax)
 
-        ax = plot.Subplot(fig,outer[1])
+        e_plot = np.imag(E_ij_LOM_matrix)/MAX_E_ij
+        e_plot_p =e_plot+1E-30
+        e_plot_p[e_plot_p<=0]=np.NaN
+        e_plot_n = e_plot
+        e_plot_n[e_plot_n>0]=np.NaN
+        e_plot_n = np.abs(e_plot_n)
+
+        ax = plot.Subplot(fig,inner[0][1])
         ax.set_aspect('equal')
-        p_plot2 = ax.pcolor(freq_mesh_i,freq_mesh_j,temp_E_ij_imag_pos,cmap=cmap1,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=MAX_E_ij))
-        n_plot2 = ax.pcolor(freq_mesh_i,freq_mesh_j,temp_E_ij_imag_neg,cmap=cmap2,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=MAX_E_ij))
-        ax.text(-3,2.5,'(ba)',fontsize=8)
-        #ax.text(-0.5,-3.4,'$I(\Delta E_{ij,DNS})$',fontsize=8)
+
+        p_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_p,cmap=cmap1,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
+        n_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_n,cmap=cmap2,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
+        ax.text(-3,2.5,'(b)',fontsize=8)
+        #ax.text(-0.5,-3.4,'$R(\Delta E_{ij,DNS})$',fontsize=8)
         ax.set_yticks(xy_ticks)
         ax.set_yticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_yticklabels()
-        ax.set_yticklabels(ticklabs, fontsize=8)
         ax.set_xticks(xy_ticks)
         ax.set_xticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_xticklabels()
-        ax.set_xticklabels(ticklabs, fontsize=8)
         ax.xaxis.set_tick_params(labelbottom=False)
         ax.yaxis.set_tick_params(labelleft=False)
-        #ax.set_ylabel('$f/f_{vs}$',fontsize=8)
-        #ax.set_xlabel('$f/f_{vs}$',fontsize=8)
         fig.add_subplot(ax)
-
-        ax = plot.Subplot(fig,outer[3])
-        ax.set_aspect('equal')
-        p_plot3 = ax.pcolor(freq_mesh_i,freq_mesh_j,temp_E_ij_ds_real_pos,cmap=cmap1,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=MAX_E_ij))
-        n_plot3 = ax.pcolor(freq_mesh_i,freq_mesh_j,temp_E_ij_ds_real_neg,cmap=cmap2,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=MAX_E_ij))
-        ax.text(-3,2.5,'(ab)',fontsize=8)
-        #ax.text(-0.5,-3.4,'$R(\Delta E_{ij,DS})$',fontsize=8)
-        ax.set_yticks(xy_ticks)
-        ax.set_yticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_yticklabels()
-        ax.set_yticklabels(ticklabs, fontsize=8)
-        ax.set_xticks(xy_ticks)
-        ax.set_xticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_xticklabels()
-        ax.set_xticklabels(ticklabs, fontsize=8)
-        ax.xaxis.set_tick_params(labelbottom=False)
-        ax.set_ylabel('$f_{j}/f_{1}$',fontsize=8,labelpad=ylabelpad)
-        fig.add_subplot(ax)
-
-        ax = plot.Subplot(fig,outer[4])
-        ax.set_aspect('equal')
-        p_plot4 = ax.pcolor(freq_mesh_i,freq_mesh_j,temp_E_ij_ds_imag_pos,cmap=cmap1,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=MAX_E_ij))
-        n_plot4 = ax.pcolor(freq_mesh_i,freq_mesh_j,temp_E_ij_ds_imag_neg,cmap=cmap2,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=MAX_E_ij))
-        ax.text(-3,2.5,'(bb)',fontsize=8)
-        #ax.text(-0.5,-3.4,'$Im(\Delta E_{ij,DS})$',fontsize=8)
-        ax.set_yticks(xy_ticks)
-        ax.set_yticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_yticklabels()
-        ax.set_yticklabels(ticklabs, fontsize=8)
-        ax.set_xticks(xy_ticks)
-        ax.set_xticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_xticklabels()
-        ax.set_xticklabels(ticklabs, fontsize=8)
-        ax.xaxis.set_tick_params(labelbottom=False)
-        ax.yaxis.set_tick_params(labelleft=False)
-        #ax.set_ylabel('$f/f_{vs}$',fontsize=8)
-        fig.add_subplot(ax)
-
-        ax = plot.Subplot(fig,outer[6])
-        ax.set_aspect('equal')
-        p_plot3 = ax.pcolor(freq_mesh_i,freq_mesh_j,temp_E_ij_pred_real_pos,cmap=cmap1,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=MAX_E_ij))
-        n_plot3 = ax.pcolor(freq_mesh_i,freq_mesh_j,temp_E_ij_pred_real_neg,cmap=cmap2,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=MAX_E_ij))
-        ax.text(-3,2.5,'(ac)',fontsize=8)
-        #ax.text(-0.5,-3.4,'$R(\Delta E_{ij,PINN})$',fontsize=8)
-        ax.set_yticks(xy_ticks)
-        ax.set_yticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_yticklabels()
-        ax.set_yticklabels(ticklabs, fontsize=8)
-        ax.set_xticks(xy_ticks)
-        ax.set_xticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_xticklabels()
-        ax.set_xticklabels(ticklabs, fontsize=8)
-        ax.xaxis.set_tick_params(labelbottom=False)
-        ax.set_ylabel('$f_{j}/f_{1}$',fontsize=8,labelpad=ylabelpad)
-        fig.add_subplot(ax)
-
-        ax = plot.Subplot(fig,outer[7])
-        ax.set_aspect('equal')
-        p_plot4 = ax.pcolor(freq_mesh_i,freq_mesh_j,temp_E_ij_pred_imag_pos,cmap=cmap1,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=MAX_E_ij))
-        n_plot4 = ax.pcolor(freq_mesh_i,freq_mesh_j,temp_E_ij_pred_imag_neg,cmap=cmap2,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=MAX_E_ij))
-        ax.text(-3,2.5,'(bc)',fontsize=8)
-        #ax.text(-0.5,-3.4,'$Im(\Delta E_{ij,PINN})$',fontsize=8)
-        ax.set_yticks(xy_ticks)
-        ax.set_yticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_yticklabels()
-        ax.set_yticklabels(ticklabs, fontsize=8)
-        ax.set_xticks(xy_ticks)
-        ax.set_xticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_xticklabels()
-        ax.set_xticklabels(ticklabs, fontsize=8)
-        ax.xaxis.set_tick_params(labelbottom=False)
-        ax.yaxis.set_tick_params(labelleft=False)
-        #ax.set_ylabel('$f/f_{vs}$',fontsize=8)
-        fig.add_subplot(ax)
-
-        ax = plot.Subplot(fig,outer[9])
-        ax.set_aspect('equal')
-        p_plot5 = ax.pcolor(freq_mesh_i,freq_mesh_j,np.abs(err_E_ij_ds_real),cmap=cmaperr,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
-        #n_plot5 = ax.pcolor(freq_mesh_i,freq_mesh_j,err_E_ij_ds_real_neg,cmap=cmap2,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
-        ax.text(-3,2.5,'(ad)',fontsize=8)
-        #ax.text(-0.5,-3.4,'$err(R(\Delta E_{ij,DS}))$',fontsize=8)
-        ax.set_yticks(xy_ticks)
-        ax.set_yticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_yticklabels()
-        ax.set_yticklabels(ticklabs, fontsize=8)
-        ax.set_xticks(xy_ticks)
-        ax.set_xticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_xticklabels()
-        ax.set_xticklabels(ticklabs, fontsize=8)
-        ax.set_ylabel('$f_{j}/f_{1}$',fontsize=8,labelpad=ylabelpad)
-        ax.xaxis.set_tick_params(labelbottom=False)
-        #ax.set_xlabel('$f/f_{vs}$',fontsize=8,labelpad=xlabelpad)
-        fig.add_subplot(ax)
-
-        ax = plot.Subplot(fig,outer[10])
-        ax.set_aspect('equal')
-        p_plot6 = ax.pcolor(freq_mesh_i,freq_mesh_j,np.abs(err_E_ij_ds_imag),cmap=cmaperr,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
-        #n_plot6 = ax.pcolor(freq_mesh_i,freq_mesh_j,err_E_ij_ds_imag_neg,cmap=cmap2,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
-        ax.text(-3,2.5,'(bd)',fontsize=8)
-        #ax.text(-0.5,-3.4,'$err(Im(\Delta E_{ij,DS}))$',fontsize=8)
-        ax.set_yticks(xy_ticks)
-        ax.set_yticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_yticklabels()
-        ax.set_yticklabels(ticklabs, fontsize=8)
-        ax.set_xticks(xy_ticks)
-        ax.set_xticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_xticklabels()
-        ax.set_xticklabels(ticklabs, fontsize=8)
-        ax.xaxis.set_tick_params(labelbottom=False)
-        ax.yaxis.set_tick_params(labelleft=False)
-        #ax.set_xlabel('$f/f_{vs}$',fontsize=8)
-        fig.add_subplot(ax)
-
-
-
-
-        ax = plot.Subplot(fig,outer[12])
-        ax.set_aspect('equal')
-        p_plot5 = ax.pcolor(freq_mesh_i,freq_mesh_j,np.abs(err_E_ij_pinn_real),cmap=cmaperr,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
-        #n_plot5 = ax.pcolor(freq_mesh_i,freq_mesh_j,err_E_ij_pred_real_neg,cmap=cmap2,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
-        ax.text(-3,2.5,'(ae)',fontsize=8)
-        #ax.text(-0.5,-3.4,'$err(R(\Delta E_{ij,PINN}))$',fontsize=8)
-        ax.set_yticks(xy_ticks)
-        ax.set_yticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_yticklabels()
-        ax.set_yticklabels(ticklabs, fontsize=8)
-        ax.set_xticks(xy_ticks)
-        ax.set_xticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_xticklabels()
-        ax.set_xticklabels(ticklabs, fontsize=8)
-        ax.set_ylabel('$f_{j}/f_{1}$',fontsize=8,labelpad=ylabelpad)
-        ax.set_xlabel('$f_{i}/f_{1}$',fontsize=8,labelpad=xlabelpad)
-        fig.add_subplot(ax)
-
-        ax = plot.Subplot(fig,outer[13])
-        ax.set_aspect('equal')
-        p_plot6 = ax.pcolor(freq_mesh_i,freq_mesh_j,np.abs(err_E_ij_pinn_imag),cmap=cmaperr,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
-        #n_plot6 = ax.pcolor(freq_mesh_i,freq_mesh_j,err_E_ij_pred_imag_neg,cmap=cmap2,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
-        ax.text(-3,2.5,'(be)',fontsize=8)
-        #ax.text(-0.5,-3.4,'$err(Im(\Delta E_{ij,PINN}))$',fontsize=8)
-        ax.set_yticks(xy_ticks)
-        ax.set_yticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_yticklabels()
-        ax.set_yticklabels(ticklabs, fontsize=8)
-        ax.set_xticks(xy_ticks)
-        ax.set_xticks(xy_minor_ticks,minor=True)
-        ticklabs = ax.get_xticklabels()
-        ax.set_xticklabels(ticklabs, fontsize=8)
-        ax.yaxis.set_tick_params(labelleft=False)
-        ax.set_xlabel('$f_{i}/f_{1}$',fontsize=8,labelpad=xlabelpad)
-        fig.add_subplot(ax)
-
-
-
-        inner = []  
-        inner.append(gridspec.GridSpecFromSubplotSpec(1,3,subplot_spec=outer[2],wspace=0.15,hspace=0.3,width_ratios=[0.02,0.01,0.02]))
-        cax=plot.Subplot(fig,inner[0][0])
-        cbar = plot.colorbar(p_plot,cax,ticks=cbar_ticks,format=tkr.FormatStrFormatter('%.0e'))
-        cbar.ax.yaxis.set_tick_params(labelright=False)
-        #ticklabs = cbar.ax.get_yticklabels()
-        #cbar.ax.set_yticklabels(ticklabs, fontsize=8)
-        fig.add_subplot(cax)
 
         cax=plot.Subplot(fig,inner[0][2])
-        cbar = plot.colorbar(n_plot,cax,ticks=cbar_ticks,format=tkr.FormatStrFormatter('%.0e'))
-        ticklabs = cbar.ax.get_yticklabels()
-        cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+        cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+        cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
         fig.add_subplot(cax)
 
-        inner.append(gridspec.GridSpecFromSubplotSpec(1,3,subplot_spec=outer[5],wspace=0.15,hspace=0.3,width_ratios=[0.02,0.01,0.02]))
-        cax=plot.Subplot(fig,inner[1][0])
-        cbar = plot.colorbar(p_plot,cax,ticks=cbar_ticks,format=tkr.FormatStrFormatter('%.0e'))
-        cbar.ax.yaxis.set_tick_params(labelright=False)
-        #ticklabs = cbar.ax.get_yticklabels()
-        #cbar.ax.set_yticklabels(ticklabs, fontsize=8)
-        fig.add_subplot(cax)
+        # downsampled
+        e_plot = np.real(E_ij_ds_LOM_matrix[:,:,s])/MAX_E_ij
+        e_plot_p =e_plot+1E-30
+        e_plot_p[e_plot_p<=0]=np.NaN
+        e_plot_n = e_plot
+        e_plot_n[e_plot_n>0]=np.NaN
+        e_plot_n = np.abs(e_plot_n)
 
+        inner.append(gridspec.GridSpecFromSubplotSpec(1,3,subplot_spec=outer[1],wspace=0.05,hspace=0.1,width_ratios=[0.48,0.48,0.04]))
+        ax = plot.Subplot(fig,inner[1][0])
+        ax.set_aspect('equal')
+
+        p_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_p,cmap=cmap1,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
+        n_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_n,cmap=cmap2,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
+        ax.text(-3,2.5,'(c)',fontsize=8)
+        #ax.text(-0.5,-3.4,'$R(\Delta E_{ij,DNS})$',fontsize=8)
+        ax.set_yticks(xy_ticks)
+        ax.set_yticks(xy_minor_ticks,minor=True)
+        ticklabs = ax.get_yticklabels()
+        ax.set_yticklabels(ticklabs, fontsize=8)
+        ax.set_xticks(xy_ticks)
+        ax.set_xticks(xy_minor_ticks,minor=True)
+        ax.xaxis.set_tick_params(labelbottom=False)
+        ticklabs = ax.get_xticklabels()
+        ax.set_xticklabels(ticklabs, fontsize=8)
+        ax.set_ylabel('$f_{j}/f_{1}$',fontsize=8,labelpad=ylabelpad)
+        fig.add_subplot(ax)
+
+        e_plot = np.imag(E_ij_ds_LOM_matrix[:,:,s])/MAX_E_ij
+        e_plot_p =e_plot+1E-30
+        e_plot_p[e_plot_p<=0]=np.NaN
+        e_plot_n = e_plot
+        e_plot_n[e_plot_n>0]=np.NaN
+        e_plot_n = np.abs(e_plot_n)
+
+        ax = plot.Subplot(fig,inner[1][1])
+        ax.set_aspect('equal')
+
+        p_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_p,cmap=cmap1,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
+        n_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_n,cmap=cmap2,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
+        ax.text(-3,2.5,'(d)',fontsize=8)
+        #ax.text(-0.5,-3.4,'$R(\Delta E_{ij,DNS})$',fontsize=8)
+        ax.set_yticks(xy_ticks)
+        ax.set_yticks(xy_minor_ticks,minor=True)
+        ax.set_xticks(xy_ticks)
+        ax.set_xticks(xy_minor_ticks,minor=True)
+        ax.xaxis.set_tick_params(labelbottom=False)
+        ax.yaxis.set_tick_params(labelleft=False)
+        fig.add_subplot(ax)
 
         cax=plot.Subplot(fig,inner[1][2])
-        cbar = plot.colorbar(n_plot,cax,ticks=cbar_ticks,format=tkr.FormatStrFormatter('%.0e'))
-        ticklabs = cbar.ax.get_yticklabels()
-        cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+        cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+        cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
         fig.add_subplot(cax)
 
-        inner.append(gridspec.GridSpecFromSubplotSpec(1,3,subplot_spec=outer[8],wspace=0.15,hspace=0.3,width_ratios=[0.02,0.01,0.02]))
-        cax=plot.Subplot(fig,inner[2][0])
-        cbar = plot.colorbar(p_plot,cax,ticks=cbar_ticks,format=tkr.FormatStrFormatter('%.0e'))
-        cbar.ax.yaxis.set_tick_params(labelright=False)
-        #ticklabs = cbar.ax.get_yticklabels()
-        #cbar.ax.set_yticklabels(ticklabs, fontsize=8)
-        fig.add_subplot(cax)
+        # PINN
+        inner.append(gridspec.GridSpecFromSubplotSpec(1,3,subplot_spec=outer[2],wspace=0.05,hspace=0.1,width_ratios=[0.48,0.48,0.04]))
+        ax = plot.Subplot(fig,inner[2][0])
+        ax.set_aspect('equal')
 
+        e_plot = np.real(E_ij_pred_matrix[:,:,s])/MAX_E_ij
+        e_plot_p =e_plot+1E-30
+        e_plot_p[e_plot_p<=0]=np.NaN
+        e_plot_n = e_plot
+        e_plot_n[e_plot_n>0]=np.NaN
+        e_plot_n = np.abs(e_plot_n)
+
+        p_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_p,cmap=cmap1,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
+        n_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_n,cmap=cmap2,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
+        ax.text(-3,2.5,'(e)',fontsize=8)
+        #ax.text(-0.5,-3.4,'$R(\Delta E_{ij,DNS})$',fontsize=8)
+        ax.set_yticks(xy_ticks)
+        ax.set_yticks(xy_minor_ticks,minor=True)
+        ticklabs = ax.get_yticklabels()
+        ax.set_yticklabels(ticklabs, fontsize=8)
+        ax.set_xticks(xy_ticks)
+        ax.set_xticks(xy_minor_ticks,minor=True)
+        ax.xaxis.set_tick_params(labelbottom=False)
+        ticklabs = ax.get_xticklabels()
+        ax.set_xticklabels(ticklabs, fontsize=8)
+        ax.set_ylabel('$f_{j}/f_{1}$',fontsize=8,labelpad=ylabelpad)
+        fig.add_subplot(ax)
+
+        e_plot = np.imag(E_ij_pred_matrix[:,:,s])/MAX_E_ij
+        e_plot_p =e_plot+1E-30
+        e_plot_p[e_plot_p<=0]=np.NaN
+        e_plot_n = e_plot
+        e_plot_n[e_plot_n>0]=np.NaN
+        e_plot_n = np.abs(e_plot_n)
+
+        ax = plot.Subplot(fig,inner[2][1])
+        ax.set_aspect('equal')
+
+        p_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_p,cmap=cmap1,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
+        n_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_n,cmap=cmap2,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
+        ax.text(-3,2.5,'(f)',fontsize=8)
+        #ax.text(-0.5,-3.4,'$R(\Delta E_{ij,DNS})$',fontsize=8)
+        ax.set_yticks(xy_ticks)
+        ax.set_yticks(xy_minor_ticks,minor=True)
+        ax.set_xticks(xy_ticks)
+        ax.set_xticks(xy_minor_ticks,minor=True)
+        ax.xaxis.set_tick_params(labelbottom=False)
+        ax.yaxis.set_tick_params(labelleft=False)
+        fig.add_subplot(ax)
 
         cax=plot.Subplot(fig,inner[2][2])
-        cbar = plot.colorbar(n_plot,cax,ticks=cbar_ticks,format=tkr.FormatStrFormatter('%.0e'))
-        ticklabs = cbar.ax.get_yticklabels()
-        cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+        cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+        cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
         fig.add_subplot(cax)
 
-        inner.append(gridspec.GridSpecFromSubplotSpec(1,3,subplot_spec=outer[11],wspace=0.15,hspace=0.3,width_ratios=[0.02,0.01,0.02]))
-        cax=plot.Subplot(fig,inner[3][0])
-        cbar = plot.colorbar(p_plot5,cax,ticks=cbar_ticks,format=tkr.FormatStrFormatter('%.0e'))
-        cbar.ax.yaxis.set_tick_params(labelright=True)
-        ticklabs = cbar.ax.get_yticklabels()
-        cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+
+
+        # err DS
+        inner.append(gridspec.GridSpecFromSubplotSpec(1,3,subplot_spec=outer[3],wspace=0.05,hspace=0.1,width_ratios=[0.48,0.48,0.04]))
+        ax = plot.Subplot(fig,inner[3][0])
+        ax.set_aspect('equal')
+
+        e_plot = np.real(E_ij_ds_LOM_matrix[:,:,s]-E_ij_LOM_matrix)/MAX_E_ij
+        e_plot_p =e_plot+1E-30
+        e_plot_p[e_plot_p<=0]=np.NaN
+        e_plot_n = e_plot
+        e_plot_n[e_plot_n>0]=np.NaN
+        e_plot_n = np.abs(e_plot_n)
+
+        p_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_p,cmap=cmap11,norm=matplotlib.colors.LogNorm(vmin=1E-6,vmax=1))
+        n_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_n,cmap=cmap12,norm=matplotlib.colors.LogNorm(vmin=1E-6,vmax=1))
+        ax.text(-3,2.5,'(g)',fontsize=8)
+        #ax.text(-0.5,-3.4,'$R(\Delta E_{ij,DNS})$',fontsize=8)
+        ax.set_yticks(xy_ticks)
+        ax.set_yticks(xy_minor_ticks,minor=True)
+        ticklabs = ax.get_yticklabels()
+        ax.set_yticklabels(ticklabs, fontsize=8)
+        ax.set_xticks(xy_ticks)
+        ax.set_xticks(xy_minor_ticks,minor=True)
+        ax.xaxis.set_tick_params(labelbottom=False)
+        ticklabs = ax.get_xticklabels()
+        ax.set_xticklabels(ticklabs, fontsize=8)
+        ax.set_ylabel('$f_{j}/f_{1}$',fontsize=8,labelpad=ylabelpad)
+        fig.add_subplot(ax)
+
+        e_plot = np.imag(E_ij_ds_LOM_matrix[:,:,s]-E_ij_LOM_matrix)/MAX_E_ij
+        e_plot_p =e_plot+1E-30
+        e_plot_p[e_plot_p<=0]=np.NaN
+        e_plot_n = e_plot
+        e_plot_n[e_plot_n>0]=np.NaN
+        e_plot_n = np.abs(e_plot_n)
+
+        ax = plot.Subplot(fig,inner[3][1])
+        ax.set_aspect('equal')
+
+        p_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_p,cmap=cmap11,norm=matplotlib.colors.LogNorm(vmin=1E-6,vmax=1))
+        n_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_n,cmap=cmap12,norm=matplotlib.colors.LogNorm(vmin=1E-6,vmax=1))
+        ax.text(-3,2.5,'(h)',fontsize=8)
+        #ax.text(-0.5,-3.4,'$R(\Delta E_{ij,DNS})$',fontsize=8)
+        ax.set_yticks(xy_ticks)
+        ax.set_yticks(xy_minor_ticks,minor=True)
+        ax.set_xticks(xy_ticks)
+        ax.set_xticks(xy_minor_ticks,minor=True)
+        ax.xaxis.set_tick_params(labelbottom=False)
+        ax.yaxis.set_tick_params(labelleft=False)
+        fig.add_subplot(ax)
+
+        cax=plot.Subplot(fig,inner[3][2])
+        cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap13),cax,ticks=err_log_cbar_ticks,extend='both')
+        cbar.ax.set_yticklabels(err_log_cbar_labels, fontsize=8)
         fig.add_subplot(cax)
 
-        inner.append(gridspec.GridSpecFromSubplotSpec(1,3,subplot_spec=outer[14],wspace=0.15,hspace=0.3,width_ratios=[0.02,0.01,0.02]))
-        cax=plot.Subplot(fig,inner[4][0])
-        cbar = plot.colorbar(p_plot5,cax,ticks=cbar_ticks,format=tkr.FormatStrFormatter('%.0e'))
-        cbar.ax.yaxis.set_tick_params(labelright=True)
-        ticklabs = cbar.ax.get_yticklabels()
-        cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+        # err PINN
+        inner.append(gridspec.GridSpecFromSubplotSpec(1,3,subplot_spec=outer[4],wspace=0.05,hspace=0.1,width_ratios=[0.48,0.48,0.04]))
+        ax = plot.Subplot(fig,inner[4][0])
+        ax.set_aspect('equal')
+
+        e_plot = np.real(E_ij_pred_matrix[:,:,s]-E_ij_LOM_matrix)/MAX_E_ij
+        e_plot_p =e_plot+1E-30
+        e_plot_p[e_plot_p<=0]=np.NaN
+        e_plot_n = e_plot
+        e_plot_n[e_plot_n>0]=np.NaN
+        e_plot_n = np.abs(e_plot_n)
+
+        p_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_p,cmap=cmap11,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
+        n_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_n,cmap=cmap12,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
+        ax.text(-3,2.5,'(i)',fontsize=8)
+        #ax.text(-0.5,-3.4,'$R(\Delta E_{ij,DNS})$',fontsize=8)
+        ax.set_yticks(xy_ticks)
+        ax.set_yticks(xy_minor_ticks,minor=True)
+        ticklabs = ax.get_yticklabels()
+        ax.set_yticklabels(ticklabs, fontsize=8)
+        ax.set_xticks(xy_ticks)
+        ax.set_xticks(xy_minor_ticks,minor=True)
+        ax.xaxis.set_tick_params(labelbottom=True)
+        ticklabs = ax.get_xticklabels()
+        ax.set_xticklabels(ticklabs, fontsize=8)
+        ax.set_ylabel('$f_{j}/f_{1}$',fontsize=8,labelpad=ylabelpad)
+        ax.set_xlabel('$f_{i}/f_{1}$',fontsize=8,labelpad=xlabelpad)
+        fig.add_subplot(ax)
+
+        e_plot = np.imag(E_ij_pred_matrix[:,:,s]-E_ij_LOM_matrix)/MAX_E_ij
+        e_plot_p =e_plot+1E-30
+        e_plot_p[e_plot_p<=0]=np.NaN
+        e_plot_n = e_plot
+        e_plot_n[e_plot_n>0]=np.NaN
+        e_plot_n = np.abs(e_plot_n)
+
+        ax = plot.Subplot(fig,inner[4][1])
+        ax.set_aspect('equal')
+
+        p_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_p,cmap=cmap11,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
+        n_plot = ax.pcolor(freq_mesh_i,freq_mesh_j,e_plot_n,cmap=cmap12,norm=matplotlib.colors.LogNorm(vmin=1E-4,vmax=1))
+        ax.text(-3,2.5,'(j)',fontsize=8)
+        #ax.text(-0.5,-3.4,'$R(\Delta E_{ij,DNS})$',fontsize=8)
+        ax.set_yticks(xy_ticks)
+        ax.set_yticks(xy_minor_ticks,minor=True)
+        ax.set_xticks(xy_ticks)
+        ax.set_xticks(xy_minor_ticks,minor=True)
+        ax.xaxis.set_tick_params(labelbottom=True)
+        ax.yaxis.set_tick_params(labelleft=False)
+        ax.set_xlabel('$f_{i}/f_{1}$',fontsize=8,labelpad=xlabelpad)
+        fig.add_subplot(ax)
+
+        cax=plot.Subplot(fig,inner[4][2])
+        cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap13),cax,ticks=err_log_cbar_ticks,extend='both')
+        cbar.ax.set_yticklabels(err_log_cbar_labels, fontsize=8)
         fig.add_subplot(cax)
+
+
+
 
         filename = 'simplified_energy_exchange_error_ds_PINN_S'+str(supersample_factors_ds[s])
         plot.savefig(figures_dir+filename+'.pdf')
@@ -1731,6 +1828,37 @@ if True:
     #fig.tight_layout()
     plot.savefig(figures_dir+'energy_PINN_error.pdf')
     plot.savefig(figures_dir+'energy_PINN_error.png',dpi=300)
+    plot.close(fig)
+
+    fig,axs = plot.subplots(1,1)
+    fig.set_size_inches(3.37,2.5)
+    plot.subplots_adjust(left=0.17,top=0.99,right=0.9,bottom=0.17)
+
+    y_ticks=[1E-4,1E-3,1E-2,1E-1,1]
+    y_tick_labels=['1E-4','1E-3','1E-2','1E-1','1']
+    error_x_tick_labels = ['40','20','10','5','2.5','1.25',]
+
+    mean_plt,=axs.plot(pts_per_d[1:]*0.97,mean_error_ds,linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
+    mean_plt2,=axs.plot(pts_per_d*1.03,mean_error_PINN,linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
+    max_plt,=axs.plot(pts_per_d[1:]*0.97,max_error_ds,linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
+    max_plt2,=axs.plot(pts_per_d*1.03,max_error_PINN,linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+    axs.set_xscale('log')
+    axs.xaxis.set_tick_params(labelbottom=True)
+    axs.set_yscale('log')
+    axs.set_ylim(1E-4,1E1)
+    axs.set_yticks(y_ticks,labels=y_tick_labels,fontsize=8)
+    axs.set_ylabel("Relative Error",fontsize=8)
+    #axs.set_title('$\overline{u\'_{x}u\'_{x}}$')
+    axs.legend([mean_plt,mean_plt2,max_plt,max_plt2],['Mean DS','Mean PINN','Max DS','Max PINN'],fontsize=8,loc='upper center',ncol=2)
+    axs.grid('on')
+    axs.set_xticks(pts_per_d)
+    axs.set_xticklabels(error_x_tick_labels)
+    axs.set_xlabel('$D/\Delta x$',fontsize=8)
+    #axs[0].text(0.45,10.0,'(a)',fontsize=10)
+
+    #fig.tight_layout()
+    plot.savefig(figures_dir+'energy_PINN_error_mag.pdf')
+    plot.savefig(figures_dir+'energy_PINN_error_mag.png',dpi=300)
     plot.close(fig)
 
 

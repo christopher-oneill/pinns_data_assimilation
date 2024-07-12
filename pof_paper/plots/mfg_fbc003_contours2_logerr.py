@@ -131,31 +131,34 @@ for c in range(n_cases):
     p_pred_grid.append(np.reshape(p_pred[c],X_grid.shape))
     p_pred_grid[c][cylinder_mask] = np.NaN
 
-    ux_err_grid.append(ux_grid-ux_pred_grid[c])
-    uy_err_grid.append(uy_grid-uy_pred_grid[c])
-    p_err_grid.append(p_grid-p_pred_grid[c])
+    ux_err_grid.append(ux_pred_grid[c]-ux_grid)
+    uy_err_grid.append(uy_pred_grid[c]-uy_grid)
+    p_err_grid.append(p_pred_grid[c]-p_grid)
+
+    temp_err_ux = np.abs(ux_pred[c]-ux)
+    temp_err_uy = np.abs(uy_pred[c]-uy)
+    temp_err_p = np.abs(p_pred[c]-p)
+
+    mean_err_ux.append(np.nanmean(temp_err_ux))
+    mean_err_uy.append(np.nanmean(temp_err_uy))
+    mean_err_p.append(np.nanmean(temp_err_p))
+
+    p95_err_ux.append(np.nanpercentile(temp_err_ux,95))
+    p95_err_uy.append(np.nanpercentile(temp_err_uy,95))
+    p95_err_p.append(np.nanpercentile(temp_err_p,95))
+
+    MAX_err_ux.append(np.nanmax(temp_err_ux))
+    MAX_err_uy.append(np.nanmax(temp_err_uy))
+    MAX_err_p.append(np.nanmax(temp_err_p))
 
 
-    mean_err_ux.append(np.nanmean(np.abs(ux-ux_pred[c])))
-    mean_err_uy.append(np.nanmean(np.abs(uy-uy_pred[c])))
-    mean_err_p.append(np.nanmean(np.abs(p-p_pred[c])))
 
-    p95_err_ux.append(np.nanpercentile(np.abs(ux-ux_pred[c]),95))
-    p95_err_uy.append(np.nanpercentile(np.abs(uy-uy_pred[c]),95))
-    p95_err_p.append(np.nanpercentile(np.abs(p-p_pred[c]),95))
-
-    MAX_err_ux.append(np.nanmax(np.abs(ux-ux_pred[c])))
-    MAX_err_uy.append(np.nanmax(np.abs(uy-uy_pred[c])))
-    MAX_err_p.append(np.nanmax(np.abs(p-p_pred[c])))
-
-
-
-    MAX_err_ux_all = np.nanmax([np.nanmax(np.abs((ux-ux_pred[c]))),MAX_err_ux_all])
-    MAX_err_uy_all = np.nanmax([np.nanmax(np.abs((uy-uy_pred[c]))),MAX_err_uy_all])
-    MAX_err_p_all = np.nanmax([np.nanmax(np.abs((p-p_pred[c]))),MAX_err_p_all])
-    MIN_err_ux_all = np.nanmin([np.nanmin(np.abs((ux-ux_pred[c]))),MIN_err_ux_all])
-    MIN_err_uy_all = np.nanmin([np.nanmin(np.abs((uy-uy_pred[c]))),MIN_err_uy_all])
-    MIN_err_p_all = np.nanmin([np.nanmin(np.abs((p-p_pred[c]))),MIN_err_p_all])
+    MAX_err_ux_all = np.nanmax([np.nanmax(temp_err_ux),MAX_err_ux_all])
+    MAX_err_uy_all = np.nanmax([np.nanmax(temp_err_uy),MAX_err_uy_all])
+    MAX_err_p_all = np.nanmax([np.nanmax(temp_err_p),MAX_err_p_all])
+    MIN_err_ux_all = np.nanmin([np.nanmin(temp_err_ux),MIN_err_ux_all])
+    MIN_err_uy_all = np.nanmin([np.nanmin(temp_err_uy),MIN_err_uy_all])
+    MIN_err_p_all = np.nanmin([np.nanmin(temp_err_p),MIN_err_p_all])
 
     physFile = h5py.File(output_dir+errs_list[c],'r')
     mx_grid.append(np.reshape(np.array(physFile['mxr']),X_grid.shape))
@@ -258,7 +261,81 @@ for c in range(len(cases_list)):
     levels_my = np.geomspace(1E-3,1,21)#np.linspace(1E-6,MAX_my,21)
     levels_mass = np.geomspace(1E-3,1,21)#np.linspace(1E-6,MAX_mass,21)
 
+    levels_mx = np.geomspace(1E-3,1,11)##
+
+
     ticks_mx = np.array([1E-3,3E-3,1E-2,3E-2,1E-1,3E-1,1])
+
+    from matplotlib.colors import LinearSegmentedColormap
+
+    cdict3 = {'red':   [(0.0,  1.0, 1.0), # white
+                        (0.33,  1.0, 1.0), # orange
+                        (0.66,  1.0, 1.0), # pink
+                        (1.0,  1.0, 1.0)], # red 
+
+             'green': [(0.0,  0.0, 1.0),
+                        (0.33, 170/255.0, 170/255.0), # (0.33, 170.0/255.0, 170.0/255.0),
+                        (0.66, 0.0, 0.0),
+                        (1.0,  0.0, 0.0)],
+
+            'blue':  [(0.0,  0.0, 1.0),
+                        (0.33,  0.0, 0.0),
+                        (0.66,  1.0, 1.0),
+                        (1.0,  0.0, 0.0)]}
+
+
+    cmap1 = LinearSegmentedColormap('WhiteYellowPinkRed',cdict3)
+    cmap1.set_bad('white',alpha=0.0)
+
+    
+    cdict4 = {'red':   [(0.0,  1.0, 1.0),
+                        (0.33,  0.0, 0.0),
+                        (0.66,  0.0, 0.0),
+                        (1.0,  0.0, 0.0)],
+
+             'green': [(0.0,  0.0, 1.0),
+                        (0.33, 1.0, 1.0),
+                        (0.66,  1.0, 1.0),
+                        (1.0,  0.0, 0.0)],
+
+            'blue':  [(0.0,  0.0, 1.0),
+                        (0.33,  0.0, 0.0),
+                        (0.66,  1.0, 1.0),
+                        (1.0,  1.0, 1.0)]}
+
+    cmap2 = LinearSegmentedColormap('WhiteGreenCyanBlue',cdict4)
+    cmap2.set_bad('white',alpha=0.0)
+    
+    cdict5 = {'red':   [(0.0,  0.0, 0.0),
+                        (0.16,  0.0, 0.0),
+                        (0.33,  0.0, 0.0),
+                        (0.5,  1.0, 1.0), # white
+                        (0.66,  1.0, 1.0), # orange
+                        (0.83,  1.0, 1.0), # pink
+                        (1.0,  1.0, 1.0)], # red 
+
+             'green': [(0.0,  0.0, 0.0),
+                        (0.16,  1.0, 1.0),
+                        (0.33,  1.0, 1.0),
+                        (0.5,  1.0, 1.0),
+                        (0.66, 170.0/255.0, 170.0/255.0), # (0.33, 170.0/255.0, 170.0/255.0),
+                        (0.83, 0.0, 0.0),
+                        (1.0,  0.0, 0.0)],
+
+            'blue':  [(0.0,  1.0, 1.0),
+                        (0.16,  1.0, 1.0),
+                        (0.33,  0.0, 0.0),
+                        (0.5,  1.0, 1.0),
+                        (0.66,  0.0, 0.0),
+                        (0.83,  1.0, 1.0),
+                        (1.0,  0.0, 0.0)]}
+    # for the colobars only
+    cmap3 = LinearSegmentedColormap('BlueCyanGreenWhiteYellowPinkRed',cdict5)
+    cmap3.set_bad('white',alpha=0.0)
+
+    dual_log_cbar_norm = matplotlib.colors.CenteredNorm(0.0,1.0)
+    dual_log_cbar_ticks = [-1,-0.666,-0.333,0,0.333,0.666,1]
+    dual_log_cbar_labels = ['-1','-1E-1','-1E-2','0','1E-2','1E-1','1']
 
     # quadrant 1
 
@@ -306,8 +383,14 @@ for c in range(len(cases_list)):
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[0][6])
-    e_plot = np.abs(ux_err_grid[c]/MAX_plot_ux)+1E-30
-    ux_plot = ax.contourf(X_grid,Y_grid,e_plot,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap= matplotlib.colormaps['hot_r'],extend='both')
+    e_plot = ux_err_grid[c]/MAX_plot_ux
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+    p_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    p_plot2 = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
     ax.set_aspect('equal')
     ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
     ax.yaxis.set_tick_params(labelsize=8)
@@ -317,17 +400,16 @@ for c in range(len(cases_list)):
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     if np.mean(e_plot.ravel())>text_color_tolerance:
-        ax.text(6.5,1.2,'$|\\frac{\overline{u}_{x,DNS}-\overline{u}_{x,PINN}}{max(\overline{u}_{x,DNS})}|$',fontsize=8,color='w')
+        ax.text(6.5,1.2,'$|\\frac{\overline{u}_{x,PINN}-\overline{u}_{x,DNS}}{max(\overline{u}_{x,DNS})}|$',fontsize=8,color='w')
         ax.text(-1.75,1.4,'(ac)',fontsize=8,color='w')
     else:
-        ax.text(6.5,1.2,'$|\\frac{\overline{u}_{x,DNS}-\overline{u}_{x,PINN}}{max(\overline{u}_{x,DNS})}|$',fontsize=8,color='k')
+        ax.text(6.5,1.2,'$|\\frac{\overline{u}_{x,PINN}-\overline{u}_{x,DNS}}{max(\overline{u}_{x,DNS})}|$',fontsize=8,color='k')
         ax.text(-1.75,1.4,'(ac)',fontsize=8,color='k')
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[0][7])
-    cbar = plot.colorbar(ux_plot,cax,ticks=ticks_mx,format=tkr.FormatStrFormatter('%.0e'))
-    ticklabs = cbar.ax.get_yticklabels()
-    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
 
@@ -375,8 +457,14 @@ for c in range(len(cases_list)):
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[1][6])
-    e_plot =np.abs(uy_err_grid[c]/MAX_plot_uy)+1E-30
-    uy_plot = ax.contourf(X_grid,Y_grid,e_plot,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap= matplotlib.colormaps['hot_r'],extend='both')
+    e_plot = uy_err_grid[c]/MAX_plot_uy
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+    p_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    p_plot2 = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
     ax.set_aspect('equal')
     ax.set_yticks(np.array([2.0,1.0,0.0,-1.0,-2.0]))
     ax.xaxis.set_tick_params(labelbottom=False)
@@ -385,18 +473,13 @@ for c in range(len(cases_list)):
         dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
-    if np.mean(e_plot.ravel())>text_color_tolerance:
-        t=ax.text(6.5,1.2,'$|\\frac{\overline{u}_{y,DNS}-\overline{u}_{y,PINN}}{max(\overline{u}_{y,DNS})}|$',fontsize=8,color='w')
-        ax.text(-1.75,1.4,'(bc)',fontsize=8,color='w')
-    else:
-        t=ax.text(6.5,1.2,'$|\\frac{\overline{u}_{y,DNS}-\overline{u}_{y,PINN}}{max(\overline{u}_{y,DNS})}|$',fontsize=8,color='k')
-        ax.text(-1.75,1.4,'(bc)',fontsize=8)
+    t=ax.text(6.5,1.2,'$|\\frac{\overline{u}_{y,PINN}-\overline{u}_{y,DNS}}{max(\overline{u}_{y,DNS})}|$',fontsize=8,color='k')
+    ax.text(-1.75,1.4,'(bc)',fontsize=8)
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[1][7])
-    cbar = plot.colorbar(uy_plot,cax,ticks=ticks_mx,format=tkr.FormatStrFormatter('%.0e'))
-    ticklabs = cbar.ax.get_yticklabels()
-    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
  
 
@@ -442,8 +525,14 @@ for c in range(len(cases_list)):
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[2][6])
-    e_plot = np.abs(p_err_grid[c]/MAX_plot_p)+1E-30
-    p_plot = ax.contourf(X_grid,Y_grid,e_plot,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap= matplotlib.colormaps['hot_r'],extend='both')
+    e_plot = p_err_grid[c]/MAX_plot_p
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+    p_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    p_plot2 = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
     ax.set_aspect('equal')
     ax.yaxis.set_tick_params(labelsize=8)
     ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
@@ -454,17 +543,16 @@ for c in range(len(cases_list)):
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     if np.mean(e_plot.ravel())>text_color_tolerance:
-        ax.text(7,1.2,'$|\\frac{\overline{p}_{DNS}-\overline{p}_{PINN}}{max(\overline{p}_{DNS})}|$',fontsize=8,color='w')
+        ax.text(7,1.2,'$|\\frac{\overline{p}_{PINN}-\overline{p}_{DNS}}{max(\overline{p}_{DNS})}|$',fontsize=8,color='w')
         ax.text(-1.75,1.4,'(cc)',fontsize=8,color='w')
     else:
-        ax.text(7,1.2,'$|\\frac{\overline{p}_{DNS}-\overline{p}_{PINN}}{max(\overline{p}_{DNS})}|$',fontsize=8,color='k')
+        ax.text(7,1.2,'$|\\frac{\overline{p}_{PINN}-\overline{p}_{DNS}}{max(\overline{p}_{DNS})}|$',fontsize=8,color='k')
         ax.text(-1.75,1.4,'(cc)',fontsize=8)
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[2][7])
-    cbar = plot.colorbar(p_plot,cax,ticks=ticks_mx,format=tkr.FormatStrFormatter('%.0e'))
-    ticklabs = cbar.ax.get_yticklabels()
-    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
     # quadrant 4
@@ -472,8 +560,14 @@ for c in range(len(cases_list)):
     inner.append(gridspec.GridSpecFromSubplotSpec(3,3,subplot_spec=outer[3],wspace=0.05,hspace=0.1,width_ratios=[0.88,0.03,0.09]))
 
     ax = plot.Subplot(fig,inner[3][0])
-    e_plot = np.abs(mx_grid[c])+1E-30
-    m_plot =ax.contourf(X_grid,Y_grid,e_plot,levels=levels_mx,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
+    e_plot = mx_grid[c]
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+    p_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    p_plot2 = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
     ax.set_aspect('equal')
 
     ax.set_yticks(np.array([2.0,1.0,0.0,-1.0,-2.0]))
@@ -492,14 +586,19 @@ for c in range(len(cases_list)):
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[3][1])
-    cbar = plot.colorbar(m_plot,cax,ticks=ticks_mx,format=tkr.FormatStrFormatter('%.0e'))
-    ticklabs = cbar.ax.get_yticklabels()
-    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[3][3])
-    e_plot = np.abs(my_grid[c])+1E-30
-    m_plot =ax.contourf(X_grid,Y_grid,e_plot,levels=levels_mx,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
+    e_plot = my_grid[c]
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+    p_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    p_plot2 = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
     ax.set_aspect('equal')
 
     ax.set_yticks(np.array([2.0,1.0,0.0,-1.0,-2.0]))
@@ -518,14 +617,19 @@ for c in range(len(cases_list)):
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[3][4])
-    cbar = plot.colorbar(m_plot,cax,ticks=ticks_mx,format=tkr.FormatStrFormatter('%.0e'))
-    ticklabs = cbar.ax.get_yticklabels()
-    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[3][6])
-    e_plot = np.abs(mass_grid[c])+1E-30
-    m_plot =ax.contourf(X_grid,Y_grid,e_plot,levels=levels_mx,cmap= matplotlib.colormaps['hot_r'],norm=matplotlib.colors.LogNorm(),extend='both')
+    e_plot = mass_grid[c]
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+    p_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    p_plot2 = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
     ax.set_aspect('equal')
     ax.set_xlabel('x/D',fontsize=8)
     ax.set_yticks(np.array([2.0,1.0,0.0,-1.0,-2.0]))
@@ -544,15 +648,17 @@ for c in range(len(cases_list)):
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[3][7])
-    cbar = plot.colorbar(m_plot,cax,ticks=ticks_mx,format=tkr.FormatStrFormatter('%.0e'))
-    ticklabs = cbar.ax.get_yticklabels()
-    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
     plot.savefig(figures_dir+'logerr_mfg_fbc003_S'+str(cases_supersample_factor[c])+'.pdf')
     plot.savefig(figures_dir+'logerr_mfg_fbc003_S'+str(cases_supersample_factor[c])+'.png',dpi=300)
 
     plot.close(fig)
+
+
+
 
 
 if True:
@@ -620,7 +726,7 @@ if True:
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
 
-    ax.text(6.5,1.2,'$|\\frac{\overline{u}_{x,DNS}-\overline{u}_{x,PINN}}{max(\overline{u}_{x,DNS})}|$',fontsize=8,color='k')
+    ax.text(6.5,1.2,'$|\\frac{\overline{u}_{x,PINN}-\overline{u}_{x,DNS}}{max(\overline{u}_{x,DNS})}|$',fontsize=8,color='k')
     ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
     ax.text(-1.75,1.4,'(b)',fontsize=8,color='k')
     fig.add_subplot(ax)
@@ -644,7 +750,7 @@ if True:
         dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
-    ax.text(6.5,1.2,'$|\\frac{\overline{u}_{x,DNS}-\overline{u}_{x,PINN}}{max(\overline{u}_{x,DNS})}|$',fontsize=8,color='k')
+    ax.text(6.5,1.2,'$|\\frac{\overline{u}_{x,PINN}-\overline{u}_{x,DNS}}{max(\overline{u}_{x,DNS})}|$',fontsize=8,color='k')
     ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
     ax.text(-1.75,1.4,'(c)',fontsize=8,color='k')
     fig.add_subplot(ax)
@@ -687,7 +793,7 @@ if True:
         dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
-    ax.text(7,1.2,'$|\\frac{\overline{p}_{DNS}-\overline{p}_{PINN}}{max(\overline{p}_{DNS})}|$',fontsize=8,color='k')
+    ax.text(7,1.2,'$|\\frac{\overline{p}_{PINN}-\overline{p}_{DNS}}{max(\overline{p}_{DNS})}|$',fontsize=8,color='k')
     ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
     ax.text(-1.75,1.4,'(e)',fontsize=8)
     fig.add_subplot(ax)
@@ -735,7 +841,7 @@ if True:
         dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
-    ax.text(7,1.2,'$|\\frac{\overline{p}_{DNS}-\overline{p}_{PINN}}{max(\overline{p}_{DNS})}|$',fontsize=8,color='k')
+    ax.text(7,1.2,'$|\\frac{\overline{p}_{PINN}-\overline{p}_{DNS}}{max(\overline{p}_{DNS})}|$',fontsize=8,color='k')
     ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
     ax.text(-1.75,1.4,'(g)',fontsize=8)
     fig.add_subplot(ax)
@@ -901,7 +1007,7 @@ if True:
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
 
-    ax.text(6.5,1.2,'$\\frac{\overline{u}_{x,DNS}-\overline{u}_{x,PINN}}{max(|\overline{u}_{x,DNS}|)}$',fontsize=8,color='k')
+    ax.text(6.5,1.2,'$\\frac{\overline{u}_{x,PINN}-\overline{u}_{x,DNS}}{max(|\overline{u}_{x,DNS}|)}$',fontsize=8,color='k')
     ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
     ax.text(-1.75,1.4,'(b)',fontsize=8,color='k')
     fig.add_subplot(ax)
@@ -938,7 +1044,7 @@ if True:
         dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
-    ax.text(6.5,1.2,'$\\frac{\overline{u}_{x,DNS}-\overline{u}_{x,PINN}}{max(|\overline{u}_{x,DNS}|)}$',fontsize=8,color='k')
+    ax.text(6.5,1.2,'$\\frac{\overline{u}_{x,PINN}-\overline{u}_{x,DNS}}{max(|\overline{u}_{x,DNS}|)}$',fontsize=8,color='k')
     ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
     ax.text(-1.75,1.4,'(c)',fontsize=8,color='k')
     fig.add_subplot(ax)
@@ -991,11 +1097,11 @@ if True:
     ax.yaxis.set_tick_params(labelsize=8)
     ax.xaxis.set_tick_params(labelbottom=False)
     ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
-    if cases_supersample_factor[c]>1:
-        dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    #if cases_supersample_factor[c]>1:
+    #    dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
-    ax.text(7,1.2,'$\\frac{\overline{p}_{DNS}-\overline{p}_{PINN}}{max(|\overline{p}_{DNS}|)}$',fontsize=8,color='k')
+    ax.text(7,1.2,'$\\frac{\overline{p}_{PINN}-\overline{p}_{DNS}}{max(|\overline{p}_{DNS}|)}$',fontsize=8,color='k')
     ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
     ax.text(-1.75,1.4,'(e)',fontsize=8)
     fig.add_subplot(ax)
@@ -1015,8 +1121,8 @@ if True:
     ax.yaxis.set_tick_params(labelsize=8)
     ax.xaxis.set_tick_params(labelbottom=False)
     ax.text(8,1.4,'$\overline{p}_{PINN}$',fontsize=8)
-    if cases_supersample_factor[c]>1:
-        dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    #if cases_supersample_factor[c]>1:
+    #    dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
@@ -1045,11 +1151,11 @@ if True:
     ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
     ax.xaxis.set_tick_params(labelsize=8)
     ax.set_xlabel('x/D',fontsize=8,labelpad=-1)
-    if cases_supersample_factor[c]>1:
-        dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    #if cases_supersample_factor[c]>1:
+    #    dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
-    ax.text(7,1.2,'$\\frac{\overline{p}_{DNS}-\overline{p}_{PINN}}{max(|\overline{p}_{DNS}|)}$',fontsize=8,color='k')
+    ax.text(7,1.2,'$\\frac{\overline{p}_{PINN}-\overline{p}_{DNS}}{max(|\overline{p}_{DNS}|)}$',fontsize=8,color='k')
     ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
     ax.text(-1.75,1.4,'(g)',fontsize=8)
     fig.add_subplot(ax)
