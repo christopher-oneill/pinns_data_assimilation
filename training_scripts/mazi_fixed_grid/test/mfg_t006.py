@@ -711,7 +711,7 @@ supersample_factor = int(sys.argv[2])
 job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_t001_{:03d}_S{:d}'.format(job_number,supersample_factor)
+job_name = 'mfg_t006_{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 job_duration = timedelta(hours=job_hours,minutes=0)
 end_time = start_time+job_duration
@@ -910,9 +910,9 @@ else:
     training_steps = 0
     with tf.device(tf_device_string):        
         inputs = keras.Input(shape=(2,),name='coordinates')
-        lo = keras.layers.Dense(100,'tanh')(inputs)
+        lo = QresBlock2(71)(inputs)
         for i in range(9):
-            lo=keras.layers.Dense(100,'tanh')(lo)
+            lo=QresBlock2(71,)(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         # save the model architecture only once on setup
