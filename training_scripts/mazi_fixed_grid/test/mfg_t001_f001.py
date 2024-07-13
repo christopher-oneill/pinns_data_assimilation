@@ -773,7 +773,7 @@ def boundary_points_function(n_cyl):
 def compute_loss(x,y,colloc_x,mean_grads,boundary_tuple,ScalingParameters):
     y_pred = model_FANS(x,training=True)
     data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:10]-y),axis=0),axis=0) 
-    physics_loss = tf.cast(0.0,tf_dtype) # FANS_physics_loss(model_FANS,colloc_x,mean_grads,ScalingParameters) 
+    physics_loss = FANS_physics_loss(model_FANS,colloc_x,mean_grads,ScalingParameters) 
     boundary_loss = FANS_boundary_loss(model_FANS,boundary_tuple,ScalingParameters)
 
     # dynamic loss weighting, scale based on largest
