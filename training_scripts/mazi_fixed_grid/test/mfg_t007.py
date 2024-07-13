@@ -301,7 +301,7 @@ def save_pred():
 
 def load_custom():
     model_filename,model_training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','_model.h5')
-    model_RANS = keras.models.load_model(model_filename,custom_objects={'InputPassthroughLayer':InputPassthroughLayer,})
+    model_RANS = keras.models.load_model(model_filename,custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer,'FourierPassthroughEmbeddingLayer':FourierPassthroughEmbeddingLayer,'FourierPassthroughReductionLayer':FourierPassthroughReductionLayer})
     # check if the weights are newer
     checkpoint_filename,weights_training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','.weights.h5')
 
@@ -545,158 +545,7 @@ def boundary_points_function(cyl):
 
 # training functions
 
-@tf.function
-def compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters):
-    y_pred = model_RANS(x,training=True)
-    data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:5]-y),axis=0),axis=0) 
-    physics_loss = RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) #tf.cast(0.0,tf_dtype)#
-    boundary_loss = RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple)
 
-    # dynamic loss weighting, scale based on largest
-    max_loss = tf.exp(tf.math.ceil(tf.math.log(1E-30+tf.reduce_max(tf.stack((data_loss,physics_loss,boundary_loss))))))
-    log_data = max_loss/tf.exp(tf.math.log(1E-30+data_loss))
-    log_physics = max_loss/tf.exp(tf.math.log(1E-30+physics_loss))
-    log_boundary = max_loss/tf.exp(tf.math.log(1E-30+boundary_loss))
-
-    total_loss = ScalingParameters.data_loss_coefficient*(1+log_data)*data_loss + ScalingParameters.physics_loss_coefficient*(1+log_physics)*physics_loss + ScalingParameters.boundary_loss_coefficient*(1+log_boundary)*boundary_loss
-    return total_loss, data_loss, physics_loss, boundary_loss
-
-# define the training functions
-@tf.function
-def train_step(x,y,colloc_x,boundary_tuple,ScalingParameters):
-    with tf.GradientTape() as tape:
-        total_loss ,data_loss, physics_loss, boundary_loss = compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters)
-
-    grads = tape.gradient(total_loss,model_RANS.trainable_weights)
-    optimizer.apply_gradients(zip(grads,model_RANS.trainable_weights))
-    return total_loss, data_loss, physics_loss, boundary_loss
-
-def fit_epoch(i_train,o_train,colloc_vector,boundary_tuple,ScalingParameters):
-    global training_steps
-    batches = np.int64(np.ceil(i_train.shape[0]/(1.0*ScalingParameters.batch_size)))
-    # sort colloc_points by error
-    #i_sampled,o_sampled = data_sample_by_err(i_train,o_train,i_train.shape[0])
-    i_sampled = i_train
-    o_sampled = o_train
-
-    colloc_rand_indices = np.random.choice(np.arange(colloc_vector.shape[0]),batches*ScalingParameters.colloc_batch_size)
-    colloc_rand = tf.gather(colloc_vector,colloc_rand_indices,axis=0)
-
-    (BC_p_epoch,BC_wall_epoch) = boundary_tuple
-    BC_wall_rand = tf.gather(BC_wall_epoch,np.random.choice(np.arange(BC_wall_epoch.shape[0]),batches*ScalingParameters.boundary_batch_size),axis=0)
-  
-    
-    progbar = keras.utils.Progbar(batches)
-    loss_vec = np.zeros((batches,),np.float64)
-    data_vec = np.zeros((batches,),np.float64)
-    physics_vec = np.zeros((batches,),np.float64)
-    boundary_vec = np.zeros((batches,),np.float64)
-
-    for batch in range(batches):
-        progbar.update(batch+1)
-        
-        i_batch = i_sampled[(batch*ScalingParameters.batch_size):np.min([(batch+1)*ScalingParameters.batch_size,i_train.shape[0]]),:]
-        o_batch = o_sampled[(batch*ScalingParameters.batch_size):np.min([(batch+1)*ScalingParameters.batch_size,o_train.shape[0]]),:]
-
-        colloc_batch = colloc_rand[(batch*ScalingParameters.colloc_batch_size):np.min([(batch+1)*ScalingParameters.colloc_batch_size,colloc_rand.shape[0]]),:]
-        BC_wall_batch = BC_wall_rand[(batch*ScalingParameters.boundary_batch_size):np.min([(batch+1)*ScalingParameters.boundary_batch_size,BC_wall_rand.shape[0]]),:]
-
-        loss_value, data_loss, physics_loss, boundary_loss = train_step(tf.cast(i_batch,tf_dtype),tf.cast(o_batch,tf_dtype),tf.cast(colloc_batch,tf_dtype),(BC_p_epoch,BC_wall_batch),ScalingParameters) #
-        loss_vec[batch] = loss_value.numpy()
-        data_vec[batch] = data_loss.numpy()
-        physics_vec[batch] = physics_loss.numpy()
-        boundary_vec[batch] = boundary_loss.numpy()
-
-    training_steps = training_steps+1
-    print('Epoch',str(training_steps),f" Loss: {np.mean(loss_vec):.6e}",f" Data loss: {np.mean(data_vec):.6e}")
-    print(f" Physics loss: {np.mean(physics_vec):.6e}",f" Boundary loss: {np.mean(boundary_vec):.6e}",)
-
-
-
-def train_LBFGS(model,x,y,colloc_x,boundary_tuple,ScalingParameters):
-    """A factory to create a function required by tfp.optimizer.lbfgs_minimize.
-    Args:
-        model [in]: an instance of `tf.keras.Model` or its subclasses.
-        loss [in]: a function with signature loss_value = loss(pred_y, true_y).
-        train_x [in]: the input part of training data.
-        train_y [in]: the output part of training data.
-    Returns:
-        A function that has a signature of:
-            loss_value, gradients = f(model_parameters).
-    """
-
-    # obtain the shapes of all trainable parameters in the model
-    shapes = tf.shape_n(model.trainable_variables)
-    n_tensors = len(shapes)
-
-    # we'll use tf.dynamic_stitch and tf.dynamic_partition later, so we need to
-    # prepare required information first
-    count = 0
-    idx = [] # stitch indices
-    part = [] # partition indices
-
-    for i, shape in enumerate(shapes):
-        n = np.product(shape)
-        idx.append(tf.reshape(tf.range(count, count+n, dtype=tf.int32), shape))
-        part.extend([i]*n)
-        count += n
-
-    part = tf.constant(part)
-
-    @tf.function
-    def assign_new_model_parameters(params_1d):
-        """A function updating the model's parameters with a 1D tf.Tensor.
-        Args:
-            params_1d [in]: a 1D tf.Tensor representing the model's trainable parameters.
-        """
-
-        params = tf.dynamic_partition(params_1d, part, n_tensors)
-        for i, (shape, param) in enumerate(zip(shapes, params)):
-            model.trainable_variables[i].assign(tf.reshape(param, shape))
-
-    # now create a function that will be returned by this factory
-    @tf.function
-    def f(params_1d):
-        """A function that can be used by tfp.optimizer.lbfgs_minimize.
-        This function is created by function_factory.
-        Args:
-           params_1d [in]: a 1D tf.Tensor.
-        Returns:
-            A scalar loss and the gradients w.r.t. the `params_1d`.
-        """
-
-        # use GradientTape so that we can calculate the gradient of loss w.r.t. parameters
-        with tf.GradientTape() as tape:
-            # update the parameters in the model
-            assign_new_model_parameters(params_1d)
-            # calculate the loss
-            #loss_value = loss(model(train_x, training=True), train_y) # jvs
-            loss_value = compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters)[0]
-
-        # calculate gradients and convert to 1D tf.Tensor
-        grads = tape.gradient(loss_value, model.trainable_variables)
-        grads = tf.dynamic_stitch(idx, grads)
-
-        # print out iteration & loss
-        f.iter.assign_add(1)
-        tf.print("Iter:", f.iter, "loss:", loss_value,"time:",tf.timestamp()-f.last_time,"s")
-        f.last_time.assign(tf.timestamp())
-
-        # store loss value so we can retrieve later
-        tf.py_function(f.history.append, inp=[loss_value], Tout=[])
-
-        return loss_value, grads
-
-    # store these information as members so we can use them outside the scope
-    f.iter = tf.Variable(0)
-    f.idx = idx
-    f.part = part
-    f.shapes = shapes
-    f.last_time = tf.Variable(tf.timestamp())
-    f.assign_new_model_parameters = assign_new_model_parameters
-    f.history = []
-
-    return f
 
 
 start_time = datetime.now()
@@ -711,7 +560,7 @@ supersample_factor = int(sys.argv[2])
 job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_t003_{:03d}_S{:d}'.format(job_number,supersample_factor)
+job_name = 'mfg_t002_{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 job_duration = timedelta(hours=job_hours,minutes=0)
 end_time = start_time+job_duration
@@ -878,9 +727,50 @@ else:
     o_train_backprop = 1.0*o_train_LBFGS
     i_train_backprop = 1.0*i_train_LBFGS
 
-
-
 global colloc_vector
+colloc_vector = colloc_points_function(25000)
+
+strategy = tf.distribute.MirroredStrategy()
+BUFFER_SIZE = o_train_backprop.shape[0]
+
+BATCH_SIZE_PER_REPLICA = 64
+COLLOC_PER_REPLICA = 128
+GLOBAL_BATCH_SIZE = BATCH_SIZE_PER_REPLICA * strategy.num_replicas_in_sync
+COLLOC_BATCH_SIZE = COLLOC_PER_REPLICA * strategy.num_replicas_in_sync
+EPOCHS = 10
+
+# compute the number of global batches
+data_batches = np.int32(np.ceil(o_train_backprop.shape[0]/GLOBAL_BATCH_SIZE))
+
+distributed_dataset = []
+# construct the batches for each replica
+for batch in range(data_batches):
+    replica_list = []
+    for replica in range(strategy.num_replicas_in_sync):
+        i_batch = i_train_backprop[(batch*GLOBAL_BATCH_SIZE+replica*BATCH_SIZE_PER_REPLICA):np.min([batch*GLOBAL_BATCH_SIZE+(replica+1)*BATCH_SIZE_PER_REPLICA,i_train_backprop.shape[0]]),:]
+        o_batch = o_train_backprop[(batch*GLOBAL_BATCH_SIZE+replica*BATCH_SIZE_PER_REPLICA):np.min([batch*GLOBAL_BATCH_SIZE+(replica+1)*BATCH_SIZE_PER_REPLICA,o_train_backprop.shape[0]]),:]
+        
+        replica_list.append(tf.types.experimental.distributed.PerReplica((i_batch,o_batch)))
+    distributed_dataset.append(tuple(replica_list))
+
+# we need to distribute
+def batch_fn(ctx):
+    this_replica = ctx.replica_id_in_sync_group
+    return distributed_dataset[:][this_replica]
+
+distributed_values = strategy.experimental_distribute_values_from_function(batch_fn)
+for _ in range(4):
+  result = strategy.run(lambda x: x, args=(distributed_values,))
+  print(result)
+
+exit()
+#distributed_values = (strategy.experimental_distribute_values_from_function(batch_fn))
+
+#local_result = strategy.experimental_local_results(distributed_values)
+
+#print(local_result)
+
+
 boundary_tuple = boundary_points_function(720)
 colloc_vector = colloc_points_function(25000)
 
@@ -889,7 +779,7 @@ global model_RANS
 # model creation
 tf_device_string ='/GPU:0'
 
-optimizer = keras.optimizers.Adam(learning_rate=1E-4)
+
 
 from pinns_data_assimilation.lib.layers import ResidualLayer
 from pinns_data_assimilation.lib.layers import QresBlock
@@ -902,141 +792,66 @@ from pinns_data_assimilation.lib.layers import FourierPassthroughReductionLayer
 
 embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,60)
 
-model_filename,model_training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','_model.h5')
-if model_filename is not None:
-    with tf.device(tf_device_string):
+
+with strategy.scope():
+
+    # load the model
+    model_filename,model_training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','_model.h5')
+    if model_filename is not None:
         model_RANS,training_steps = load_custom()
-else: 
-    training_steps = 0
-    with tf.device(tf_device_string):        
+    else: 
+        training_steps = 0
+        
         inputs = keras.Input(shape=(2,),name='coordinates')
-        lo = InputPassthroughLayer(100,2,activation='tanh')(inputs)
+        lo = ResidualLayer(100,'tanh')(inputs)
         for i in range(9):
-            lo=InputPassthroughLayer(100,2,activation='tanh')(lo)
+            lo=ResidualLayer(100,'tanh')(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         # save the model architecture only once on setup
         model_RANS.save(savedir+job_name+'ep'+str(training_steps)+'_model.h5')
         model_RANS.summary()
 
-
-LBFGS_steps = 333
-LBFGS_epochs = 3*LBFGS_steps
-
-d_ts = 100
-# training
-
-global saveFig
-saveFig=True
-
-history_list = []
+    # optimizer
+    optimizer = keras.optimizers.Adam(learning_rate=1E-4)
 
 
-if node_name == LOCAL_NODE:
-    plot_err()
-    plot_NS_residual()
-    #plot_large()
-    #plot_NS_large()
-    #plot_gradients()
-    #save_pred()
-    exit()
-    pass
+@tf.function
+def compute_loss(x,y):
+    y_pred = model_RANS(x,training=True)
+    data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:5]-y),axis=0),axis=0) 
+    total_loss = data_loss 
+    return total_loss
 
-backprop_flag = False
+# define the training functions
+@tf.function
+def train_step(dataset_inputs):
+    x,y = dataset_inputs
+    with tf.GradientTape() as tape:
+        total_loss = compute_loss(x,y)
 
-last_epoch_time = datetime.now()
-average_epoch_time=timedelta(minutes=10)
+    grads = tape.gradient(total_loss,model_RANS.trainable_weights)
+    optimizer.apply_gradients(zip(grads,model_RANS.trainable_weights))
+    return total_loss
 
-while backprop_flag:
-    lr_schedule = np.array([1E-5,   3.3E-6, 1E-6,   3.3E-7, 1E-7,   0.0])
-    ep_schedule = np.array([0,      50,     100,    200,    300,    400,])
-    phys_schedule = np.array([1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0])
+@tf.function
+def distributed_train_step(dataset_inputs):
+  per_replica_losses = strategy.run(train_step, args=(dataset_inputs,))
+  return strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses,axis=None)
 
-    # reset the correct learing rate on load
-    i_temp = 0
-    for i in range(len(ep_schedule)):
-        if training_steps>=ep_schedule[i]:
-            i_temp = i
-    if lr_schedule[i_temp]==0.0:
-        backprop_flag=False
-    ScalingParameters.physics_loss_coefficient = tf.cast(phys_schedule[i_temp],tf.float64)
-    #ScalingParameters.boundary_loss_coefficient = tf.cast(phys_schedule[i_temp],tf.float64)
-    print('physics loss =',str(ScalingParameters.physics_loss_coefficient))
-    print('learning rate =',str(lr_schedule[i_temp]))
 
-    while backprop_flag:
-        for i in range(1,len(ep_schedule)):
-            if training_steps==ep_schedule[i]:
-                if lr_schedule[i] == 0.0:
-                    backprop_flag=False
-                    # we will do one last epoch then lbfgs
-                keras.backend.set_value(optimizer.learning_rate, lr_schedule[i])
-                print('epoch',str(training_steps))
-                ScalingParameters.physics_loss_coefficient = tf.cast(phys_schedule[i],tf.float64)
-                #ScalingParameters.boundary_loss_coefficient = tf.cast(phys_schedule[i],tf.float64)
-                print('physics loss =',str(ScalingParameters.physics_loss_coefficient))
-                print('learning rate =',str(lr_schedule[i]))               
 
-        fit_epoch(i_train_backprop,o_train_backprop,colloc_vector,boundary_tuple,ScalingParameters)
-
-        if np.mod(training_steps,10)==0:
-            if node_name==LOCAL_NODE:
-                plot_err()
-                plot_NS_residual()
-            model_RANS.save_weights(savedir+job_name+'_ep'+str(training_steps)+'.weights.h5')
-        
-        # check if we are out of time
-        average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
-        if (datetime.now()+average_epoch_time)>end_time:
-            model_RANS.save_weights(savedir+job_name+'_ep'+str(training_steps)+'.weights.h5')
-            model_RANS.save(savedir+job_name+'_ep'+str(training_steps)+'_model.h5')
-            exit()
-        last_epoch_time = datetime.now()
-    
-if True:
-    # LBFGS
-    import tensorflow_probability as tfp
-    L_iter = 0
-    boundary_tuple = boundary_points_function(720)
-    colloc_vector = colloc_points_function(25000) # one A100 max = 60k?
-    func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
-    init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
-            
-    while True:
-        
-        last_epoch_time = datetime.now()
-        # train the model with L-BFGS solver
-        results = tfp.optimizer.lbfgs_minimize(value_and_gradients_function=func, initial_position=init_params, max_iterations=LBFGS_steps,f_relative_tolerance=1E-16,stopping_condition=tfp.optimizer.converged_all)
-        func.assign_new_model_parameters(results.position)
-        init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables) # we need to reasign the parameters otherwise we start from the beginning each time
-        training_steps = training_steps + LBFGS_epochs
-        L_iter = L_iter+1
-            
-        # after training, the final optimized parameters are still in results.position
-        # so we have to manually put them back to the model
- 
-        # check if we are out of time
-        average_epoch_time = (average_epoch_time+(datetime.now()-last_epoch_time))/2
-        if (datetime.now()+average_epoch_time)>end_time:
-            #save_pred()
-            model_RANS.save_weights(savedir+job_name+'_ep'+str(training_steps)+'.weights.h5')
-            # note we only save the model on completion, because this compiles the model which slows down the execution of training if done repeatedly
-            # if we have a failed run, we can recover the weights into the model by restarting it on the same (linux/windows_cpu/windows_gpu) that it was previously trained on
-            model_RANS.save(savedir+job_name+'_ep'+str(training_steps)+'_model.h5')
-            exit()
-
-        if np.mod(L_iter,10)==0:
-            model_RANS.save_weights(savedir+job_name+'_ep'+str(training_steps)+'.weights.h5')
-            boundary_tuple = boundary_points_function(720)
-            colloc_vector = colloc_points_function(25000)
-            func = train_LBFGS(model_RANS,tf.cast(i_train_LBFGS,tf_dtype),tf.cast(o_train_LBFGS,tf_dtype),colloc_vector,boundary_tuple,ScalingParameters)
-            init_params = tf.dynamic_stitch(func.idx, model_RANS.trainable_variables)
-
-        if node_name==LOCAL_NODE:
-            #save_pred()
-            model_RANS.save_weights(savedir+job_name+'_ep'+str(training_steps)+'.weights.h5')
-            plot_err()
-            plot_NS_residual()
+for epoch in range(EPOCHS):
+    print(epoch)
+    # TRAIN LOOP
+    total_loss = 0.0
+    num_batches = 0
+    for x in train_dist_dataset:
+        total_loss += distributed_train_step(x)
+        num_batches += 1
+    train_loss = total_loss / num_batches
+    print(num_batches)
+    print(train_loss)
 
 
 

@@ -933,13 +933,13 @@ history_list = []
 
 
 if node_name == LOCAL_NODE:
-    #plot_err()
-    #plot_NS_residual()
+    plot_err()
+    plot_NS_residual()
     #plot_large()
     #plot_NS_large()
     #plot_gradients()
     #save_pred()
-    #exit()
+    exit()
     pass
 
 backprop_flag = False

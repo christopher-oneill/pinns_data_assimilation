@@ -301,7 +301,7 @@ def save_pred():
 
 def load_custom():
     model_filename,model_training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','_model.h5')
-    model_RANS = keras.models.load_model(model_filename,custom_objects={'InputPassthroughLayer':InputPassthroughLayer,})
+    model_RANS = keras.models.load_model(model_filename,custom_objects={})
     # check if the weights are newer
     checkpoint_filename,weights_training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','.weights.h5')
 
@@ -309,8 +309,8 @@ def load_custom():
         if weights_training_steps>model_training_steps:
             model_RANS.load_weights(checkpoint_filename)
             training_steps = weights_training_steps
-        else:
-            training_steps = model_training_steps
+    else:
+        training_steps = model_training_steps
     
     model_RANS.summary()
     print('Model Loaded. Epoch',str(training_steps))
@@ -549,7 +549,7 @@ def boundary_points_function(cyl):
 def compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters):
     y_pred = model_RANS(x,training=True)
     data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:5]-y),axis=0),axis=0) 
-    physics_loss = RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) #tf.cast(0.0,tf_dtype)#
+    physics_loss = tf.cast(0.0,tf_dtype) #RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) #tf.cast(0.0,tf_dtype)#
     boundary_loss = RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple)
 
     # dynamic loss weighting, scale based on largest
@@ -711,7 +711,7 @@ supersample_factor = int(sys.argv[2])
 job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_t003_{:03d}_S{:d}'.format(job_number,supersample_factor)
+job_name = 'mfg_c001_{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 job_duration = timedelta(hours=job_hours,minutes=0)
 end_time = start_time+job_duration
@@ -827,7 +827,7 @@ ScalingParameters.MAX_uxppuypp = MAX_uxuy
 ScalingParameters.MAX_uyppuypp = MAX_uyuy
 ScalingParameters.nu_mol = tf.cast(0.0066667,tf_dtype)
 ScalingParameters.MAX_p= MAX_p # estimated maximum pressure, we should
-ScalingParameters.batch_size = 32
+ScalingParameters.batch_size = 128
 ScalingParameters.colloc_batch_size = 32
 ScalingParameters.boundary_batch_size = 16
 ScalingParameters.physics_loss_coefficient = tf.cast(1.0,tf_dtype)
@@ -891,6 +891,8 @@ tf_device_string ='/GPU:0'
 
 optimizer = keras.optimizers.Adam(learning_rate=1E-4)
 
+
+
 from pinns_data_assimilation.lib.layers import ResidualLayer
 from pinns_data_assimilation.lib.layers import QresBlock
 from pinns_data_assimilation.lib.layers import QresBlock2
@@ -899,6 +901,8 @@ from pinns_data_assimilation.lib.layers import QuadraticInputPassthroughLayer
 from pinns_data_assimilation.lib.layers import InputPassthroughLayer
 from pinns_data_assimilation.lib.layers import FourierPassthroughEmbeddingLayer
 from pinns_data_assimilation.lib.layers import FourierPassthroughReductionLayer
+
+
 
 embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,60)
 
@@ -910,14 +914,30 @@ else:
     training_steps = 0
     with tf.device(tf_device_string):        
         inputs = keras.Input(shape=(2,),name='coordinates')
-        lo = InputPassthroughLayer(100,2,activation='tanh')(inputs)
-        for i in range(9):
-            lo=InputPassthroughLayer(100,2,activation='tanh')(lo)
+        lo = keras.layers.Dense(96,activation='tanh')(inputs)
+        lo = keras.layers.Reshape((12,4,2))(lo)
+        lo=keras.layers.Conv2DTranspose(6,kernel_size=3,strides=2,padding="same",data_format="channels_last",activation="tanh",use_bias=True)(lo)
+        lo=keras.layers.Conv2DTranspose(8,kernel_size=3,strides=2,padding="same",data_format="channels_last",activation="tanh",use_bias=True)(lo)
+        lo=keras.layers.Conv2DTranspose(10,kernel_size=3,strides=2,padding="same",data_format="channels_last",activation="tanh",use_bias=True)(lo)
+        lo=keras.layers.Conv2DTranspose(12,kernel_size=3,strides=2,padding="same",data_format="channels_last",activation="tanh",use_bias=True)(lo)
+        lo=keras.layers.Conv2DTranspose(14,kernel_size=3,strides=2,padding="same",data_format="channels_last",activation="tanh",use_bias=True)(lo)
+        lo=keras.layers.Conv2DTranspose(16,kernel_size=3,strides=2,padding="same",data_format="channels_last",activation="tanh",use_bias=True)(lo)
+        lo=keras.layers.Conv2D(16,kernel_size=3,strides=2,padding="same",data_format="channels_last",activation="tanh",use_bias=True)(lo)
+        lo=keras.layers.Conv2D(14,kernel_size=3,strides=2,padding="same",data_format="channels_last",activation="tanh",use_bias=True)(lo)
+        lo=keras.layers.Conv2D(12,kernel_size=3,strides=2,padding="same",data_format="channels_last",activation="tanh",use_bias=True)(lo)
+        lo=keras.layers.Conv2D(10,kernel_size=3,strides=2,padding="same",data_format="channels_last",activation="tanh",use_bias=True)(lo)
+        lo=keras.layers.Conv2D(8,kernel_size=3,strides=2,padding="same",data_format="channels_last",activation="tanh",use_bias=True)(lo)
+        lo=keras.layers.Conv2D(6,kernel_size=3,strides=2,padding="same",data_format="channels_last",activation="tanh",use_bias=True)(lo)
+        lo=keras.layers.Conv2D(6,kernel_size=3,strides=2,padding="same",data_format="channels_last",activation="tanh",use_bias=True)(lo)
+        lo = keras.layers.Flatten(data_format='channels_last')(lo)
+        lo = keras.layers.Dense(96,activation='tanh')(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         # save the model architecture only once on setup
-        model_RANS.save(savedir+job_name+'ep'+str(training_steps)+'_model.h5')
+        model_RANS.save(savedir+job_name+'_ep'+str(training_steps)+'_model.h5')
         model_RANS.summary()
+
+
 
 
 LBFGS_steps = 333
@@ -933,16 +953,16 @@ history_list = []
 
 
 if node_name == LOCAL_NODE:
-    plot_err()
-    plot_NS_residual()
+    #plot_err()
+    #plot_NS_residual()
     #plot_large()
     #plot_NS_large()
     #plot_gradients()
     #save_pred()
-    exit()
+    #exit()
     pass
 
-backprop_flag = False
+backprop_flag = True
 
 last_epoch_time = datetime.now()
 average_epoch_time=timedelta(minutes=10)
@@ -993,7 +1013,7 @@ while backprop_flag:
             exit()
         last_epoch_time = datetime.now()
     
-if True:
+if False:
     # LBFGS
     import tensorflow_probability as tfp
     L_iter = 0

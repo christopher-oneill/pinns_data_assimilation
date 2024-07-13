@@ -301,7 +301,7 @@ def save_pred():
 
 def load_custom():
     model_filename,model_training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','_model.h5')
-    model_RANS = keras.models.load_model(model_filename,custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer,'FourierPassthroughEmbeddingLayer':FourierPassthroughEmbeddingLayer,'FourierPassthroughReductionLayer':FourierPassthroughReductionLayer})
+    model_RANS = keras.models.load_model(model_filename,custom_objects={'QresBlock':QresBlock,})
     # check if the weights are newer
     checkpoint_filename,weights_training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','.weights.h5')
 
@@ -933,13 +933,13 @@ history_list = []
 
 
 if node_name == LOCAL_NODE:
-    #plot_err()
-    #plot_NS_residual()
+    plot_err()
+    plot_NS_residual()
     #plot_large()
     #plot_NS_large()
     #plot_gradients()
     #save_pred()
-    #exit()
+    exit()
     pass
 
 backprop_flag = False

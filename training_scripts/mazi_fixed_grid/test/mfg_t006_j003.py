@@ -301,7 +301,7 @@ def save_pred():
 
 def load_custom():
     model_filename,model_training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','_model.h5')
-    model_RANS = keras.models.load_model(model_filename,custom_objects={'InputPassthroughLayer':InputPassthroughLayer,})
+    model_RANS = keras.models.load_model(model_filename,custom_objects={'QuadraticInputPassthroughLayer':QuadraticInputPassthroughLayer,'FourierPassthroughEmbeddingLayer':FourierPassthroughEmbeddingLayer,'FourierPassthroughReductionLayer':FourierPassthroughReductionLayer})
     # check if the weights are newer
     checkpoint_filename,weights_training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','.weights.h5')
 
@@ -547,6 +547,7 @@ def boundary_points_function(cyl):
 
 @tf.function
 def compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters):
+    global max_weight_history
     y_pred = model_RANS(x,training=True)
     data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:5]-y),axis=0),axis=0) 
     physics_loss = RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) #tf.cast(0.0,tf_dtype)#
@@ -554,9 +555,12 @@ def compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters):
 
     # dynamic loss weighting, scale based on largest
     max_loss = tf.exp(tf.math.ceil(tf.math.log(1E-30+tf.reduce_max(tf.stack((data_loss,physics_loss,boundary_loss))))))
-    log_data = max_loss/tf.exp(tf.math.log(1E-30+data_loss))
-    log_physics = max_loss/tf.exp(tf.math.log(1E-30+physics_loss))
-    log_boundary = max_loss/tf.exp(tf.math.log(1E-30+boundary_loss))
+    print(tf.size(max_weight_history))
+    max_weight_history =tf.concat((tf.reshape(max_loss,(1,)), max_weight_history[0:(tf.size(max_weight_history))-1]),axis=0)
+    mean_max_loss = tf.reduce_mean(max_weight_history)
+    log_data = mean_max_loss/tf.exp(tf.math.log(1E-30+data_loss))
+    log_physics = mean_max_loss/tf.exp(tf.math.log(1E-30+physics_loss))
+    log_boundary = mean_max_loss/tf.exp(tf.math.log(1E-30+boundary_loss))
 
     total_loss = ScalingParameters.data_loss_coefficient*(1+log_data)*data_loss + ScalingParameters.physics_loss_coefficient*(1+log_physics)*physics_loss + ScalingParameters.boundary_loss_coefficient*(1+log_boundary)*boundary_loss
     return total_loss, data_loss, physics_loss, boundary_loss
@@ -711,7 +715,7 @@ supersample_factor = int(sys.argv[2])
 job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_t003_{:03d}_S{:d}'.format(job_number,supersample_factor)
+job_name = 'mfg_t006_j003_{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 job_duration = timedelta(hours=job_hours,minutes=0)
 end_time = start_time+job_duration
@@ -830,7 +834,7 @@ ScalingParameters.MAX_p= MAX_p # estimated maximum pressure, we should
 ScalingParameters.batch_size = 32
 ScalingParameters.colloc_batch_size = 32
 ScalingParameters.boundary_batch_size = 16
-ScalingParameters.physics_loss_coefficient = tf.cast(1.0,tf_dtype)
+ScalingParameters.physics_loss_coefficient = tf.cast(0.30,tf_dtype)
 ScalingParameters.boundary_loss_coefficient = tf.cast(1.0,tf_dtype)
 ScalingParameters.data_loss_coefficient = tf.cast(1.0,tf_dtype)
 
@@ -864,7 +868,10 @@ uxux = np.delete(uxux,np.nonzero(cylinder_mask),axis=0)
 uxuy = np.delete(uxuy,np.nonzero(cylinder_mask),axis=0)
 uyuy = np.delete(uyuy,np.nonzero(cylinder_mask),axis=0)
 
+global max_weight_history
+max_weight_history = tf.ones((100,),dtype=tf_dtype)
 
+print(tf.size(max_weight_history))
 
 # for LBFGS we don't need to duplicate since all points and collocs are evaluated in a single step
 o_train_LBFGS = np.stack((ux/MAX_ux,uy/MAX_uy,uxux/MAX_uxux,uxuy/MAX_uxuy,uyuy/MAX_uyuy),axis=1)
@@ -910,13 +917,13 @@ else:
     training_steps = 0
     with tf.device(tf_device_string):        
         inputs = keras.Input(shape=(2,),name='coordinates')
-        lo = InputPassthroughLayer(100,2,activation='tanh')(inputs)
-        for i in range(9):
-            lo=InputPassthroughLayer(100,2,activation='tanh')(lo)
+        lo = QresBlock2(100)(inputs)
+        for i in range(5):
+            lo=QresBlock2(100)(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         # save the model architecture only once on setup
-        model_RANS.save(savedir+job_name+'ep'+str(training_steps)+'_model.h5')
+        model_RANS.save(savedir+job_name+'_ep'+str(training_steps)+'_model.h5')
         model_RANS.summary()
 
 
@@ -933,14 +940,16 @@ history_list = []
 
 
 if node_name == LOCAL_NODE:
-    plot_err()
-    plot_NS_residual()
+    #plot_err()
+    #plot_NS_residual()
     #plot_large()
     #plot_NS_large()
     #plot_gradients()
     #save_pred()
-    exit()
+    #exit()
     pass
+
+
 
 backprop_flag = False
 
@@ -950,7 +959,7 @@ average_epoch_time=timedelta(minutes=10)
 while backprop_flag:
     lr_schedule = np.array([1E-5,   3.3E-6, 1E-6,   3.3E-7, 1E-7,   0.0])
     ep_schedule = np.array([0,      50,     100,    200,    300,    400,])
-    phys_schedule = np.array([1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0])
+    phys_schedule = np.array([3.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0])
 
     # reset the correct learing rate on load
     i_temp = 0
