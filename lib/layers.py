@@ -491,14 +491,32 @@ class FourierPassthroughEmbeddingLayer(keras.layers.Layer):
         inp_shape = tf.shape(inputs)
         inp_prod = tf.reshape(tf.multiply(tf.reshape(inputs,(inp_shape[0],inp_shape[-1],1)),self.frequency_vector),(inp_shape[0],inp_shape[-1]*tf.shape(self.frequency_vector)[2]))
         return tf.concat((inputs[...,0:self.npass],tf.cos(inp_prod),tf.sin(inp_prod)),axis=1)
-
-class FourierPassthroughLayer(keras.layers.Layer):
+    
+class CosEmbeddingLayer(keras.layers.Layer):
     # Chris O'Neill, University of Calgary 2023
     
-    def __init__(self,nodes,npass,**kwargs):
-        super(FourierPassthroughLayer,self).__init__()
+    def __init__(self,frequency_vector,**kwargs):
+        super(CosEmbeddingLayer,self).__init__()
+        self.frequency_vector = tf.reshape(tf.convert_to_tensor(tf.cast(frequency_vector,tf.float64)),(1,1,tf.size(frequency_vector)))
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "frequency_vector":self.frequency_vector.numpy(),
+        })
+        return config
+        
+    def call(self,inputs):
+        inp_shape = tf.shape(inputs)
+        inp_prod = tf.reshape(tf.multiply(tf.reshape(inputs,(inp_shape[0],inp_shape[-1],1)),self.frequency_vector),(inp_shape[0],inp_shape[-1]*tf.shape(self.frequency_vector)[2]))
+        return tf.concat((tf.cos(inp_prod),tf.sin(inp_prod)),axis=1)
+
+class FourierLayer(keras.layers.Layer):
+    # Chris O'Neill, University of Calgary 2023
+    
+    def __init__(self,nodes,**kwargs):
+        super(FourierLayer,self).__init__()
         self.nodes = int(nodes)
-        self.npass = int(npass)
         self.built=False
         if 'dtype' in kwargs:
             self.u_dtype=kwargs['dtype']
@@ -514,7 +532,6 @@ class FourierPassthroughLayer(keras.layers.Layer):
         config = super().get_config()
         config.update({
             "nodes":self.nodes,
-            "npass":self.npass,
             "w1":self.w1.numpy(),
             "b1":self.b1.numpy()
         })
@@ -522,23 +539,20 @@ class FourierPassthroughLayer(keras.layers.Layer):
     
     def build(self,input_shape):
         if self.built==False:
-            # deal with input passthrough dimensionality
-            if input_shape[-1]<self.npass:
-                self.npass = input_shape[-1]
             # setup weights
             w_init = tf.random_normal_initializer()
             self.w1 = tf.Variable(initial_value=w_init(shape=(input_shape[-1],self.nodes),dtype=self.u_dtype),trainable=True,name='w1')
             self.b1 = tf.Variable(initial_value=w_init(shape=(self.nodes,),dtype=self.u_dtype),trainable=True,name='b1')  
           
     def call(self,inputs):
-        return tf.concat((inputs[...,0:self.npass],tf.cos(tf.matmul(inputs,self.w1)+self.b1)),axis=1)
+        return tf.cos(tf.matmul(inputs,self.w1)+self.b1)
     
 
-class FourierPassthroughLayer2(keras.layers.Layer):
+class FourierPassthroughLayer(keras.layers.Layer):
     # Chris O'Neill, University of Calgary 2023
     
     def __init__(self,frequency_vector,npass,**kwargs):
-        super(FourierPassthroughLayer2,self).__init__()
+        super(FourierPassthroughLayer,self).__init__()
         self.frequency_vector = tf.reshape(tf.convert_to_tensor(tf.cast(frequency_vector,tf.float64)),(1,tf.size(frequency_vector)))
         self.npass = int(npass)
         self.built=False

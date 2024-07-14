@@ -549,7 +549,7 @@ def boundary_points_function(cyl):
 def compute_loss(x,y,colloc_x,boundary_tuple,ScalingParameters):
     y_pred = model_RANS(x,training=True)
     data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:5]-y),axis=0),axis=0) 
-    physics_loss = RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) #tf.cast(0.0,tf_dtype)#
+    physics_loss = RANS_physics_loss(model_RANS,ScalingParameters,colloc_x) # tf.cast(0.0,tf_dtype) #
     boundary_loss = RANS_boundary_loss(model_RANS,ScalingParameters,boundary_tuple)
 
     # dynamic loss weighting, scale based on largest
@@ -711,7 +711,7 @@ supersample_factor = int(sys.argv[2])
 job_hours = int(sys.argv[3])
 
 global job_name 
-job_name = 'mfg_t001_{:03d}_S{:d}'.format(job_number,supersample_factor)
+job_name = 'mfg_t008_{:03d}_S{:d}'.format(job_number,supersample_factor)
 
 job_duration = timedelta(hours=job_hours,minutes=0)
 end_time = start_time+job_duration
@@ -891,16 +891,15 @@ tf_device_string ='/GPU:0'
 
 optimizer = keras.optimizers.Adam(learning_rate=1E-4)
 
-from pinns_data_assimilation.lib.layers import ResidualLayer
-from pinns_data_assimilation.lib.layers import QresBlock
-from pinns_data_assimilation.lib.layers import QresBlock2
-from pinns_data_assimilation.lib.file_util import get_filepaths_with_glob
-from pinns_data_assimilation.lib.layers import QuadraticInputPassthroughLayer
-from pinns_data_assimilation.lib.layers import InputPassthroughLayer
-from pinns_data_assimilation.lib.layers import FourierPassthroughEmbeddingLayer
-from pinns_data_assimilation.lib.layers import FourierPassthroughReductionLayer
 
-embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,60)
+from pinns_data_assimilation.lib.layers import CosEmbeddingLayer
+from pinns_data_assimilation.lib.layers import FourierLayer
+from pinns_data_assimilation.lib.layers import FourierPassthroughEmbeddingLayer
+from pinns_data_assimilation.lib.layers import FourierPassthroughLayer
+from pinns_data_assimilation.lib.layers import InputPassthroughLayer
+
+
+embedding_wavenumber_vector = np.linspace(0,2*np.pi*5,60)
 
 model_filename,model_training_steps = find_highest_numbered_file(savedir+job_name+'_ep','[0-9]*','_model.h5')
 if model_filename is not None:
@@ -910,14 +909,29 @@ else:
     training_steps = 0
     with tf.device(tf_device_string):        
         inputs = keras.Input(shape=(2,),name='coordinates')
-        lo = keras.layers.Dense(100,'tanh')(inputs)
-        for i in range(9):
-            lo=keras.layers.Dense(100,'tanh')(lo)
+        lo = CosEmbeddingLayer(embedding_wavenumber_vector)(inputs)
+        lo = keras.layers.Dense(100,activation='tanh')(lo)
+        for _ in range(4):
+            lo = keras.layers.Dense(100,activation='tanh')(lo)
+        lo = FourierLayer(100)(lo)
+        lo = keras.layers.Concatenate(axis=1)([inputs,lo])
+        for _ in range(5):
+            lo = keras.layers.Dense(141,activation='tanh')(lo)
         outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
         model_RANS = keras.Model(inputs=inputs,outputs=outputs)
         # save the model architecture only once on setup
         model_RANS.save(savedir+job_name+'_ep'+str(training_steps)+'_model.h5')
         model_RANS.summary()
+
+        # embedding_wavenumber_vector = np.linspace(0,np.pi*ScalingParameters.MAX_x,60)
+        #lo = CosEmbeddingLayer(embedding_wavenumber_vector)(inputs)
+        #lo = keras.layers.Dense(100,activation='tanh')(lo)
+        #for _ in range(4):
+        #    lo = keras.layers.Dense(100,activation='tanh')(lo)
+        #lo = FourierLayer(100)(lo)
+        #for _ in range(5):
+        #    lo = keras.layers.Dense(141,activation='tanh')(lo)
+        #outputs = keras.layers.Dense(6,activation='linear',name='dynamical_quantities')(lo)
 
 
 LBFGS_steps = 333
@@ -933,13 +947,13 @@ history_list = []
 
 
 if node_name == LOCAL_NODE:
-    plot_err()
-    plot_NS_residual()
+    #plot_err()
+    #plot_NS_residual()
     #plot_large()
     #plot_NS_large()
     #plot_gradients()
     #save_pred()
-    exit()
+    #exit()
     pass
 
 backprop_flag = False

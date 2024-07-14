@@ -939,7 +939,7 @@ if __name__=="__main__":
     supersample_factor = int(sys.argv[3])
     job_hours = int(sys.argv[4])
 
-    job_name = 'mfg_t001_f001_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
+    job_name = 'mfg_t001_f002_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
 
     LOCAL_NODE = 'DESKTOP-GMOIE9C'
@@ -1239,7 +1239,7 @@ if __name__=="__main__":
     # check if the model has been created before, if so load it
 
     optimizer = keras.optimizers.SGD(learning_rate=1E-4,momentum=0.0)
-    embedding_wavenumber_vector = np.linspace(0,4*3*np.pi*ScalingParameters.MAX_x,100) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
+    embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,200) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
     # we need to check if there are already checkpoints for this job
     model_file,temp_trainingsteps = find_highest_numbered_file(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep','[0-9]*','_model.h5')
     # check if the model has been created, if so check if weights exist
@@ -1251,21 +1251,44 @@ if __name__=="__main__":
         training_steps = 0
         with tf.device(tf_device_string):        
             inputs = keras.Input(shape=(2,),name='coordinates')
-            #lo = FourierPassthroughEmbeddingLayer(embedding_wavenumber_vector,2)(lo)
-            lo = keras.layers.Dense(100,activation='tanh')(inputs)
-            for _ in range(3):
+            lo = FourierPassthroughEmbeddingLayer(embedding_wavenumber_vector,2)(inputs)
+            lo = keras.layers.Dense(100,activation='tanh')(lo)
+            for _ in range(4):
                 lo = keras.layers.Dense(100,activation='tanh')(lo)
-            lo = FourierPassthroughLayer2(embedding_wavenumber_vector,50)(lo)
-            lo = keras.layers.Dense(150,activation='tanh')(lo)
-            lo = FourierPassthroughLayer2(embedding_wavenumber_vector,50)(lo)
-            for i in range(4):
-                lo = keras.layers.Dense(150,activation='tanh')(lo)
+            lo = FourierPassthroughLayer(100,0)(lo)
+            for i in range(5):
+                lo = keras.layers.Dense(141,activation='tanh')(lo)
             outputs = keras.layers.Dense(12,activation='linear',name='dynamical_quantities')(lo)
             model_FANS = keras.Model(inputs=inputs,outputs=outputs)
             model_FANS.summary()
             # save the model only on startup
             model_FANS.save(savedir+job_name+'_ep0_model.h5')
 
+    # good performance on mode 0,2 with 
+    # embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,200)
+            #inputs = keras.Input(shape=(2,),name='coordinates')
+            #lo = FourierPassthroughEmbeddingLayer(embedding_wavenumber_vector,2)(inputs)
+            #lo = keras.layers.Dense(100,activation='tanh')(lo)
+            #for _ in range(4):
+            #    lo = keras.layers.Dense(100,activation='tanh')(lo)
+            #lo = FourierPassthroughLayer(100,0)(lo)
+            #for i in range(5):
+            #    lo = keras.layers.Dense(141,activation='tanh')(lo)
+            #outputs = keras.layers.Dense(12,activation='linear',name='dynamical_quantities')(lo)
+            #model_FANS = keras.Model(inputs=inputs,outputs=outputs)
+
+    # good performance on mode 4 with 
+    # embedding_wavenumber_vector = np.linspace(0,np.pi*ScalingParameters.MAX_x,200)
+            #inputs = keras.Input(shape=(2,),name='coordinates')
+            #lo = FourierPassthroughEmbeddingLayer(embedding_wavenumber_vector,2)(inputs)
+            #lo = keras.layers.Dense(100,activation='tanh')(lo)
+            #for _ in range(4):
+            #    lo = keras.layers.Dense(100,activation='tanh')(lo)
+            #lo = FourierPassthroughLayer(100,0)(lo)
+            #for i in range(5):
+            #    lo = keras.layers.Dense(141,activation='tanh')(lo)
+            #outputs = keras.layers.Dense(12,activation='linear',name='dynamical_quantities')(lo)
+            #model_FANS = keras.Model(inputs=inputs,outputs=outputs)
 
     # setup the training data
     # this time we randomly shuffle the order of X and O

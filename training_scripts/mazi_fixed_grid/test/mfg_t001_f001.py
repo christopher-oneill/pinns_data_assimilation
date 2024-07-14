@@ -1215,12 +1215,7 @@ if __name__=="__main__":
 
     tf_device_string ='/GPU:0'
     # create the NNs
-    from pinns_data_assimilation.lib.layers import QuadraticInputPassthroughLayer
-    from pinns_data_assimilation.lib.layers import InputPassthroughLayer
-    from pinns_data_assimilation.lib.layers import FourierPassthroughEmbeddingLayer
-    from pinns_data_assimilation.lib.layers import FourierPassthroughReductionLayer
-    from pinns_data_assimilation.lib.layers import FourierPassthroughLayer
-    from pinns_data_assimilation.lib.layers import FourierPassthroughLayer2
+
     # load the saved mean model
 
     with tf.device('/CPU:0'):
@@ -1268,11 +1263,11 @@ if __name__=="__main__":
 
     if node_name==LOCAL_NODE:
     #    plot_near_wall_BC()
-        #plot_err()
-        #plot_NS_residual()
+        plot_err()
+        plot_NS_residual()
         #plot_frequencies()
         #save_pred()
-        #exit()
+        exit()
         pass
 
     # train the network
