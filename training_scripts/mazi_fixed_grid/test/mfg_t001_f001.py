@@ -39,7 +39,29 @@ def load_custom():
         training_steps = model_training_steps
     else:
         training_steps = weights_training_steps
-        model_FANS.load_weights(checkpoint_filename)
+        # load the weights
+        weights_file = h5py.File(checkpoint_filename)          
+        w_keys =  list(weights_file.keys())
+        if platform.system()=='Windows':
+            # check if the file is windows weight style or linux weight style
+            if w_keys[0]=='_layer_checkpoint_dependencies':
+                # if the file was saved on linux we need to copy it back to windows format 
+                new_weights_file = h5py.File(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep'+str(training_steps+1)+'.weights.h5','w')
+                # copy all other keys
+                for nkey in range(1,len(w_keys)):
+                    weights_file.copy(weights_file[w_keys[nkey]],new_weights_file)
+                    # copy the layer keys
+                layer_keys = list(weights_file['_layer_checkpoint_dependencies'].keys())
+                for nkey in range(len(layer_keys)):
+                    new_weights_file.create_group('_layer_checkpoint_dependencies\\'+layer_keys[nkey])
+                    weights_file.copy(weights_file['_layer_checkpoint_dependencies'][layer_keys[nkey]]['vars'],new_weights_file['_layer_checkpoint_dependencies\\'+layer_keys[nkey]]) # ['_layer_checkpoint_dependencies\\'+layer_keys[nkey]] 
+                new_weights_file.close()
+                model_FANS.load_weights(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep'+str(training_steps+1)+'.weights.h5')
+            else:
+                # windows style loading
+                model_FANS.load_weights(checkpoint_filename)
+        else:
+            model_FANS.load_weights(checkpoint_filename)
                 
     model_FANS.summary()
     print('Model Loaded. Epoch',str(training_steps))

@@ -773,7 +773,7 @@ def boundary_points_function(n_cyl):
 def compute_loss(x,y,colloc_x,mean_grads,boundary_tuple,ScalingParameters):
     y_pred = model_FANS(x,training=True)
     data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:10]-y),axis=0),axis=0) 
-    physics_loss = tf.cast(0.0,tf_dtype) # FANS_physics_loss(model_FANS,colloc_x,mean_grads,ScalingParameters) 
+    physics_loss = FANS_physics_loss(model_FANS,colloc_x,mean_grads,ScalingParameters) # tf.cast(0.0,tf_dtype) #
     boundary_loss = FANS_boundary_loss(model_FANS,boundary_tuple,ScalingParameters)
 
     # dynamic loss weighting, scale based on largest
@@ -1220,7 +1220,8 @@ if __name__=="__main__":
     from pinns_data_assimilation.lib.layers import FourierPassthroughEmbeddingLayer
     from pinns_data_assimilation.lib.layers import FourierPassthroughReductionLayer
     from pinns_data_assimilation.lib.layers import FourierPassthroughLayer
-    from pinns_data_assimilation.lib.layers import FourierPassthroughLayer2
+    from pinns_data_assimilation.lib.layers import CosEmbeddingLayer
+    from pinns_data_assimilation.lib.layers import FourierLayer
     # load the saved mean model
 
     with tf.device('/CPU:0'):
@@ -1239,7 +1240,7 @@ if __name__=="__main__":
     # check if the model has been created before, if so load it
 
     optimizer = keras.optimizers.SGD(learning_rate=1E-4,momentum=0.0)
-    embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,200) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
+    embedding_wavenumber_vector = np.linspace(0,(mode_number+1)*2*np.pi*5,200) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
     # we need to check if there are already checkpoints for this job
     model_file,temp_trainingsteps = find_highest_numbered_file(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep','[0-9]*','_model.h5')
     # check if the model has been created, if so check if weights exist
@@ -1251,13 +1252,14 @@ if __name__=="__main__":
         training_steps = 0
         with tf.device(tf_device_string):        
             inputs = keras.Input(shape=(2,),name='coordinates')
-            lo = FourierPassthroughEmbeddingLayer(embedding_wavenumber_vector,2)(inputs)
-            lo = keras.layers.Dense(100,activation='tanh')(lo)
+            lo = CosEmbeddingLayer(embedding_wavenumber_vector)(inputs)
+            lo = keras.layers.Dense(71,activation='tanh')(lo)
             for _ in range(4):
+                lo = keras.layers.Dense(71,activation='tanh')(lo)
+            lo = FourierLayer(100)(lo)
+            lo = keras.layers.Concatenate(axis=1)([inputs,lo])
+            for _ in range(5):
                 lo = keras.layers.Dense(100,activation='tanh')(lo)
-            lo = FourierPassthroughLayer(100,0)(lo)
-            for i in range(5):
-                lo = keras.layers.Dense(141,activation='tanh')(lo)
             outputs = keras.layers.Dense(12,activation='linear',name='dynamical_quantities')(lo)
             model_FANS = keras.Model(inputs=inputs,outputs=outputs)
             model_FANS.summary()
