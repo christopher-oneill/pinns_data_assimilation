@@ -28,7 +28,7 @@ import sys
 def load_custom():
     # get the model from the model file
     model_file,model_training_steps = find_highest_numbered_file(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep','[0-9]*','_model.h5')
-    model_FANS = keras.models.load_model(model_file,custom_objects={})
+    model_FANS = keras.models.load_model(model_file,custom_objects={'CosEmbeddingLayer':CosEmbeddingLayer,'FourierLayer':FourierLayer})
     
     # get the most recent set of weights
     
@@ -1298,11 +1298,11 @@ if __name__=="__main__":
 
     if node_name==LOCAL_NODE:
     #    plot_near_wall_BC()
-        #plot_err()
-        #plot_NS_residual()
+        plot_err()
+        plot_NS_residual()
         #plot_frequencies()
         #save_pred()
-        #exit()
+        exit()
         pass
 
     # train the network
