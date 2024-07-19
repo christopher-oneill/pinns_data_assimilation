@@ -1246,7 +1246,7 @@ if __name__=="__main__":
     # check if the model has been created before, if so load it
 
     optimizer = keras.optimizers.SGD(learning_rate=1E-4,momentum=0.0)
-    embedding_wavenumber_vector = np.linspace(0,(mode_number+1)*2*np.pi*5,200) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
+    embedding_wavenumber_vector = np.linspace(0,(mode_number+1)*2*np.pi*5,100) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
     # we need to check if there are already checkpoints for this job
     model_file,temp_trainingsteps = find_highest_numbered_file(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep','[0-9]*','_model.h5')
     # check if the model has been created, if so check if weights exist
