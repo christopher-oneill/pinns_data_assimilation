@@ -28,7 +28,7 @@ import sys
 def load_custom():
     # get the model from the model file
     model_file,model_training_steps = find_highest_numbered_file(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep','[0-9]*','_model.h5')
-    model_FANS = keras.models.load_model(model_file,custom_objects={'CosEmbeddingLayer':CosEmbeddingLayer,'FourierLayer':FourierLayer})
+    model_FANS = keras.models.load_model(model_file,custom_objects={'FourierEmbeddingLayer':FourierEmbeddingLayer,'FourierLayer':FourierLayer})
     
     # get the most recent set of weights
     
@@ -772,7 +772,7 @@ def boundary_points_function(n_cyl):
 @tf.function
 def compute_loss(x,y,colloc_x,mean_grads,boundary_tuple,ScalingParameters):
     y_pred = model_FANS(x,training=True)
-    data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:10]-y),axis=0),axis=0) 
+    data_loss = tf.reduce_sum(tf.reduce_mean(tf.square(y_pred[:,0:(y.shape[1])]-y),axis=0),axis=0) 
     physics_loss = FANS_physics_loss(model_FANS,colloc_x,mean_grads,ScalingParameters) # tf.cast(0.0,tf_dtype) #
     boundary_loss = FANS_boundary_loss(model_FANS,boundary_tuple,ScalingParameters)
 
@@ -939,7 +939,7 @@ if __name__=="__main__":
     supersample_factor = int(sys.argv[3])
     job_hours = int(sys.argv[4])
 
-    job_name = 'mfg_t001_f002_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
+    job_name = 'mfg_t001_f003_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
 
     LOCAL_NODE = 'DESKTOP-GMOIE9C'
@@ -1120,6 +1120,9 @@ if __name__=="__main__":
         tau_yy_i = tau_yy_i[downsample_inds]
         cylinder_mask = cylinder_mask[downsample_inds]
 
+        psi_r = psi_r[downsample_inds]
+        psi_i = psi_i[downsample_inds]
+
     print('max_x: ',ScalingParameters.MAX_x)
     print('min_x: ',ScalingParameters.MIN_x)
     print('max_y: ',ScalingParameters.MAX_y)
@@ -1145,6 +1148,8 @@ if __name__=="__main__":
     tau_yy_r = np.delete(tau_yy_r,np.nonzero(cylinder_mask),axis=0)
     tau_yy_i = np.delete(tau_yy_i,np.nonzero(cylinder_mask),axis=0)   
 
+    psi_r = np.delete(psi_r,np.nonzero(cylinder_mask),axis=0)
+    psi_i = np.delete(psi_i,np.nonzero(cylinder_mask),axis=0)
 
     # normalize the training data:
     x_train = x/ScalingParameters.MAX_x
@@ -1210,7 +1215,7 @@ if __name__=="__main__":
     print('O_train.shape: ',O_train_backprop.shape)
     # the order here must be identical to inside the cost functions
     boundary_tuple  = boundary_points_function(360)
-    X_colloc = colloc_points_function(25000)
+    X_colloc = colloc_points_function(20000)
 
 
     tf_device_string ='/GPU:0'
@@ -1254,13 +1259,9 @@ if __name__=="__main__":
         with tf.device(tf_device_string):        
             inputs = keras.Input(shape=(2,),name='coordinates')
             lo = FourierEmbeddingLayer(embedding_wavenumber_vector)(inputs)
-            lo = keras.layers.Dense(71,activation='tanh')(lo)
-            for _ in range(4):
-                lo = keras.layers.Dense(71,activation='tanh')(lo)
-            lo = FourierLayer(100)(lo)
-            lo = keras.layers.Concatenate(axis=1)([inputs,lo])
-            for _ in range(5):
-                lo = keras.layers.Dense(100,activation='tanh')(lo)
+            lo = keras.layers.Dense(141,activation='tanh')(lo)
+            for _ in range(9):
+                lo = keras.layers.Dense(141,activation='tanh')(lo)
             outputs = keras.layers.Dense(12,activation='linear',name='dynamical_quantities')(lo)
             model_FANS = keras.Model(inputs=inputs,outputs=outputs)
             model_FANS.summary()
@@ -1299,11 +1300,11 @@ if __name__=="__main__":
 
     if node_name==LOCAL_NODE:
     #    plot_near_wall_BC()
-        plot_err()
-        plot_NS_residual()
+        #plot_err()
+        #plot_NS_residual()
         #plot_frequencies()
         #save_pred()
-        exit()
+        #exit()
         pass
 
     # train the network
@@ -1375,7 +1376,7 @@ if __name__=="__main__":
         import tensorflow_probability as tfp
         L_iter = 0
         boundary_tuple = boundary_points_function(360)
-        X_colloc = colloc_points_function(25000) # one A100 max = 60k?
+        X_colloc = colloc_points_function(20000) # one A100 max = 60k?
         mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
         func = train_LBFGS(model_FANS,tf.cast(X_train_LBFGS,tf_dtype),tf.cast(F_train_LBFGS,tf_dtype),X_colloc,mean_data,boundary_tuple,ScalingParameters)
         init_params = tf.dynamic_stitch(func.idx, model_FANS.trainable_variables)

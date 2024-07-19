@@ -844,7 +844,12 @@ print('MAX_x: ',ScalingParameters.MIN_y)
 if supersample_factor>1:
     n_x = np.array(configFile['x_grid']).size
     n_y = np.array(configFile['y_grid']).size
+
     downsample_inds, ndx,ndy = compute_downsample_inds_center(supersample_factor,X_grid[:,0],Y_grid[0,:].transpose())
+
+    print(ndx)
+    print(ndy)
+
     x = x[downsample_inds]
     y = y[downsample_inds]
     ux = ux[downsample_inds]
@@ -854,6 +859,11 @@ if supersample_factor>1:
     uyuy = uyuy[downsample_inds]
 
     cylinder_mask = cylinder_mask[downsample_inds]
+else:
+    n_x = np.array(configFile['x_grid']).size
+    n_y = np.array(configFile['y_grid']).size
+    print(n_x)
+    print(n_y)   
 
 # remove the inside quantities
 x = np.delete(x,np.nonzero(cylinder_mask),axis=0)
@@ -864,7 +874,7 @@ uxux = np.delete(uxux,np.nonzero(cylinder_mask),axis=0)
 uxuy = np.delete(uxuy,np.nonzero(cylinder_mask),axis=0)
 uyuy = np.delete(uyuy,np.nonzero(cylinder_mask),axis=0)
 
-
+print(x.shape)
 
 # for LBFGS we don't need to duplicate since all points and collocs are evaluated in a single step
 o_train_LBFGS = np.stack((ux/MAX_ux,uy/MAX_uy,uxux/MAX_uxux,uxuy/MAX_uxuy,uyuy/MAX_uyuy),axis=1)
@@ -933,12 +943,12 @@ history_list = []
 
 
 if node_name == LOCAL_NODE:
-    plot_err()
-    plot_NS_residual()
+    #plot_err()
+    #plot_NS_residual()
     #plot_large()
     #plot_NS_large()
     #plot_gradients()
-    #save_pred()
+    save_pred()
     exit()
     pass
 
