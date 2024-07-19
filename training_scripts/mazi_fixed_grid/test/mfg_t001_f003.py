@@ -1215,7 +1215,7 @@ if __name__=="__main__":
     print('O_train.shape: ',O_train_backprop.shape)
     # the order here must be identical to inside the cost functions
     boundary_tuple  = boundary_points_function(360)
-    X_colloc = colloc_points_function(20000)
+    X_colloc = colloc_points_function(25000)
 
 
     tf_device_string ='/GPU:0'
@@ -1376,7 +1376,7 @@ if __name__=="__main__":
         import tensorflow_probability as tfp
         L_iter = 0
         boundary_tuple = boundary_points_function(360)
-        X_colloc = colloc_points_function(20000) # one A100 max = 60k?
+        X_colloc = colloc_points_function(25000) # one A100 max = 60k?
         mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
         func = train_LBFGS(model_FANS,tf.cast(X_train_LBFGS,tf_dtype),tf.cast(F_train_LBFGS,tf_dtype),X_colloc,mean_data,boundary_tuple,ScalingParameters)
         init_params = tf.dynamic_stitch(func.idx, model_FANS.trainable_variables)
