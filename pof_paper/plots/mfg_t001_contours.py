@@ -22,8 +22,8 @@ figures_dir = 'C:/projects/paper_figures/mean_field/'
 data_dir = 'C:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
 output_dir = 'C:/projects/pinns_narval/sync/output/'
 
-cases_list = ['mfg_fbc003_001_S0/mfg_fbc003_001_S0_ep72927_pred.mat','mfg_fbc003_001_S2/mfg_fbc003_001_S2_ep74925_pred.mat','mfg_fbc003_001_S4/mfg_fbc003_001_S4_ep86913_pred.mat','mfg_fbc003_001_S8/mfg_fbc003_001_S8_ep101898_pred.mat','mfg_fbc003_001_S16/mfg_fbc003_001_S16_ep69930_pred.mat','mfg_fbc003_001_S32/mfg_fbc003_001_S32_ep72927_pred.mat']
-errs_list = ['mfg_fbc003_001_S0/mfg_fbc003_001_S0_ep72927_error.mat','mfg_fbc003_001_S2/mfg_fbc003_001_S2_ep74925_error.mat','mfg_fbc003_001_S4/mfg_fbc003_001_S4_ep86913_error.mat','mfg_fbc003_001_S8/mfg_fbc003_001_S8_ep101898_error.mat','mfg_fbc003_001_S16/mfg_fbc003_001_S16_ep69930_error.mat','mfg_fbc003_001_S32/mfg_fbc003_001_S32_ep72927_error.mat']
+cases_list = ['mfg_t001_001_S0/mfg_t001_001_S0_ep553446_pred.mat','mfg_t001_001_S2/mfg_t001_001_S2_ep837162_pred.mat','mfg_t001_001_S4/mfg_t001_001_S4_ep836163_pred.mat','mfg_t001_001_S8/mfg_t001_001_S8_ep869130_pred.mat','mfg_t001_001_S16/mfg_t001_001_S16_ep827172_pred.mat','mfg_t001_001_S32/mfg_t001_001_S32_ep796203_pred.mat']
+errs_list = ['mfg_t001_001_S0/mfg_t001_001_S0_ep553446_error.mat','mfg_t001_001_S2/mfg_t001_001_S2_ep837162_error.mat','mfg_t001_001_S4/mfg_t001_001_S4_ep836163_error.mat','mfg_t001_001_S8/mfg_t001_001_S8_ep869130_error.mat','mfg_t001_001_S16/mfg_t001_001_S16_ep827172_error.mat','mfg_t001_001_S32/mfg_t001_001_S32_ep796203_error.mat']
 cases_supersample_factor = [0,2,4,8,16,32]
 
 
@@ -652,8 +652,8 @@ for c in range(len(cases_list)):
     cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
-    plot.savefig(figures_dir+'logerr_mfg_fbc003_S'+str(cases_supersample_factor[c])+'.pdf')
-    plot.savefig(figures_dir+'logerr_mfg_fbc003_S'+str(cases_supersample_factor[c])+'.png',dpi=300)
+    plot.savefig(figures_dir+'logerr_mfg_t001_S'+str(cases_supersample_factor[c])+'.pdf')
+    plot.savefig(figures_dir+'logerr_mfg_t001_S'+str(cases_supersample_factor[c])+'.png',dpi=300)
 
     plot.close(fig)
 
@@ -854,8 +854,8 @@ if True:
 
 
 
-    plot.savefig(figures_dir+'logerr_mfg_fbc003_condensed.pdf')
-    plot.savefig(figures_dir+'logerr_mfg_fbc003_condensed.png',dpi=300)
+    plot.savefig(figures_dir+'logerr_mfg_t001_condensed.pdf')
+    plot.savefig(figures_dir+'logerr_mfg_t001_condensed.png',dpi=300)
 
     plot.close(fig)
 
@@ -1167,8 +1167,8 @@ if True:
 
 
 
-    plot.savefig(figures_dir+'logerr_mfg_fbc003_condensed_dual.pdf')
-    plot.savefig(figures_dir+'logerr_mfg_fbc003_condensed_dual.png',dpi=300)
+    plot.savefig(figures_dir+'logerr_mfg_t001_condensed_dual.pdf')
+    plot.savefig(figures_dir+'logerr_mfg_t001_condensed_dual.png',dpi=300)
 
     plot.close(fig)
 
@@ -1245,8 +1245,8 @@ axs[2].grid('on')
 axs[2].text(0.45,1.0,'(c)',fontsize=8)
 
 #fig.tight_layout()
-plot.savefig(figures_dir+'logerr_mfg_fbc003_error.pdf')
-plot.savefig(figures_dir+'logerr_mfg_fbc003_error.png',dpi=300)
+plot.savefig(figures_dir+'logerr_mfg_t001_error.pdf')
+plot.savefig(figures_dir+'logerr_mfg_t001_error.png',dpi=300)
 plot.close(fig)
 
 
@@ -1256,8 +1256,8 @@ fig.set_size_inches(3.37,2.5)
 plot.subplots_adjust(left=0.2,top=0.97,right=0.97,bottom=0.15)
 
 error_x_tick_labels = ['40','20','10','5','2.5','1.25']
-error_y_ticks = [1E-3,1E-2,1E-1,1]
-error_y_tick_labels = ['1E-3','1E-2','1E-1','1']
+error_y_ticks = [1E-4,1E-3,1E-2,1E-1,1]
+error_y_tick_labels = ['1E-4','1E-3','1E-2','1E-1','1']
 
 supersample_factors = np.array(cases_supersample_factor)
 mean_plt_x,=axs.plot(0.95*pts_per_d,mean_err_ux,linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
@@ -1269,7 +1269,7 @@ max_plt_p,=axs.plot(1.05*pts_per_d,MAX_err_p,linewidth=0,marker='v',color='green
 axs.set_xscale('log')
 axs.set_xticks(pts_per_d)
 axs.set_yscale('log')
-axs.set_ylim(2E-4,1E0)
+axs.set_ylim(1E-4,1E0)
 axs.set_yticks(error_y_ticks)
 axs.set_yticklabels(error_y_tick_labels,fontsize=8)
 axs.set_ylabel("Relative Error",fontsize=8)
@@ -1282,8 +1282,8 @@ axs.set_xlabel('$D/\Delta x$',fontsize=8,labelpad=-1)
 
 
 #fig.tight_layout()
-plot.savefig(figures_dir+'logerr_mfg_fbc003_error_condensed.pdf')
-plot.savefig(figures_dir+'logerr_mfg_fbc003_error_condensed.png',dpi=300)
+plot.savefig(figures_dir+'logerr_mfg_t001_error_condensed.pdf')
+plot.savefig(figures_dir+'logerr_mfg_t001_error_condensed.png',dpi=300)
 plot.close(fig)
 
 

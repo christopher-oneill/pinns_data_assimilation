@@ -939,7 +939,7 @@ if __name__=="__main__":
     supersample_factor = int(sys.argv[3])
     job_hours = int(sys.argv[4])
 
-    job_name = 'mfg_t001_f003_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
+    job_name = 'mfg_t001_f004_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
 
     LOCAL_NODE = 'DESKTOP-GMOIE9C'
@@ -1067,9 +1067,9 @@ if __name__=="__main__":
     ScalingParameters.MAX_p= 1 # estimated maximum pressure, we should 
     ScalingParameters.MAX_psi= 0.2*np.power((omega_0/omega),2.0) # chosen based on abs(max(psi)) # since this decays with frequency, we multiply by the inverse to prevent a scaling issue
     ScalingParameters.nu_mol = 0.0066667
-    ScalingParameters.batch_size = 32
-    ScalingParameters.colloc_batch_size = 32
-    ScalingParameters.boundary_batch_size = 16
+    ScalingParameters.batch_size = 2048
+    ScalingParameters.colloc_batch_size = 2048
+    ScalingParameters.boundary_batch_size = 360
     ScalingParameters.physics_loss_coefficient = tf.cast(1.0E0,tf_dtype)
     ScalingParameters.boundary_loss_coefficient = tf.cast(1.0,tf_dtype)
     ScalingParameters.data_loss_coefficient = tf.cast(1.0,tf_dtype)
@@ -1246,7 +1246,7 @@ if __name__=="__main__":
     # check if the model has been created before, if so load it
 
     optimizer = keras.optimizers.SGD(learning_rate=1E-4,momentum=0.0)
-    embedding_wavenumber_vector = np.linspace(0,(mode_number+1)*2*np.pi*5,100) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
+    embedding_wavenumber_vector = np.linspace(0,(mode_number+1)*2*np.pi*5,200) # in normalized domain! in this case the wavenumber of the 3rd harmonic is roughly pi rad/s so we double that
     # we need to check if there are already checkpoints for this job
     model_file,temp_trainingsteps = find_highest_numbered_file(PROJECTDIR+'output/'+job_name+'_output/'+job_name+'_ep','[0-9]*','_model.h5')
     # check if the model has been created, if so check if weights exist
@@ -1300,22 +1300,22 @@ if __name__=="__main__":
 
     if node_name==LOCAL_NODE:
     #    plot_near_wall_BC()
-        plot_err()
-        plot_NS_residual()
+        #plot_err()
+        #plot_NS_residual()
         #plot_frequencies()
-        save_pred()
-        exit()
+        #save_pred()
+        #exit()
         pass
 
     # train the network
     last_epoch_time = datetime.now()
     average_epoch_time=timedelta(minutes=10)
-    backprop_flag=False
+    backprop_flag=True
     while backprop_flag:
         # regular training with physics
-        lr_schedule = np.array([1E-5, 3.16E-6, 1E-6,    0.0])
-        ep_schedule = np.array([0,      30,     100,    200])
-        phys_schedule = np.array([1.0E-1, 1.0E-1, 1.0E-1, 1.0E-1, 1.0E-1, 1.0E-1, 1.0E-1])
+        lr_schedule = np.array([1E-5, 3E-6, 1E-6,    3E-7])
+        ep_schedule = np.array([0,      200,     500,    1000])
+        phys_schedule = np.array([1.0E0, 1.0E0, 1.0E0, 1.0E0, 1.0E0, 1.0E0, 1.0E0])
         #lr_schedule = np.array([3.16E-7, 1E-7,    3.16E-8, 1E-8,    0.0])
         #ep_schedule = np.array([0,       50,      150,   300,       400,])
         #phys_schedule = np.array([3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1, 3.16E-1])
@@ -1371,7 +1371,7 @@ if __name__=="__main__":
 
     LBFGS_steps = 333
     LBFGS_epochs = 3*LBFGS_steps
-    if True:
+    if False:
         # final polishing of solution using LBFGS
         import tensorflow_probability as tfp
         L_iter = 0
