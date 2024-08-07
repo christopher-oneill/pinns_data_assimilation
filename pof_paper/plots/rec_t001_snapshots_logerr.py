@@ -7,13 +7,13 @@ import matplotlib.ticker as tkr
 import matplotlib.gridspec as gridspec
 
 import sys
-sys.path.append('C:/projects/pinns_local/code/')
+sys.path.append('F:/projects/pinns_local/code/')
 from pinns_data_assimilation.lib.downsample import compute_downsample_inds_center
 
-figures_dir = 'C:/projects/paper_figures/reconstruction/'
-rec_dir = 'C:/projects/paper_figures/data/'
-data_dir = 'C:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
-output_dir = 'C:/projects/pinns_narval/sync/output/'
+figures_dir = 'F:/projects/paper_figures/reconstruction/snapshots/'
+rec_dir = 'F:/projects/paper_figures/data/'
+data_dir = 'F:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
+output_dir = 'F:/projects/pinns_narval/sync/output/'
 
 base_dir = data_dir
 
@@ -334,8 +334,8 @@ if True:
 
             # quadrant 4
 
-            plot.savefig(figures_dir+'logerr_snapshot'+str(snap_ind)+'_contours_ref_recref_c'+str(rec_mode_vec[c])+'.pdf')
-            plot.savefig(figures_dir+'logerr_snapshot'+str(snap_ind)+'_contours_ref_recref_c'+str(rec_mode_vec[c])+'.png',dpi=300)
+            plot.savefig(figures_dir+'c'+str(rec_mode_vec[c])+'/logerr_snapshot'+str(snap_ind)+'_contours_ref_recref_c'+str(rec_mode_vec[c])+'.pdf')
+            plot.savefig(figures_dir+'c'+str(rec_mode_vec[c])+'/logerr_snapshot'+str(snap_ind)+'_contours_ref_recref_c'+str(rec_mode_vec[c])+'.png',dpi=300)
             plot.close(fig)
 
 
@@ -631,8 +631,8 @@ if True:
                 cbar.ax.set_yticklabels(ticklabs, fontsize=8)
                 fig.add_subplot(cax)
 
-                plot.savefig(figures_dir+'logerr_snapshot'+str(snapshots[sn])+'_contours_ref_pinn_S'+str(cases_supersample_factor[s])+'_c'+str(rec_mode_vec[c])+'.pdf')
-                plot.savefig(figures_dir+'logerr_snapshot'+str(snapshots[sn])+'_contours_ref_pinn_S'+str(cases_supersample_factor[s])+'_c'+str(rec_mode_vec[c])+'.png',dpi=300)
+                plot.savefig(figures_dir+'c'+str(rec_mode_vec[c])+'/logerr_snapshot'+str(snapshots[sn])+'_contours_ref_pinn_S'+str(cases_supersample_factor[s])+'_c'+str(rec_mode_vec[c])+'.pdf')
+                plot.savefig(figures_dir+'c'+str(rec_mode_vec[c])+'/logerr_snapshot'+str(snapshots[sn])+'_contours_ref_pinn_S'+str(cases_supersample_factor[s])+'_c'+str(rec_mode_vec[c])+'.png',dpi=300)
                 plot.close(fig)
 
                 # fourier truncated original data versus the pinn data
@@ -863,8 +863,8 @@ if True:
                 cbar.ax.set_yticklabels(ticklabs, fontsize=8)
                 fig.add_subplot(cax)
 
-                plot.savefig(figures_dir+'logerr_snapshot'+str(snapshots[sn])+'_contours_recref_pinn_S'+str(cases_supersample_factor[s])+'_c'+str(rec_mode_vec[c])+'.pdf')
-                plot.savefig(figures_dir+'logerr_snapshot'+str(snapshots[sn])+'_contours_recref_pinn_S'+str(cases_supersample_factor[s])+'_c'+str(rec_mode_vec[c])+'.png',dpi=300)
+                plot.savefig(figures_dir+'c'+str(rec_mode_vec[c])+'/logerr_snapshot'+str(snapshots[sn])+'_contours_recref_pinn_S'+str(cases_supersample_factor[s])+'_c'+str(rec_mode_vec[c])+'.pdf')
+                plot.savefig(figures_dir+'c'+str(rec_mode_vec[c])+'/logerr_snapshot'+str(snapshots[sn])+'_contours_recref_pinn_S'+str(cases_supersample_factor[s])+'_c'+str(rec_mode_vec[c])+'.png',dpi=300)
                 plot.close(fig)
 
 
@@ -920,7 +920,7 @@ if True:
     y_downsample2 = y_downsample2[text_corner_mask]
 
     s=4
-    c=2
+    c=5
 
 
     # dual log version
@@ -997,128 +997,6 @@ if True:
     dual_log_cbar_labels = ['-1','-1e-1','-1e-2','0','1e-2','1e-1','1']
 
     levels_mx = np.geomspace(1E-3,1,11)
-
-    # mode 0 summary, dual log scale error plots
-    fig = plot.figure(figsize=(3.37,3.3))
-    plot.subplots_adjust(left=0.1,top=0.99,right=0.88,bottom=0.15)
-    outer = gridspec.GridSpec(3,1,wspace=0.1,hspace=0.1)
-    inner = []
-
-    MAX_plot_ux_ref = np.nanmax(np.abs(ux_ref.ravel()))
-    levels_ux_ref = np.linspace(-MAX_plot_ux_ref,MAX_plot_ux_ref,21)
-
-    x_ticks = np.array([-2,0,2,4,6,8,10])
-    
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
-    ax = plot.Subplot(fig,inner[0][0])
-    ux_plot = ax.contourf(X_grid,Y_grid,ux_ref[:,:,snapshots[sn]],levels=levels_ux_ref,cmap= matplotlib.colormaps['bwr'],extend='both')
-    ax.set_aspect('equal')
-    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
-    ax.yaxis.set_tick_params(labelsize=8)
-    ax.set_xticks(x_ticks)
-    ax.xaxis.set_tick_params(labelbottom=False)
-    ax.text(8,1.4,'$u_{x,DNS}$',fontsize=8)
-    ax.text(-1.85,1.45,'(a)',fontsize=8)
-    circle = plot.Circle((0,0),0.5,color='k',fill=False)
-    ax.add_patch(circle)
-    fig.add_subplot(ax)
-
-    cax=plot.Subplot(fig,inner[0][1])
-    cax.set(xmargin=0.5)
-    cbar = plot.colorbar(ux_plot,cax,ticks=[MAX_plot_ux_ref,MAX_plot_ux_ref/2,0.0,-MAX_plot_ux_ref/2,-MAX_plot_ux_ref],format=tkr.FormatStrFormatter('%.2f'))
-    ticklabs = cbar.ax.get_yticklabels()
-    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
-    fig.add_subplot(cax)
-            
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
-    ax = plot.Subplot(fig,inner[1][0])
-
-    e_plot = (ux_rec[s][c][:,:,snapshots[sn]]-ux_ref[:,:,snapshots[sn]])/MAX_plot_ux_ref
-    e_plot_p =e_plot+1E-30
-    e_plot_p[e_plot_p<=0]=np.NaN
-    e_plot_n = e_plot
-    e_plot_n[e_plot_n>0]=np.NaN
-    e_plot_n = np.abs(e_plot_n)
-
-    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
-    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
-    ax.set_aspect('equal')
-    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
-    ax.yaxis.set_tick_params(labelsize=8)
-    ax.set_xticks(x_ticks)
-    ax.xaxis.set_tick_params(labelbottom=False)
-    circle = plot.Circle((0,0),0.5,color='k',fill=False)
-    ax.add_patch(circle)
-    if cases_supersample_factor[s]>1:
-        dots = ax.plot(x_downsample1,y_downsample1,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
-    ax.text(6.5,1.3,'$\\frac{u_{x,PINN}-u_{x,DNS}}{max(|u_{x,DNS}|)}$',fontsize=8,color='k')
-    ax.text(-1.85,1.45,'(b)',fontsize=8)
-    ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
-    circle = plot.Circle((0,0),0.5,color='k',fill=False)
-    ax.add_patch(circle)
-    fig.add_subplot(ax)
-
-    # check bar
-    #cax=plot.Subplot(fig,inner[1][1])
-    #cbar = plot.colorbar(ux_plot,cax,ticks=[1E-3,1E-2,1E-1,1],extend='both')
-    #ticklabs = cbar.ax.get_yticklabels()
-    #cbar.ax.set_yticklabels(ticklabs, fontsize=8)
-    #fig.add_subplot(cax)
-
-    # dual log colorbar
-    cax=plot.Subplot(fig,inner[1][1])
-    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
-    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
-    fig.add_subplot(cax)
-
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
-    ax = plot.Subplot(fig,inner[2][0])
-
-    e_plot = (ux_FMD[c][:,:,snapshots[sn]]-ux_ref[:,:,snapshots[sn]])/MAX_plot_ux_ref
-    e_plot_p =e_plot+1E-30
-    e_plot_p[e_plot_p<=0]=np.NaN
-    e_plot_n = e_plot
-    e_plot_n[e_plot_n>0]=np.NaN
-    e_plot_n = np.abs(e_plot_n)
-
-    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
-    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
-    ax.set_aspect('equal')
-    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
-    ax.set_xlabel('x/D',fontsize=8,labelpad=0)
-    ax.yaxis.set_tick_params(labelsize=8)
-    ax.set_xticks(x_ticks)
-    ax.xaxis.set_tick_params(labelbottom=True)
-    ax.xaxis.set_tick_params(labelsize=8)
-    circle = plot.Circle((0,0),0.5,color='k',fill=False)
-    ax.add_patch(circle)
-    #if cases_supersample_factor[s]>1:
-    #    dots = ax.plot(x_downsample1,y_downsample1,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
-    ax.text(6.5,1.3,'$\\frac{u_{x,FMD}-u_{x,DNS}}{max(|u_{x,DNS}|)}$',fontsize=8,color='k')
-    ax.text(-1.85,1.45,'(c)',fontsize=8)
-    ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
-    circle = plot.Circle((0,0),0.5,color='k',fill=False)
-    ax.add_patch(circle)
-    fig.add_subplot(ax)
-
-    # check bar
-    #cax=plot.Subplot(fig,inner[1][1])
-    #cbar = plot.colorbar(ux_plot,cax,ticks=[1E-3,1E-2,1E-1,1],extend='both')
-    #ticklabs = cbar.ax.get_yticklabels()
-    #cbar.ax.set_yticklabels(ticklabs, fontsize=8)
-    #fig.add_subplot(cax)
-
-    # dual log colorbar
-    cax=plot.Subplot(fig,inner[2][1])
-    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
-    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
-    fig.add_subplot(cax)
-
-
-    plot.savefig(figures_dir+'logerr_snapshot'+str(snapshots[sn])+'_contours_ux_ref_recref_pinn_S'+str(cases_supersample_factor[s])+'_c'+str(rec_mode_vec[c])+'.pdf')
-    plot.savefig(figures_dir+'logerr_snapshot'+str(snapshots[sn])+'_contours_ux_ref_recref_pinn_S'+str(cases_supersample_factor[s])+'_c'+str(rec_mode_vec[c])+'.png',dpi=300)
-    plot.close(fig)
-
     
     # combined figure of S16,S32
 
@@ -1444,8 +1322,8 @@ if True:
     cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
-    plot.savefig(figures_dir+'logerr_snapshot'+str(snapshots[sn])+'_contours_recref_pinn_S16S32_c2_condensed.pdf')
-    plot.savefig(figures_dir+'logerr_snapshot'+str(snapshots[sn])+'_contours_recref_pinn_S16S32_c2_condensed.png',dpi=300)
+    plot.savefig(figures_dir+'c5/logerr_snapshot'+str(snapshots[sn])+'_contours_recref_pinn_S16S32_c5_condensed.pdf')
+    plot.savefig(figures_dir+'c5/logerr_snapshot'+str(snapshots[sn])+'_contours_recref_pinn_S16S32_c5_condensed.png',dpi=300)
     plot.close(fig)
 
 
@@ -1584,76 +1462,7 @@ max_err_p_PINN_FMD = np.array(max_err_p_PINN_FMD)
 
 
 
-if True:
-    print('Err FMD instantaneous velocity')
-    error_x_tick_labels = ['40','20','10','5','2.5','1.25']
-    error_y_tick_labels = ['1E-3','1E-2','1E-1','1E0']
-    error_y_ticks = [1E-3,1E-2,1E-1,1E0]
-    error_ylim = [1E-3,1E0]
-
-    for c in range(len(rec_mode_vec)):
-        print('Mode ',c)
-        print('mean ux FMD: ',mean_err_ux_FMD[0,c],'mean uy FMD: ',mean_err_uy_FMD[0,c],'mean p FMD: ',mean_err_p_FMD[0,c],)
-        print('max ux FMD: ',max_err_ux_FMD[0,c],'max uy FMD: ',max_err_uy_FMD[0,c],'max p FMD: ',max_err_p_FMD[0,c],)
-        
-
-        fig,axs = plot.subplots(3,1)
-        fig.set_size_inches(3.37,5.5)
-        plot.subplots_adjust(left=0.2,top=0.95,right=0.97,bottom=0.09)
-
-        mean_plt,=axs[0].plot(pts_per_d,mean_err_ux[:,c],linewidth=0,marker='o',color='black',markersize=3,markerfacecolor='black')
-        p95_plt,=axs[0].plot(pts_per_d,p95_err_ux[:,c],linewidth=0,marker='^',color='orange',markersize=3,markerfacecolor='orange')
-        max_plt,=axs[0].plot(pts_per_d,max_err_ux[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
-        axs[0].set_xscale('log')
-        axs[0].set_xticks(pts_per_d)
-        axs[0].xaxis.set_tick_params(labelbottom=False)
-        axs[0].set_yscale('log')
-        axs[0].set_ylim(error_ylim[0],error_ylim[1])
-        axs[0].set_yticks(error_y_ticks,labels=error_y_tick_labels,fontsize=8)
-        axs[0].set_ylabel("Relative Error",fontsize=8)
-        axs[0].set_title('$u_{x}$')
-        axs[0].legend([mean_plt,p95_plt,max_plt],['Mean','95th Percentile','Max'],fontsize=8)
-        axs[0].grid('on')
-        axs[0].text(0.45,1.0,'(a)',fontsize=10)
-
-        axs[1].plot(pts_per_d,mean_err_uy[:,c],linewidth=0,marker='o',color='black',markersize=3,markerfacecolor='black')
-        axs[1].plot(pts_per_d,p95_err_uy[:,c],linewidth=0,marker='^',color='orange',markersize=3,markerfacecolor='orange')
-        axs[1].plot(pts_per_d,max_err_uy[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
-        axs[1].set_xscale('log')
-        axs[1].set_xticks(pts_per_d)
-        axs[1].xaxis.set_tick_params(labelbottom=False)
-        axs[1].set_yscale('log')
-        axs[1].set_ylim(error_ylim[0],error_ylim[1])
-        axs[1].set_yticks(error_y_ticks,labels=error_y_tick_labels,fontsize=8)
-        #axs[1].set_yticklabels([0.1,0.5,1.0])
-        axs[1].set_ylabel("Relative Error",fontsize=8)
-        axs[1].set_title('$u_{y}$')
-        axs[1].grid('on')
-        axs[1].text(0.45,1.0,'(b)',fontsize=10)
-
-        axs[2].plot(pts_per_d,mean_err_p[:,c],linewidth=0,marker='o',color='black',markersize=3,markerfacecolor='black')
-        axs[2].plot(pts_per_d,p95_err_p[:,c],linewidth=0,marker='^',color='orange',markersize=3,markerfacecolor='orange')
-        axs[2].plot(pts_per_d,max_err_p[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
-        axs[2].set_xscale('log')
-        axs[2].set_xticks(pts_per_d)
-        axs[2].set_xticklabels(error_x_tick_labels)
-        axs[2].set_yscale('log')
-        axs[2].set_ylim(error_ylim[0],error_ylim[1])
-        axs[2].set_yticks(error_y_ticks,labels=error_y_tick_labels,fontsize=8)
-        #axs[2].set_yticklabels([0.1,0.5,1.0,2.0])
-        axs[2].set_xlabel('Pts/D',fontsize=8)
-        axs[2].set_ylabel("Relative Error",fontsize=8)
-        axs[2].set_title('$p$')
-        axs[2].grid('on')
-        axs[2].text(0.45,1.0,'(c)',fontsize=10)
-
-        #fig.tight_layout()
-        plot.savefig(figures_dir+'logerr_ref_pinn_instantaneous_f'+str(rec_mode_vec[c])+'_error.pdf')
-        plot.savefig(figures_dir+'logerr_ref_pinn_instantaneous_f'+str(rec_mode_vec[c])+'_error.png',dpi=300)
-        plot.close(fig)
-
-
-for c in [2]:
+for c in [5]:
 
     print('FMD truncation ',c)
     print('error relative to DNS: ')
@@ -1670,15 +1479,17 @@ for c in [2]:
     print('max uy: ',max_err_uy_PINN_FMD[:,c])
     print('mean p: ',mean_err_p_PINN_FMD[:,c])
     print('max p: ',max_err_p_PINN_FMD[:,c])
+    
 if True:
     for c in range(len(rec_mode_vec)):
     
         error_x_tick_labels = ['40','20','10','5','2.5','1.25']
-        error_y_tick_labels = ['1E-3','1E-2','1E-1','1']
+        error_y_tick_labels = ['1E-4','1E-3','0.01','0.1','1']
+        error_y_ticks = [1E-4,1E-3,1E-2,1E-1,1]
 
-        fig = plot.figure(figsize=(3.37,4.0))
+        fig = plot.figure(figsize=(3.37,3.0))
         plot.subplots_adjust(left=0.2,top=0.99,right=0.97,bottom=0.1)
-        outer = gridspec.GridSpec(2,1,wspace=0.1,hspace=0.1,height_ratios=[0.6,0.4])
+        outer = gridspec.GridSpec(1,1,wspace=0.1,hspace=0.1,)
 
         ax = plot.Subplot(fig,outer[0])
 
@@ -1702,40 +1513,17 @@ if True:
         ax.set_xticklabels(error_x_tick_labels,fontsize=8)
         ax.xaxis.set_tick_params(labelbottom=False)
         ax.set_yscale('log')
-        ax.text(1.1,5E0,'(a)',fontsize=8)
-        ax.set_ylim(1E-3,1E1)
+        #ax.text(1.1,5E0,'(a)',fontsize=8)
+        ax.set_ylim(1E-4,1E1)
         ax.set_xlim(1.0,55.0)
-        ax.set_yticks([1E-3,1E-2,1E-1,1],labels=error_y_tick_labels,fontsize=8)
+        ax.set_yticks(error_y_ticks,labels=error_y_tick_labels,fontsize=8)
         ax.set_ylabel("Relative Error",fontsize=8)
         ax.legend([mean_plt_uxux,max_plt_uxux,mean_plt_uxuy,max_plt_uxuy,mean_plt_uyuy,max_plt_uyuy,],['Mean $u_x$','Max $u_x$','Mean $u_y$','Max $u_y$','Mean $p$','Max $p$',],fontsize=8,ncols=2)
         ax.grid('on')
         
         fig.add_subplot(ax)
-        ax = plot.Subplot(fig,outer[1])
-
-        mean_plt_uxux,=ax.plot(pts_per_d*0.9,mean_err_ux_PINN_FMD[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
-        max_plt_uxux,=ax.plot(pts_per_d*0.9,max_err_ux_PINN_FMD[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
-        mean_plt_uxuy,=ax.plot(pts_per_d,mean_err_uy_PINN_FMD[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
-        max_plt_uxuy,=ax.plot(pts_per_d,max_err_uy_PINN_FMD[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
-        mean_plt_uyuy,=ax.plot(pts_per_d*1.1,mean_err_p_PINN_FMD[:,c],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
-        max_plt_uyuy,=ax.plot(pts_per_d*1.1,max_err_p_PINN_FMD[:,c],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
-
-        ax.set_xscale('log')
-        ax.set_xticks(pts_per_d)
-        ax.set_xticklabels(error_x_tick_labels,fontsize=8)
-        ax.set_yscale('log')
-        ax.set_ylim(5E-4,5E0)
-        ax.set_xlim(1.0,55.0)
-        ax.text(1.1,2E0,'(b)',fontsize=8)
-        ax.set_yticks([1E-3,1E-2,1E-1,1],labels=error_y_tick_labels,fontsize=8)
-        ax.set_ylabel("Relative Error",fontsize=8)
-        #ax.legend([mean_plt_uxux,max_plt_uxux,mean_plt_uxuy,max_plt_uxuy,mean_plt_uyuy,max_plt_uyuy,],['Mean $u_x$','Max $u_x$','Mean $u_y$','Max $u_y$','Mean $p$','Max $p$',],fontsize=8,ncols=2)
-        ax.grid('on')
-        ax.set_xlabel('$D/\Delta x$',fontsize=8)
-
-        fig.add_subplot(ax)
 
         #fig.tight_layout()
-        plot.savefig(figures_dir+'logerr_ref_pinn_instantaneous_f'+str(rec_mode_vec[c])+'_error_FMD.pdf')
-        plot.savefig(figures_dir+'logerr_ref_pinn_instantaneous_f'+str(rec_mode_vec[c])+'_error_FMD.png',dpi=300)
+        plot.savefig(figures_dir+'c'+str(rec_mode_vec[c])+'/logerr_ref_pinn_instantaneous_c'+str(rec_mode_vec[c])+'_error.pdf')
+        plot.savefig(figures_dir+'c'+str(rec_mode_vec[c])+'/logerr_ref_pinn_instantaneous_c'+str(rec_mode_vec[c])+'_error.png',dpi=300)
         plot.close(fig)

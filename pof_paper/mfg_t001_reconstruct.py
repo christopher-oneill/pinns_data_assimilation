@@ -6,13 +6,13 @@ import matplotlib
 import matplotlib.pyplot as plot
 
 import sys
-sys.path.append('C:/projects/pinns_local/code/')
+sys.path.append('F:/projects/pinns_local/code/')
 from pinns_data_assimilation.lib.dft import idft
 
-figures_dir = 'C:/projects/paper_figures/reconstruction/'
-rec_dir = 'C:/projects/paper_figures/data/'
-data_dir = 'C:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
-output_dir = 'C:/projects/pinns_narval/sync/output/'
+figures_dir = 'F:/projects/paper_figures/reconstruction/'
+rec_dir = 'F:/projects/paper_figures/data/'
+data_dir = 'F:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
+output_dir = 'F:/projects/pinns_narval/sync/output/'
 
 cases_list_mean = ['mfg_fbc003_001_S0/mfg_fbc003_001_S0_ep72927_pred.mat','mfg_fbc003_001_S2/mfg_fbc003_001_S2_ep74925_pred.mat','mfg_fbc003_001_S4/mfg_fbc003_001_S4_ep86913_pred.mat','mfg_fbc003_001_S8/mfg_fbc003_001_S8_ep101898_pred.mat','mfg_fbc003_001_S16/mfg_fbc003_001_S16_ep69930_pred.mat','mfg_fbc003_001_S32/mfg_fbc003_001_S32_ep72927_pred.mat']
 cases_list_f = []
