@@ -505,19 +505,19 @@ def FANS_BC_pressure(model_FANS,BC_points):
 def FANS_BC_no_slip(model_FANS,BC_points):
     up = model_FANS(BC_points)
     # velocity fourier coefficients
-    phi_xr = up[:,0]*ScalingParameters.MAX_phi_xr
-    phi_xi = up[:,1]*ScalingParameters.MAX_phi_xi
-    phi_yr = up[:,2]*ScalingParameters.MAX_phi_yr
-    phi_yi = up[:,3]*ScalingParameters.MAX_phi_yi
+    phi_xr = up[:,0]
+    phi_xi = up[:,1]
+    phi_yr = up[:,2]
+    phi_yi = up[:,3]
 
     # fourier coefficients of the fluctuating field
-    tau_xx_r = up[:,4]*ScalingParameters.MAX_tau_xx_r
-    tau_xx_i = up[:,5]*ScalingParameters.MAX_tau_xx_i
-    tau_xy_r = up[:,6]*ScalingParameters.MAX_tau_xy_r
-    tau_xy_i = up[:,7]*ScalingParameters.MAX_tau_xy_i
-    tau_yy_r = up[:,8]*ScalingParameters.MAX_tau_yy_r
-    tau_yy_i = up[:,9]*ScalingParameters.MAX_tau_yy_i
-    return tf.reduce_mean(tf.square(phi_xr+phi_xi))+tf.reduce_mean(tf.square(phi_yr+phi_yi))+tf.reduce_mean(tf.square(tau_xx_r))+tf.reduce_mean(tf.square(tau_xx_i))+tf.reduce_mean(tf.square(tau_xy_r))+tf.reduce_mean(tf.square(tau_xy_i))+tf.reduce_mean(tf.square(tau_yy_r))+tf.reduce_mean(tf.square(tau_yy_i))
+    tau_xx_r = up[:,4]
+    tau_xx_i = up[:,5]
+    tau_xy_r = up[:,6]
+    tau_xy_i = up[:,7]
+    tau_yy_r = up[:,8]
+    tau_yy_i = up[:,9]
+    return tf.reduce_mean(tf.square(phi_xr))+tf.reduce_mean(tf.square(phi_xi))+tf.reduce_mean(tf.square(phi_yr))+tf.reduce_mean(tf.square(phi_yi))+tf.reduce_mean(tf.square(tau_xx_r))+tf.reduce_mean(tf.square(tau_xx_i))+tf.reduce_mean(tf.square(tau_xy_r))+tf.reduce_mean(tf.square(tau_xy_i))+tf.reduce_mean(tf.square(tau_yy_r))+tf.reduce_mean(tf.square(tau_yy_i))
 
 @tf.function
 def FANS_boundary_loss(model_FANS,boundary_tuple,ScalingParameters):
@@ -1215,7 +1215,7 @@ if __name__=="__main__":
     print('X_train.shape: ',X_train_backprop.shape)
     print('O_train.shape: ',O_train_backprop.shape)
     # the order here must be identical to inside the cost functions
-    boundary_tuple  = boundary_points_function(360)
+    boundary_tuple  = boundary_points_function(720)
     X_colloc = colloc_points_function(25000)
 
 
@@ -1359,7 +1359,7 @@ if __name__=="__main__":
                 model_FANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
             if np.mod(training_steps,50)==0:
                     # rerandomize the collocation points 
-                boundary_tuple = boundary_points_function(360)
+                boundary_tuple = boundary_points_function(720)
                 X_colloc = colloc_points_function(25000)
                 mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
             
@@ -1378,7 +1378,7 @@ if __name__=="__main__":
         # final polishing of solution using LBFGS
         import tensorflow_probability as tfp
         L_iter = 0
-        boundary_tuple = boundary_points_function(360)
+        boundary_tuple = boundary_points_function(720)
         X_colloc = colloc_points_function(25000) # one A100 max = 60k?
         mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
         func = train_LBFGS(model_FANS,tf.cast(X_train_LBFGS,tf_dtype),tf.cast(F_train_LBFGS,tf_dtype),X_colloc,mean_data,boundary_tuple,ScalingParameters)
@@ -1407,7 +1407,7 @@ if __name__=="__main__":
 
             if np.mod(L_iter,10)==0:
                 model_FANS.save_weights(savedir+job_name+'_ep'+str(np.uint(training_steps))+'.weights.h5')
-                boundary_tuple = boundary_points_function(360)
+                boundary_tuple = boundary_points_function(720)
                 X_colloc = colloc_points_function(25000)
                 mean_data = mean_grads_cartesian(model_mean,X_colloc,ScalingParameters)
                 func = train_LBFGS(model_FANS,tf.cast(X_train_LBFGS,tf_dtype),tf.cast(F_train_LBFGS,tf_dtype),X_colloc,mean_data,boundary_tuple,ScalingParameters)
