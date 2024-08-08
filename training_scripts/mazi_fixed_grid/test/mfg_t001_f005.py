@@ -39,6 +39,7 @@ def load_custom():
         training_steps = model_training_steps
     else:
         training_steps = weights_training_steps
+        # load the weights
         model_FANS.load_weights(checkpoint_filename)
                 
     model_FANS.summary()
@@ -942,17 +943,17 @@ if __name__=="__main__":
     job_name = 'mfg_t001_f005_f{:d}_S{:d}_j{:03d}'.format(mode_number,supersample_factor,job_number)
 
 
-    LOCAL_NODE = 'DESKTOP-GMOIE9C'
+    LOCAL_NODE = 'DESKTOP-L3FA8HC'
     if node_name==LOCAL_NODE:
         import matplotlib.pyplot as plot
         import matplotlib
         job_duration = timedelta(hours=job_hours)
         end_time = start_time+job_duration
         useGPU=False    
-        SLURM_TMPDIR='C:/projects/pinns_narval/sync/'
-        HOMEDIR = 'C:/projects/pinns_narval/sync/'
+        SLURM_TMPDIR='F:/projects/pinns_narval/sync/'
+        HOMEDIR = 'F:/projects/pinns_narval/sync/'
         PROJECTDIR = HOMEDIR
-        sys.path.append('C:/projects/pinns_local/code/')
+        sys.path.append('F:/projects/pinns_local/code/')
         # set number of cores to compute on 
     else:
         # parameters for running on compute canada
@@ -1267,6 +1268,8 @@ if __name__=="__main__":
             model_FANS.summary()
             # save the model only on startup
             model_FANS.save(savedir+job_name+'_ep0_model.h5')
+            #model_FANS.save_weights(savedir+job_name+'_ep1.weights.h5')
+            #exit()
 
     # good performance on mode 0,2 with 
     # embedding_wavenumber_vector = np.linspace(0,3*np.pi*ScalingParameters.MAX_x,200)
