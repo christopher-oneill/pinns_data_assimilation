@@ -808,7 +808,7 @@ if True:
     levels_uxuy = np.linspace(-MAX_uxuy_ref,MAX_uxuy_ref,21)
     levels_uyuy = np.linspace(-MAX_uyuy_ref,MAX_uyuy_ref,21)
 
-    ic=0
+    ic=5
     s=4
     uxux_err_grid1 = uxux_rec[s][ic] - uxux_ref
     uxuy_err_grid1 = uxuy_rec[s][ic] - uxuy_ref
@@ -873,7 +873,7 @@ if True:
 
 
     # mode 0 summary, dual log scale error plots
-    fig = plot.figure(figsize=(3.37,8.25))
+    fig = plot.figure(figsize=(3.37,8))
     plot.subplots_adjust(left=0.1,top=0.99,right=0.88,bottom=0.04)
     outer = gridspec.GridSpec(9,1,wspace=0.1,hspace=0.1)
     inner = []

@@ -14,15 +14,23 @@ rec_dir = 'F:/projects/paper_figures/data/'
 data_dir = 'F:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
 output_dir = 'F:/projects/pinns_narval/sync/output/'
 
-cases_list_mean = ['mfg_fbc003_001_S0/mfg_fbc003_001_S0_ep72927_pred.mat','mfg_fbc003_001_S2/mfg_fbc003_001_S2_ep74925_pred.mat','mfg_fbc003_001_S4/mfg_fbc003_001_S4_ep86913_pred.mat','mfg_fbc003_001_S8/mfg_fbc003_001_S8_ep101898_pred.mat','mfg_fbc003_001_S16/mfg_fbc003_001_S16_ep69930_pred.mat','mfg_fbc003_001_S32/mfg_fbc003_001_S32_ep72927_pred.mat']
-cases_list_f = []
-cases_list_f.append(['mfg_t001_f003_f0_S0_j001_output/mfg_t001_f003_f0_S0_j001_ep229770_pred.mat','mfg_t001_f003_f0_S2_j001_output/mfg_t001_f003_f0_S2_j001_ep245754_pred.mat','mfg_t001_f003_f0_S4_j001_output/mfg_t001_f003_f0_S4_j001_ep242757_pred.mat','mfg_t001_f003_f0_S8_j001_output/mfg_t001_f003_f0_S8_j001_ep259740_pred.mat','mfg_t001_f003_f0_S16_j001_output/mfg_t001_f003_f0_S16_j001_ep243756_pred.mat','mfg_t001_f003_f0_S32_j001_output/mfg_t001_f003_f0_S32_j001_ep244755_pred.mat'])
-cases_list_f.append(['mfg_t001_f003_f1_S0_j001_output/mfg_t001_f003_f1_S0_j001_ep222777_pred.mat','mfg_t001_f003_f1_S2_j001_output/mfg_t001_f003_f1_S2_j001_ep241758_pred.mat','mfg_t001_f003_f1_S4_j001_output/mfg_t001_f003_f1_S4_j001_ep239760_pred.mat','mfg_t001_f003_f1_S8_j001_output/mfg_t001_f003_f1_S8_j001_ep272727_pred.mat','mfg_t001_f003_f1_S16_j001_output/mfg_t001_f003_f1_S16_j001_ep243756_pred.mat','mfg_t001_f003_f1_S32_j001_output/mfg_t001_f003_f1_S32_j001_ep244755_pred.mat'])
-cases_list_f.append(['mfg_t001_f003_f2_S0_j001_output/mfg_t001_f003_f2_S0_j001_ep229770_pred.mat','mfg_t001_f003_f2_S2_j001_output/mfg_t001_f003_f2_S2_j001_ep241758_pred.mat','mfg_t001_f003_f2_S4_j001_output/mfg_t001_f003_f2_S4_j001_ep242757_pred.mat','mfg_t001_f003_f2_S8_j001_output/mfg_t001_f003_f2_S8_j001_ep243756_pred.mat','mfg_t001_f003_f2_S16_j001_output/mfg_t001_f003_f2_S16_j001_ep244755_pred.mat','mfg_t001_f003_f2_S32_j001_output/mfg_t001_f003_f2_S32_j001_ep243756_pred.mat'])
-cases_list_f.append(['mfg_t001_f003_f3_S0_j001_output/mfg_t001_f003_f3_S0_j001_ep229770_pred.mat','mfg_t001_f003_f3_S2_j001_output/mfg_t001_f003_f3_S2_j001_ep239760_pred.mat','mfg_t001_f003_f3_S4_j001_output/mfg_t001_f003_f3_S4_j001_ep243756_pred.mat','mfg_t001_f003_f3_S8_j001_output/mfg_t001_f003_f3_S8_j001_ep243756_pred.mat','mfg_t001_f003_f3_S16_j001_output/mfg_t001_f003_f3_S16_j001_ep243756_pred.mat','mfg_t001_f003_f3_S32_j001_output/mfg_t001_f003_f3_S32_j001_ep243756_pred.mat'])
-cases_list_f.append(['mfg_t001_f003_f4_S0_j001_output/mfg_t001_f003_f4_S0_j001_ep228771_pred.mat','mfg_t001_f003_f4_S2_j001_output/mfg_t001_f003_f4_S2_j001_ep240759_pred.mat','mfg_t001_f003_f4_S4_j001_output/mfg_t001_f003_f4_S4_j001_ep239760_pred.mat','mfg_t001_f003_f4_S8_j001_output/mfg_t001_f003_f4_S8_j001_ep242757_pred.mat','mfg_t001_f003_f4_S16_j001_output/mfg_t001_f003_f4_S16_j001_ep243756_pred.mat','mfg_t001_f003_f4_S32_j001_output/mfg_t001_f003_f4_S32_j001_ep242757_pred.mat'])
-cases_list_f.append(['mfg_t001_f003_f5_S0_j001_output/mfg_t001_f003_f5_S0_j001_ep223776_pred.mat','mfg_t001_f003_f5_S2_j001_output/mfg_t001_f003_f5_S2_j001_ep241758_pred.mat','mfg_t001_f003_f5_S4_j001_output/mfg_t001_f003_f5_S4_j001_ep242757_pred.mat','mfg_t001_f003_f5_S8_j001_output/mfg_t001_f003_f5_S8_j001_ep243756_pred.mat','mfg_t001_f003_f5_S16_j001_output/mfg_t001_f003_f5_S16_j001_ep243756_pred.mat','mfg_t001_f003_f5_S32_j001_output/mfg_t001_f003_f5_S32_j001_ep243756_pred.mat'])
+from pinns_data_assimilation.lib.file_util import find_highest_numbered_file
+
 cases_supersample_factor = [0,2,4,8,16,32]
+cases_frequency = [0,1,2,3,4,5]
+
+cases_list_f = []
+for ij in range(len(cases_frequency)):
+    temp_cases_list = []
+    temp_phys_list = []
+    for ik in range(len(cases_supersample_factor)):
+        file_path,file_number = find_highest_numbered_file(output_dir+'mfg_t001_f005_f'+str(cases_frequency[ij])+'_S'+str(cases_supersample_factor[ik])+'_j001_output/mfg_t001_f005_f'+str(cases_frequency[ij])+'_S'+str(cases_supersample_factor[ik])+'_j001_ep','[0-9]*','_pred.mat')
+        temp_cases_list.append('mfg_t001_f005_f'+str(cases_frequency[ij])+'_S'+str(cases_supersample_factor[ik])+'_j001_output/mfg_t001_f005_f'+str(cases_frequency[ij])+'_S'+str(cases_supersample_factor[ik])+'_j001_ep'+str(file_number)+'_pred.mat')
+    cases_list_f.append(temp_cases_list)
+
+
+
+cases_list_mean = ['mfg_t001_001_S0/mfg_t001_001_S0_ep553446_pred.mat','mfg_t001_001_S2/mfg_t001_001_S2_ep837162_pred.mat','mfg_t001_001_S4/mfg_t001_001_S4_ep836163_pred.mat','mfg_t001_001_S8/mfg_t001_001_S8_ep869130_pred.mat','mfg_t001_001_S16/mfg_t001_001_S16_ep827172_pred.mat','mfg_t001_001_S32/mfg_t001_001_S32_ep796203_pred.mat']
 
 # get the constants for all the modes
 class UserScalingParameters(object):
@@ -30,12 +38,7 @@ class UserScalingParameters(object):
 ScalingParameters = UserScalingParameters()
 ScalingParameters.mean = UserScalingParameters()
 ScalingParameters.f =[]
-ScalingParameters.f.append(UserScalingParameters())
-ScalingParameters.f.append(UserScalingParameters())
-ScalingParameters.f.append(UserScalingParameters())
-ScalingParameters.f.append(UserScalingParameters())
-ScalingParameters.f.append(UserScalingParameters())
-ScalingParameters.f.append(UserScalingParameters())
+
 
 # load the reference data
 base_dir = data_dir
@@ -88,7 +91,8 @@ phi_x_ref = []
 phi_y_ref = []
 psi_ref = []
 
-for mode_number in [0,1,2,3,4,5]:
+for mode_number in [0,1,2,3,4,5,6,7]:
+    ScalingParameters.f.append(UserScalingParameters())
     fourierModeFile = h5py.File(base_dir+'fourierModes.mat','r')
     phi_xr = np.array(np.real(fourierModeFile['velocityModes'][:,mode_number,0]))
     phi_xi = np.array(np.imag(fourierModeFile['velocityModes'][:,mode_number,0]))
@@ -131,7 +135,7 @@ ux_rec_ref = ux_rec_ref + np.reshape(ux,[ScalingParameters.mean.nx,1])
 uy_rec_ref = uy_rec_ref + np.reshape(uy,[ScalingParameters.mean.nx,1])
 p_rec_ref = p_rec_ref + np.reshape(p,[ScalingParameters.mean.nx,1])
 
-for c in [0,1,2,3,4,5]:
+for c in [0,1,2,3,4,5,6,7]:
     ux_i,t_i = idft(np.reshape(phi_x_ref[c],[ScalingParameters.mean.nx,1]),f=ScalingParameters.f[c].f,t=np.reshape(t,[1,t.size]),fs=ScalingParameters.mean.fs)
     ux_rec_ref = ux_rec_ref+2.0*ux_i
 
@@ -147,6 +151,7 @@ for c in [0,1,2,3,4,5]:
     h5f.create_dataset('p',data=p_rec_ref)
     h5f.close()
 
+exit()
 ux_pred = []
 uy_pred = []
 p_pred = []

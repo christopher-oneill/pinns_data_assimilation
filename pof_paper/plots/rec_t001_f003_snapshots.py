@@ -10,8 +10,8 @@ import sys
 sys.path.append('F:/projects/pinns_local/code/')
 from pinns_data_assimilation.lib.downsample import compute_downsample_inds_center
 
-figures_dir = 'F:/projects/paper_figures/reconstruction/snapshots/'
-rec_dir = 'F:/projects/paper_figures/data/'
+figures_dir = 'F:/projects/paper_figures/old_mfg_f003/reconstruction/snapshots/'
+rec_dir = 'F:/projects/paper_figures/old_mfg_f003/data/'
 data_dir = 'F:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
 output_dir = 'F:/projects/pinns_narval/sync/output/'
 

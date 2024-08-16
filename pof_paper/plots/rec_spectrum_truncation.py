@@ -7,13 +7,13 @@ import matplotlib.ticker as tkr
 import matplotlib.gridspec as gridspec
 
 import sys
-sys.path.append('C:/projects/pinns_local/code/')
+sys.path.append('F:/projects/pinns_local/code/')
 from pinns_data_assimilation.lib.downsample import compute_downsample_inds_center
 
-figures_dir = 'C:/projects/paper_figures/reconstruction/'
-rec_dir = 'C:/projects/paper_figures/data/'
-data_dir = 'C:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
-output_dir = 'C:/projects/pinns_narval/sync/output/'
+figures_dir = 'F:/projects/paper_figures/reconstruction/'
+rec_dir = 'F:/projects/paper_figures/data/'
+data_dir = 'F:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
+output_dir = 'F:/projects/pinns_narval/sync/output/'
 
 base_dir = data_dir
 
@@ -105,7 +105,7 @@ uy_modes = uy_modes[:,0:half_index]/L_dft
 p_modes = p_modes[:,0:half_index]/L_dft
 
 # get which modes were exported
-ind_exported_modes = np.zeros([6,1],dtype=np.int64)
+ind_exported_modes = np.zeros([8,1],dtype=np.int64)
 for i in range(ind_exported_modes.shape[0]):
     ind_exported_modes[i,0]=np.argwhere(f_ux_modes==f_exported_modes[i])
 
@@ -233,7 +233,7 @@ uxux_rec_ref = []
 uxuy_rec_ref = []
 uyuy_rec_ref = []
 
-rec_mode_vec =[0,1,2,3,4,5]
+rec_mode_vec =[0,1,2,3,4,5,6,7]
 cases_supersample_factor = [0,2,4,8,16,32]
 
 mean_err_ux_p = []
@@ -325,7 +325,7 @@ if True:
 
 if False:
     s=0 # needed so no points appear in the reference comparison plotss
-    for c in rec_mode_vec:
+    for c in rec_mode_veF:
 
         if True:
 
@@ -619,8 +619,8 @@ if True:
     max_rec_err_uxuy = np.array(max_rec_err_uxux)
     max_rec_err_uyuy = np.array(max_rec_err_uyuy)
 
-    error_x_tick_labels = ['1','2','3','4','5','6']
-    plot_mode_vec = np.array([1,2,3,4,5,6])
+    error_x_tick_labels = ['1','2','3','4','5','6','7','8']
+    plot_mode_vec = np.array([1,2,3,4,5,6,7,8])
     error_y_tick_labels = ['1E-4','1E-3','1E-2','1E-1']
     # compare the different number of modes by Restress error
     fig,axs = plot.subplots(3,1)
@@ -716,8 +716,8 @@ if True:
     max_err_uy_p = np.array(max_err_uy_p)
     max_err_p_p = np.array(max_err_p_p)
 
-    error_x_tick_labels = ['1','2','3','4','5','6']
-    plot_mode_vec = np.array([1,2,3,4,5,6])
+    error_x_tick_labels = ['1','2','3','4','5','6','7','8']
+    plot_mode_vec = np.array([1,2,3,4,5,6,7,8])
     error_y_ticks = [1E-3,1E-2,1E-1,1E0]
     error_y_tick_labels = ['1E-3','1E-2','1E-1','1']
     # compare the different number of modes by Restress error
