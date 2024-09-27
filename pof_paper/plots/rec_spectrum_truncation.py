@@ -213,7 +213,7 @@ axs.text(1.6,np.abs(p_modes[1,1]/shift)*1E1,'$\psi$',fontsize=8)
 
 axs.yaxis.set_tick_params(labelleft=False)
 axs.yaxis.set_tick_params(left=False)
-axs.set_ylabel('$abs(\psi),abs(\Phi_y),abs(\Phi_x)$',fontsize=8)
+axs.set_ylabel('$|\psi|, |\Phi_y|, |\Phi_x|$',fontsize=8)
 axs.set_yscale('log')
 axs.set_xlim(0,1.7)
 axs.set_ylim(1E-10,1E4)
