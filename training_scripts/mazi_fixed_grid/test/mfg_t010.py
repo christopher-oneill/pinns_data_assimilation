@@ -710,15 +710,15 @@ job_name = 'mfg_t010_{:03d}_S{:d}'.format(job_number,supersample_factor)
 job_duration = timedelta(hours=job_hours,minutes=0)
 end_time = start_time+job_duration
 
-LOCAL_NODE = 'DESKTOP-GMOIE9C'
+LOCAL_NODE = 'DESKTOP-L3FA8HC'
 if node_name==LOCAL_NODE:
     import matplotlib
     import matplotlib.pyplot as plot
     useGPU=False    
-    SLURM_TMPDIR='C:/projects/pinns_narval/sync/'
-    HOMEDIR = 'C:/projects/pinns_narval/sync/'
+    SLURM_TMPDIR='F:/projects/pinns_narval/sync/'
+    HOMEDIR = 'F:/projects/pinns_narval/sync/'
     PROJECTDIR = HOMEDIR
-    sys.path.append('C:/projects/pinns_local/code/')
+    sys.path.append('F:/projects/pinns_local/code/')
 else:
     # parameters for running on compute canada   
     HOMEDIR = '/home/coneill/sync/'
@@ -937,8 +937,8 @@ history_list = []
 
 
 if node_name == LOCAL_NODE:
-    #plot_err()
-    #plot_NS_residual()
+    plot_err()
+    plot_NS_residual()
     #plot_large()
     #plot_NS_large()
     #plot_gradients()
