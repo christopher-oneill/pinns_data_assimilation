@@ -777,7 +777,7 @@ def compute_loss(x,y,colloc_x,mean_grads,boundary_tuple,ScalingParameters):
     physics_loss = FANS_physics_loss(model_FANS,colloc_x,mean_grads,ScalingParameters) # tf.cast(0.0,tf_dtype) #
     boundary_loss = FANS_boundary_loss(model_FANS,boundary_tuple,ScalingParameters)
 
-    total_loss = ScalingParameters.data_loss_coefficient*data_loss + ScalingParameters.physics_loss_coefficient**physics_loss + ScalingParameters.boundary_loss_coefficient*boundary_loss
+    total_loss = ScalingParameters.data_loss_coefficient*data_loss + ScalingParameters.physics_loss_coefficient*physics_loss + ScalingParameters.boundary_loss_coefficient*boundary_loss
     return total_loss, data_loss, physics_loss, boundary_loss
 
 @tf.function
