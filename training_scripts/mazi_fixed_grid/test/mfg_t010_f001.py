@@ -1248,6 +1248,8 @@ if __name__=="__main__":
     if model_file is not None:
         with tf.device(tf_device_string):
             model_FANS,training_steps = load_custom()
+            model_FANS.save(savedir+job_name+'_ep'+str(training_steps)+'_model.h5')
+            exit()
     else:
         # create a new model
         training_steps = 0
