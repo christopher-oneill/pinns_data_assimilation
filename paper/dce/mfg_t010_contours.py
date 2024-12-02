@@ -278,11 +278,6 @@ for c in range(len(cases_list)):
     MAX_mass = np.nanmax(np.abs(mass_grid[c].ravel()))
 
     levels_mx = np.geomspace(1E-3,1,21)##
-    levels_my = np.geomspace(1E-3,1,21)#np.linspace(1E-6,MAX_my,21)
-    levels_mass = np.geomspace(1E-3,1,21)#np.linspace(1E-6,MAX_mass,21)
-
-    levels_mx = np.geomspace(1E-3,1,11)##
-
 
     ticks_mx = np.array([1E-3,3E-3,1E-2,3E-2,1E-1,3E-1,1])
 
@@ -356,6 +351,10 @@ for c in range(len(cases_list)):
     dual_log_cbar_norm = matplotlib.colors.CenteredNorm(0.0,1.0)
     dual_log_cbar_ticks = [-1,-0.666,-0.333,0,0.333,0.666,1]
     dual_log_cbar_labels = ['-1','-1E-1','-1E-2','0','1E-2','1E-1','1']
+    #levels_mx=np.geomspace(1E-4,1,21)
+    #ticks_mx = np.array([1E-3,3E-3,1E-2,3E-2,1E-1,3E-1,1])
+    #dual_log_cbar_ticks = [-1,-0.75,-0.5,-.25,0,.25,0.5,0.75,1]
+    #dual_log_cbar_labels = ['-1','-1E-1','-1E-2','-1E-3','0','1E-3','1E-2','1E-1','1']
 
     # quadrant 1
 
@@ -679,8 +678,6 @@ for c in range(len(cases_list)):
 
 
 
-
-
 if True:
     # custom combined plot for the paper
 
@@ -785,12 +782,15 @@ if True:
     x_ticks = [-2,0,2,4,6,8,10]
 
 
-    fig = plot.figure(figsize=(3.37,8))
-    plot.subplots_adjust(left=0.1,top=0.99,right=0.88,bottom=0.04)
-    outer = gridspec.GridSpec(9,1,wspace=0.1,hspace=0.1)
+    fig = plot.figure(figsize=(5.85,5.4))
+    plot.subplots_adjust(left=0.06,top=0.99,right=0.93,bottom=0.07)
+    outer = gridspec.GridSpec(2,2,wspace=0.33,hspace=0.06)
+
+    mid = []
+    mid.append(gridspec.GridSpecFromSubplotSpec(3,1,subplot_spec=outer[0],wspace=0.02,hspace=0.02,height_ratios=[1,1,1]))
 
     inner = []
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[0],wspace=0.02,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[0][0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     # (1,(1,1))
     ax = plot.Subplot(fig,inner[0][0])
     ux_plot = ax.contourf(X_grid,Y_grid,ux_grid,levels=levels_ux,cmap= matplotlib.colormaps['bwr'],extend='both')
@@ -813,7 +813,7 @@ if True:
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
 
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[1],wspace=0.02,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[0][1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     c=4
     ax = plot.Subplot(fig,inner[1][0])
    
@@ -856,7 +856,7 @@ if True:
     cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[2],wspace=0.02,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[0][2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     c=5
     ax = plot.Subplot(fig,inner[2][0])
     e_plot = ux_err_grid[c]/MAX_plot_ux
@@ -873,12 +873,13 @@ if True:
     ax.set_xticks(x_ticks)
     ax.xaxis.set_tick_params(labelsize=8)
     ax.xaxis.set_tick_params(labelbottom=False)
+    #ax.set_xlabel('x/D',fontsize=8,labelpad=0)
     if cases_supersample_factor[c]>1:
         dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     ax.text(7,1.2,'$\eta(\overline{u}_{\mathrm{x,PINN}})$',fontsize=8,color='k')
-    ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
+    ax.text(6,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
     ax.text(-1.75,1.4,'(c)',fontsize=8,color='k')
     fig.add_subplot(ax)
 
@@ -895,8 +896,9 @@ if True:
     cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
+    mid.append(gridspec.GridSpecFromSubplotSpec(3,1,subplot_spec=outer[1],wspace=0.02,hspace=0.02,height_ratios=[1,1,1]))
 
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[3],wspace=0.02,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[1][0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[3][0])
     p_plot =ax.contourf(X_grid,Y_grid,uy_grid,levels=levels_uy,cmap= matplotlib.colormaps['bwr'],extend='both')
     ax.set_aspect('equal')
@@ -918,7 +920,7 @@ if True:
     fig.add_subplot(cax)
     
     c=4
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[4],wspace=0.02,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[1][1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[4][0])
     e_plot = uy_err_grid[c]/MAX_plot_uy
     e_plot_p =e_plot+1E-30
@@ -950,7 +952,7 @@ if True:
     fig.add_subplot(cax)
 
     c=5
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[5],wspace=0.02,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[1][2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[5][0])
     e_plot = uy_err_grid[c]/MAX_plot_uy
     e_plot_p =e_plot+1E-30
@@ -965,14 +967,15 @@ if True:
     ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
     ax.set_xticks(x_ticks)
     ax.xaxis.set_tick_params(labelsize=8)
-    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.xaxis.set_tick_params(labelbottom=True)
+    ax.set_xlabel('x/D',fontsize=8,labelpad=0)
     
     if cases_supersample_factor[c]>1:
         dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     ax.text(7,1.2,'$\eta(\overline{u}_{\mathrm{y,PINN}})$',fontsize=8,color='k')
-    ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
+    ax.text(6,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
     ax.text(-1.75,1.4,'(f)',fontsize=8)
     fig.add_subplot(ax)
 
@@ -981,7 +984,9 @@ if True:
     cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[6],wspace=0.02,hspace=0.1,width_ratios=[0.97,0.03]))
+    mid.append(gridspec.GridSpecFromSubplotSpec(3,1,subplot_spec=outer[2],wspace=0.02,hspace=0.02,height_ratios=[1,1,1]))
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[2][0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     # (1,(1,1))
     ax = plot.Subplot(fig,inner[6][0])
     ux_plot = ax.contourf(X_grid,Y_grid,p_grid,levels=levels_p,cmap= matplotlib.colormaps['bwr'],extend='both')
@@ -1003,7 +1008,7 @@ if True:
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
 
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[7],wspace=0.02,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[2][1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     c=4
     ax = plot.Subplot(fig,inner[7][0])
    
@@ -1045,7 +1050,7 @@ if True:
     cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[8],wspace=0.02,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[2][2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     c=5
     ax = plot.Subplot(fig,inner[8][0])
     e_plot = p_err_grid[c]/MAX_plot_p
@@ -1067,7 +1072,7 @@ if True:
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     ax.text(7.5,1.2,'$\eta(\overline{p}_{\mathrm{PINN}})$',fontsize=8,color='k')
-    ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
+    ax.text(6,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
     ax.text(-1.75,1.4,'(i)',fontsize=8,color='k')
     fig.add_subplot(ax)
 
@@ -1084,8 +1089,67 @@ if True:
     cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
+    
+
+    # error plot
+
+    mid.append(gridspec.GridSpecFromSubplotSpec(2,1,subplot_spec=outer[3],wspace=0.02,hspace=0.1,height_ratios=[0.3,0.7,]))
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[3][1],wspace=0.02,hspace=0.1,width_ratios=[0.15,0.85,]))
+
+    ax = plot.Subplot(fig,inner[9][1])
+
+    # error percent plot
+    pts_per_d = 1.0/np.array(dx)
+
+    mean_err_ux = np.array(mean_err_ux)
+    mean_err_uy = np.array(mean_err_uy)
+    mean_err_p = np.array(mean_err_p)
+
+    p95_err_ux = np.array(p95_err_ux)
+    p95_err_uy = np.array(p95_err_uy)
+    p95_err_p = np.array(p95_err_p)
+
+    MAX_err_ux = np.array(MAX_err_ux)
+    MAX_err_uy = np.array(MAX_err_uy)
+    MAX_err_p = np.array(MAX_err_p)
+
+    error_x_tick_labels = ['40','20','10','5','2.5','1.25']
+    error_y_ticks = [1E-3,1E-2,1E-1,1]
+    error_y_tick_labels = ['1E-3','1E-2','1E-1','1']
+
+    supersample_factors = np.array(cases_supersample_factor)
+
+    error_x_tick_labels = ['40','20','10','5','2.5','1.25']
+    error_y_ticks = [1E-4,1E-3,1E-2,1E-1,1]
+    error_y_tick_labels = ['1E-4','1E-3','1E-2','1E-1','1']
+
+    supersample_factors = np.array(cases_supersample_factor)
+    mean_plt_x,=ax.plot(0.95*pts_per_d,mean_err_ux,linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
+    max_plt_x,=ax.plot(0.95*pts_per_d,MAX_err_ux,linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
+    mean_plt_y,=ax.plot(pts_per_d,mean_err_uy,linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
+    max_plt_y,=ax.plot(pts_per_d,MAX_err_uy,linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+    mean_plt_p,=ax.plot(1.05*pts_per_d,mean_err_p,linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
+    max_plt_p,=ax.plot(1.05*pts_per_d,MAX_err_p,linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
+    ax.set_xscale('log')
+    ax.set_xticks(pts_per_d)
+    ax.set_yscale('log')
+    ax.text(1.5,0.5,'(j)',fontsize=8,color='k')
+    ax.set_ylim(1E-4,1E0)
+    ax.set_yticks(error_y_ticks)
+    ax.set_yticklabels(error_y_tick_labels,fontsize=8)
+    ax.set_ylabel("Error ($\eta$)",fontsize=8)
+    ax.legend([mean_plt_x,max_plt_x,mean_plt_y,max_plt_y,mean_plt_p,max_plt_p,],['Mean $\overline{u}_x$','Max $\overline{u}_x$','Mean $\overline{u}_y$','Max $\overline{u}_y$','Mean $\overline{p}$','Max $\overline{p}$'],fontsize=8,ncols=2,bbox_to_anchor=(1.0, 1.4))
+    ax.grid('on')
+    ax.set_xticks(pts_per_d)
+    ax.set_xticklabels(error_x_tick_labels,fontsize=8)
+    ax.set_xlabel('$D/\Delta x$',fontsize=8,labelpad=-1)
+    
+    fig.add_subplot(ax)
+
+
     plot.savefig(figures_dir+'logerr_mfg_t010_condensed_all.pdf')
-    plot.savefig(figures_dir+'logerr_mfg_t010_condensed_all.png',dpi=300)
+    plot.savefig(figures_dir+'logerr_mfg_t010_condensed_all.png',dpi=600)
     plot.close(fig)
 
 

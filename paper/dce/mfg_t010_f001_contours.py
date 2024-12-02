@@ -390,7 +390,7 @@ if True:
             dual_log_cbar_ticks = [-1,-0.666,-0.333,0,0.333,0.666,1]
             dual_log_cbar_labels = ['-1','-1e-1','-1e-2','0','1e-2','1e-1','1']
 
-            levels_mx = np.geomspace(1E-3,1,11)
+            levels_mx = np.geomspace(1E-4,1,11)
 
             if cases_supersample_factor[s]>0:
                 linear_downsample_inds, ndx,ndy = compute_downsample_inds_center(cases_supersample_factor[s],X_grid[:,0],Y_grid[0,:].transpose())
@@ -706,6 +706,295 @@ if True:
             plot.savefig(figures_dir+'logerr_mfg_t010_f001_f'+str(c)+'_contours_S'+str(cases_supersample_factor[s])+'.png',dpi=300)
             plot.close(fig)
 
+
+levels_mx = np.geomspace(1E-3,1,11)
+# error percent plot
+pts_per_d = 1.0/np.array(dx)
+pts_per_d = pts_per_d[:,2]
+
+
+
+mean_err_phi_x = np.array(mean_err_phi_x)
+mean_err_phi_y = np.array(mean_err_phi_y)
+mean_err_psi = np.array(mean_err_psi)
+mean_mx = np.array(mean_mx)
+mean_my = np.array(mean_my)
+mean_mass = np.array(mean_mass)
+
+max_err_phi_x = np.array(max_err_phi_x)
+max_err_phi_y = np.array(max_err_phi_y)
+max_err_psi = np.array(max_err_psi)
+max_mx = np.array(max_mx)
+max_my = np.array(max_my)
+max_mass = np.array(max_mass)
+
+error_file = open(figures_dir+'error.txt','w')
+
+# compute the combined quantities for the additional plot
+for c in [0,1,2,3,4,5]:
+    error_file.write('Mode '+str(c)+'\n')
+    error_file.write('Phi_x'+'\n')
+    error_file.write('Mean: '+str(mean_err_phi_x[:,c])+'\n')
+    error_file.write('Max: '+str(max_err_phi_x[:,c])+'\n')
+    error_file.write('Phi_y'+'\n')
+    error_file.write('Mean: '+str(mean_err_phi_y[:,c])+'\n')
+    error_file.write('Max: '+str(max_err_phi_y[:,c])+'\n')
+    error_file.write('Psi'+'\n')
+    error_file.write('Mean: '+str(mean_err_psi[:,c])+'\n')
+    error_file.write('Max: '+str(max_err_psi[:,c])+'\n')
+    error_file.write('Mx'+'\n')
+    error_file.write('Mean: '+str(mean_mx[:,c])+'\n')
+    error_file.write('Max: '+str(max_mx[:,c])+'\n')
+    error_file.write('My'+'\n')
+    error_file.write('Mean: '+str(mean_my[:,c])+'\n')
+    error_file.write('Max: '+str(max_my[:,c])+'\n')
+    error_file.write('Mass'+'\n')
+    error_file.write('Mean: '+str(mean_mass[:,c])+'\n')
+    error_file.write('Max: '+str(max_mass[:,c])+'\n\n')
+
+error_file.close()
+
+error_x_tick_labels = ['40','20','10','5','2.5','1.25']
+error_y_ticks = [1E-4,1E-3,1E-2,1E-1,1,10]
+error_y_tick_labels = ['1E-4','1E-3','0.01','0.1','1','10']
+
+for c in [0,1,2,3,4,5]:
+    # reduced error plot
+    fig,axs = plot.subplots(1,1)
+    fig.set_size_inches(3.37,3.0)
+    plot.subplots_adjust(left=0.2,top=0.95,right=0.97,bottom=0.15)
+
+    mean_plt,=axs.plot(pts_per_d*0.9,mean_err_phi_x[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
+    mean_plt2,=axs.plot(pts_per_d*1.0,mean_err_phi_y[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
+    mean_plt3,=axs.plot(pts_per_d*1.1,mean_err_psi[:,c],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
+    max_plt,=axs.plot(pts_per_d*0.9,max_err_phi_x[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
+    max_plt2,=axs.plot(pts_per_d*1.0,max_err_phi_y[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+    max_plt3,=axs.plot(pts_per_d*1.1,max_err_psi[:,c],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
+
+    axs.set_xscale('log')
+    axs.set_yscale('log')
+    axs.set_xticks(pts_per_d)
+    axs.set_xticklabels(error_x_tick_labels,fontsize=8)
+    axs.set_ylim(5E-5,5E1)
+    axs.set_yticks(error_y_ticks,labels=error_y_tick_labels,fontsize=8)
+    axs.set_ylabel("Relative Error",fontsize=8)
+    axs.legend([mean_plt,mean_plt2,mean_plt3,max_plt,max_plt2,max_plt3],['Mean $\Phi_{'+str(c+1)+'x}$','Mean $\Phi_{'+str(c+1)+'y}$','Mean $\psi_{'+str(c+1)+'}$','Max $\Phi_{'+str(c+1)+'x}$','Max $\Phi_{'+str(c+1)+'y}$','Max $\psi_{'+str(c+1)+'}$'],fontsize=8,ncol=2)
+    axs.grid('on')
+    axs.set_xlabel('$D/\Delta x$',fontsize=8)
+
+    #fig.tight_layout()
+    plot.savefig(figures_dir+'logerr_mfg_t010_f001_f'+str(c)+'_error_condensed.pdf')
+    plot.savefig(figures_dir+'logerr_mfg_t010_f001_f'+str(c)+'_error_condensed.png',dpi=300)
+    plot.close(fig)
+
+
+
+subplot_labels = ['(a)','(b)','(c)','(d)','(e)','(f)']
+if True:
+    fig = plot.figure(figsize=(3.37,8))
+    plot.subplots_adjust(left=0.2,top=0.99,right=0.97,bottom=0.05)
+    outer = gridspec.GridSpec(6,1,wspace=0.1,hspace=0.1,height_ratios=[0.25,0.15,0.15,0.15,0.15,0.15])
+    inner = []
+
+    for c in [0]:
+        inner.append(plot.Subplot(fig,outer[c]))
+
+        mean_plt,=inner[c].plot(pts_per_d*0.9,mean_err_phi_x[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
+        mean_plt2,=inner[c].plot(pts_per_d*1.0,mean_err_phi_y[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
+        mean_plt3,=inner[c].plot(pts_per_d*1.1,mean_err_psi[:,c],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
+        max_plt,=inner[c].plot(pts_per_d*0.9,max_err_phi_x[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
+        max_plt2,=inner[c].plot(pts_per_d*1.0,max_err_phi_y[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+        max_plt3,=inner[c].plot(pts_per_d*1.1,max_err_psi[:,c],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
+
+        inner[c].set_xscale('log')
+        inner[c].set_yscale('log')
+        inner[c].set_xticks(pts_per_d)
+        inner[c].set_xticklabels(error_x_tick_labels,fontsize=8)
+        inner[c].xaxis.set_tick_params(labelbottom=False)
+        inner[c].set_ylim(1E-4,1E2)
+        inner[c].set_xlim(9E-1,55)
+        inner[c].set_yticks(error_y_ticks,labels=error_y_tick_labels,fontsize=8)
+        inner[c].set_ylabel("Error ($\eta$)",fontsize=8)
+        inner[c].legend([mean_plt,mean_plt2,mean_plt3,max_plt,max_plt2,max_plt3],['Mean $\Phi_{x}$','Mean $\Phi_{y}$','Mean $\psi$','Max $\Phi_{x}$','Max $\Phi_{y}$','Max $\psi$'],fontsize=8,ncol=2)
+        inner[c].text(10,0.2,'Mode 1',fontsize=8)
+        inner[c].text(1,20,subplot_labels[c],fontsize=8)
+        inner[c].grid('on')
+
+        fig.add_subplot(inner[c])
+
+    for c in [1,2,3,4]:
+        inner.append(plot.Subplot(fig,outer[c]))
+
+        mean_plt,=inner[c].plot(pts_per_d*0.9,mean_err_phi_x[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
+        mean_plt2,=inner[c].plot(pts_per_d*1.0,mean_err_phi_y[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
+        mean_plt3,=inner[c].plot(pts_per_d*1.1,mean_err_psi[:,c],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
+        max_plt,=inner[c].plot(pts_per_d*0.9,max_err_phi_x[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
+        max_plt2,=inner[c].plot(pts_per_d*1.0,max_err_phi_y[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+        max_plt3,=inner[c].plot(pts_per_d*1.1,max_err_psi[:,c],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
+
+        inner[c].set_xscale('log')
+        inner[c].set_yscale('log')
+        inner[c].set_xticks(pts_per_d)
+        inner[c].set_xticklabels(error_x_tick_labels,fontsize=8)
+        inner[c].xaxis.set_tick_params(labelbottom=False)
+        inner[c].set_ylim(1E-4,1E1)
+        inner[c].set_xlim(9E-1,55)
+        inner[c].set_yticks(error_y_ticks,labels=error_y_tick_labels,fontsize=8)
+        inner[c].set_ylabel("Error ($\eta$)",fontsize=8)
+        inner[c].text(10,2,'Mode '+str(c+1),fontsize=8)
+        inner[c].text(1,2,subplot_labels[c],fontsize=8)
+        inner[c].grid('on')
+
+        fig.add_subplot(inner[c])
+
+    for c in [5]:
+        inner.append(plot.Subplot(fig,outer[c]))
+
+        mean_plt,=inner[c].plot(pts_per_d*0.9,mean_err_phi_x[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
+        mean_plt2,=inner[c].plot(pts_per_d*1.0,mean_err_phi_y[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
+        mean_plt3,=inner[c].plot(pts_per_d*1.1,mean_err_psi[:,c],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
+        max_plt,=inner[c].plot(pts_per_d*0.9,max_err_phi_x[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
+        max_plt2,=inner[c].plot(pts_per_d*1.0,max_err_phi_y[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+        max_plt3,=inner[c].plot(pts_per_d*1.1,max_err_psi[:,c],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
+
+        inner[c].set_xscale('log')
+        inner[c].set_yscale('log')
+        inner[c].set_xticks(pts_per_d)
+        inner[c].set_xticklabels(error_x_tick_labels,fontsize=8)
+        inner[c].set_ylim(1E-4,1E1)
+        inner[c].set_xlim(9E-1,55)
+        inner[c].set_yticks(error_y_ticks,labels=error_y_tick_labels,fontsize=8)
+        inner[c].set_ylabel("Error ($\eta$)",fontsize=8)
+        inner[c].text(10,2,'Mode '+str(c+1),fontsize=8)
+        inner[c].text(1,2,subplot_labels[c],fontsize=8)
+        inner[c].grid('on')
+        inner[c].set_xlabel('$D/\Delta x$',fontsize=8)
+
+        fig.add_subplot(inner[c])
+
+
+    plot.savefig(figures_dir+'logerr_mfg_t010_f001_error_allc.pdf')
+    plot.savefig(figures_dir+'logerr_mfg_t010_f001_error_allc.png',dpi=300)
+    plot.close(fig)
+
+subplot_labels = ['(a)','(b)','(c)','(d)','(e)','(f)']
+if True:
+    fig = plot.figure(figsize=(5.85,4))
+    plot.subplots_adjust(left=0.1,top=0.99,right=0.95,bottom=0.1)
+    outer = gridspec.GridSpec(3,2,wspace=0.1,hspace=0.07,height_ratios=[0.15,1,1],width_ratios=[1,1])
+    inner = []
+
+    for c in [0]:
+        inner.append(plot.Subplot(fig,outer[c+2]))
+
+        mean_plt,=inner[c].plot(pts_per_d*0.9,mean_err_phi_x[:,c+1],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
+        mean_plt2,=inner[c].plot(pts_per_d*1.0,mean_err_phi_y[:,c+1],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
+        mean_plt3,=inner[c].plot(pts_per_d*1.1,mean_err_psi[:,c+1],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
+        max_plt,=inner[c].plot(pts_per_d*0.9,max_err_phi_x[:,c+1],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
+        max_plt2,=inner[c].plot(pts_per_d*1.0,max_err_phi_y[:,c+1],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+        max_plt3,=inner[c].plot(pts_per_d*1.1,max_err_psi[:,c+1],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
+
+        inner[c].set_xscale('log')
+        inner[c].set_yscale('log')
+        inner[c].set_xticks(pts_per_d)
+        inner[c].set_xticklabels(error_x_tick_labels,fontsize=8)
+        inner[c].xaxis.set_tick_params(labelbottom=False)
+        inner[c].set_ylim(1E-4,1E1)
+        inner[c].set_xlim(9E-1,55)
+        inner[c].set_yticks(error_y_ticks,labels=error_y_tick_labels,fontsize=8)
+        inner[c].set_ylabel("Error ($\eta$)",fontsize=8)
+        inner[c].legend([mean_plt,mean_plt2,mean_plt3,max_plt,max_plt2,max_plt3],['Mean $\Phi_{x}$','Mean $\Phi_{y}$','Mean $\psi$','Max $\Phi_{x}$','Max $\Phi_{y}$','Max $\psi$'],fontsize=8,ncol=6,bbox_to_anchor=(2.2, 1.22))
+        inner[c].text(10,2,'Mode 2',fontsize=8)
+        inner[c].text(1,2,subplot_labels[c],fontsize=8)
+        inner[c].grid('on')
+
+        fig.add_subplot(inner[c])
+
+    for c in [1]:
+        inner.append(plot.Subplot(fig,outer[c+2]))
+
+        mean_plt,=inner[c].plot(pts_per_d*0.9,mean_err_phi_x[:,c+1],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
+        mean_plt2,=inner[c].plot(pts_per_d*1.0,mean_err_phi_y[:,c+1],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
+        mean_plt3,=inner[c].plot(pts_per_d*1.1,mean_err_psi[:,c+1],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
+        max_plt,=inner[c].plot(pts_per_d*0.9,max_err_phi_x[:,c+1],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
+        max_plt2,=inner[c].plot(pts_per_d*1.0,max_err_phi_y[:,c+1],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+        max_plt3,=inner[c].plot(pts_per_d*1.1,max_err_psi[:,c+1],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
+
+        inner[c].set_xscale('log')
+        inner[c].set_yscale('log')
+        inner[c].set_xticks(pts_per_d)
+        inner[c].set_xticklabels(error_x_tick_labels,fontsize=8)
+        inner[c].xaxis.set_tick_params(labelbottom=False)
+        inner[c].yaxis.set_tick_params(labelleft=False)
+        inner[c].set_ylim(1E-4,1E1)
+        inner[c].set_xlim(9E-1,55)
+        inner[c].set_yticks(error_y_ticks,labels=error_y_tick_labels,fontsize=8)
+
+        #inner[c].set_ylabel("Error ($\eta$)",fontsize=8)
+        inner[c].text(10,2,'Mode '+str(c+1+1),fontsize=8)
+        inner[c].text(1,2,subplot_labels[c],fontsize=8)
+        inner[c].grid('on')
+
+        fig.add_subplot(inner[c])
+
+    for c in [2]:
+        inner.append(plot.Subplot(fig,outer[c+2]))
+
+        mean_plt,=inner[c].plot(pts_per_d*0.9,mean_err_phi_x[:,c+1],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
+        mean_plt2,=inner[c].plot(pts_per_d*1.0,mean_err_phi_y[:,c+1],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
+        mean_plt3,=inner[c].plot(pts_per_d*1.1,mean_err_psi[:,c+1],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
+        max_plt,=inner[c].plot(pts_per_d*0.9,max_err_phi_x[:,c+1],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
+        max_plt2,=inner[c].plot(pts_per_d*1.0,max_err_phi_y[:,c+1],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+        max_plt3,=inner[c].plot(pts_per_d*1.1,max_err_psi[:,c+1],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
+
+        inner[c].set_xscale('log')
+        inner[c].set_yscale('log')
+        inner[c].set_xticks(pts_per_d)
+        inner[c].set_xticklabels(error_x_tick_labels,fontsize=8)
+        inner[c].set_ylim(1E-4,1E1)
+        inner[c].set_xlim(9E-1,55)
+        inner[c].set_yticks(error_y_ticks,labels=error_y_tick_labels,fontsize=8)
+        inner[c].set_ylabel("Error ($\eta$)",fontsize=8)
+        inner[c].text(10,2,'Mode '+str(c+1+1),fontsize=8)
+        inner[c].text(1,2,subplot_labels[c],fontsize=8)
+        inner[c].grid('on')
+        inner[c].set_xlabel('$D/\Delta x$',fontsize=8,labelpad=-1)
+
+        fig.add_subplot(inner[c])
+
+    for c in [3]:
+        inner.append(plot.Subplot(fig,outer[c+2]))
+
+        mean_plt,=inner[c].plot(pts_per_d*0.9,mean_err_phi_x[:,c+1],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
+        mean_plt2,=inner[c].plot(pts_per_d*1.0,mean_err_phi_y[:,c+1],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
+        mean_plt3,=inner[c].plot(pts_per_d*1.1,mean_err_psi[:,c+1],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
+        max_plt,=inner[c].plot(pts_per_d*0.9,max_err_phi_x[:,c+1],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
+        max_plt2,=inner[c].plot(pts_per_d*1.0,max_err_phi_y[:,c+1],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+        max_plt3,=inner[c].plot(pts_per_d*1.1,max_err_psi[:,c+1],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
+
+        inner[c].set_xscale('log')
+        inner[c].set_yscale('log')
+        inner[c].set_xticks(pts_per_d)
+        inner[c].set_xticklabels(error_x_tick_labels,fontsize=8)
+        inner[c].set_ylim(1E-4,1E1)
+        inner[c].set_xlim(9E-1,55)
+        inner[c].set_yticks(error_y_ticks,labels=error_y_tick_labels,fontsize=8)
+        inner[c].yaxis.set_tick_params(labelleft=False)
+        #inner[c].set_ylabel("Error ($\eta$)",fontsize=8)
+        inner[c].text(10,2,'Mode '+str(c+1+1),fontsize=8)
+        inner[c].text(1,2,subplot_labels[c],fontsize=8)
+        inner[c].grid('on')
+        inner[c].set_xlabel('$D/\Delta x$',fontsize=8,labelpad=-1)
+
+        fig.add_subplot(inner[c])
+
+
+    plot.savefig(figures_dir+'logerr_mfg_t010_f001_error_2_5.pdf')
+    plot.savefig(figures_dir+'logerr_mfg_t010_f001_error_2_5.png',dpi=300)
+    plot.close(fig)
+
+
+
 if True:
     # grid the data
     c=0
@@ -874,230 +1163,18 @@ if True:
 
     levels_mx = np.geomspace(1E-3,1,11)
 
-    # mode 0 summary, dual log scale error plots
-    fig = plot.figure(figsize=(3.37,6))
-    plot.subplots_adjust(left=0.1,top=0.99,right=0.88,bottom=0.05)
-    outer = gridspec.GridSpec(6,1,wspace=0.1,hspace=0.1)
-    inner = []
-
     x_ticks = np.array([-2,0,2,4,6,8,10])
-    # quadrant 1
-
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
-    ax = plot.Subplot(fig,inner[0][0])
-    ux_plot = ax.contourf(X_grid,Y_grid,phi_xr_grid,levels=levels_phi_xr,cmap= matplotlib.colormaps['bwr'],extend='both')
-    ax.set_aspect('equal')
-    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
-    ax.yaxis.set_tick_params(labelsize=8)
-    ax.set_xticks(x_ticks)
-    ax.xaxis.set_tick_params(labelbottom=False)
-    ax.text(8,1.4,'$\Phi_{1x,DNS}$',fontsize=8)
-    ax.text(-1.85,1.45,'(a)',fontsize=8)
-    circle = plot.Circle((0,0),0.5,color='k',fill=False)
-    ax.add_patch(circle)
-    fig.add_subplot(ax)
-            
-    cax=plot.Subplot(fig,inner[0][1])
-    cax.set(xmargin=0.5)
-    cbar = plot.colorbar(ux_plot,cax,ticks=[MAX_plot_phi_xr,MAX_plot_phi_xr/2,0.0,-MAX_plot_phi_xr/2,-MAX_plot_phi_xr],format=tkr.FormatStrFormatter('%.2f'))
-    ticklabs = cbar.ax.get_yticklabels()
-    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
-    fig.add_subplot(cax)
-            
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
-    ax = plot.Subplot(fig,inner[1][0])
-
-    e_plot = phi_xr_err_grid1/MAX_plot_phi_xr
-    e_plot_p =e_plot+1E-30
-    e_plot_p[e_plot_p<=0]=np.NaN
-    e_plot_n = e_plot
-    e_plot_n[e_plot_n>0]=np.NaN
-    e_plot_n = np.abs(e_plot_n)
-
-    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
-    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
-    ax.set_aspect('equal')
-    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
-    ax.yaxis.set_tick_params(labelsize=8)
-    ax.set_xticks(x_ticks)
-    ax.xaxis.set_tick_params(labelbottom=False)
-    circle = plot.Circle((0,0),0.5,color='k',fill=False)
-    ax.add_patch(circle)
-    if cases_supersample_factor[s]>1:
-        dots = ax.plot(x_downsample1,y_downsample1,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
-    ax.text(6.5,1.3,'$\\frac{\Phi_{1x,PINN}-\Phi_{1x,DNS}}{max(|\Phi_{1x,DNS}|)}$',fontsize=8,color='k')
-    ax.text(-1.85,1.45,'(b)',fontsize=8)
-    ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
-    circle = plot.Circle((0,0),0.5,color='k',fill=False)
-    ax.add_patch(circle)
-    fig.add_subplot(ax)
-
-    # check bar
-    #cax=plot.Subplot(fig,inner[1][1])
-    #cbar = plot.colorbar(ux_plot,cax,ticks=[1E-3,1E-2,1E-1,1],extend='both')
-    #ticklabs = cbar.ax.get_yticklabels()
-    #cbar.ax.set_yticklabels(ticklabs, fontsize=8)
-    #fig.add_subplot(cax)
-
-    # dual log colorbar
-    cax=plot.Subplot(fig,inner[1][1])
-    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
-    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
-    fig.add_subplot(cax)
-
-
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
-    ax = plot.Subplot(fig,inner[2][0])
-
-    e_plot = phi_xr_err_grid2/MAX_plot_phi_xr
-    e_plot_p =e_plot+1E-30
-    e_plot_p[e_plot_p<=0]=np.NaN
-    e_plot_n = e_plot
-    e_plot_n[e_plot_n>0]=np.NaN
-    e_plot_n = np.abs(e_plot_n)
-
-    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
-    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
-    ax.set_aspect('equal')
-    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
-    ax.yaxis.set_tick_params(labelsize=8)
-    ax.set_xticks(x_ticks)
-    ax.xaxis.set_tick_params(labelbottom=False)
-    circle = plot.Circle((0,0),0.5,color='k',fill=False)
-    ax.add_patch(circle)
-    if cases_supersample_factor[s]>1:
-        dots = ax.plot(x_downsample2,y_downsample2,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
-    ax.text(6.5,1.3,'$\\frac{\Phi_{1x,PINN}-\Phi_{1x,DNS}}{max(|\Phi_{1x,DNS}|)}$',fontsize=8,color='k')
-    ax.text(-1.85,1.45,'(c)',fontsize=8)
-    ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
-    circle = plot.Circle((0,0),0.5,color='k',fill=False)
-    ax.add_patch(circle)
-    fig.add_subplot(ax)
-
-    cax=plot.Subplot(fig,inner[2][1])
-    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
-    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
-    fig.add_subplot(cax)
-
-
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[3],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
-    ax = plot.Subplot(fig,inner[3][0])
-    ux_plot = ax.contourf(X_grid,Y_grid,psi_r_grid,levels=levels_psi_r,cmap= matplotlib.colormaps['bwr'],extend='both')
-    ax.set_aspect('equal')
-    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
-    ax.yaxis.set_tick_params(labelsize=8)
-    ax.set_xticks(x_ticks)
-    ax.xaxis.set_tick_params(labelbottom=False)
-    ax.text(8,1.4,'$\psi_{1,DNS}$',fontsize=8)
-    ax.text(-1.85,1.45,'(d)',fontsize=8)
-    circle = plot.Circle((0,0),0.5,color='k',fill=False)
-    ax.add_patch(circle)
-    fig.add_subplot(ax)
-            
-    cax=plot.Subplot(fig,inner[3][1])
-    cax.set(xmargin=0.5)
-    cbar = plot.colorbar(ux_plot,cax,ticks=[MAX_plot_psi_r,MAX_plot_psi_r/2,0.0,-MAX_plot_psi_r/2,-MAX_plot_psi_r],format=tkr.FormatStrFormatter('%.2f'))
-    ticklabs = cbar.ax.get_yticklabels()
-    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
-    fig.add_subplot(cax)
-            
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[4],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
-    ax = plot.Subplot(fig,inner[4][0])
-
-    e_plot = psi_r_err_grid1/MAX_plot_psi_r
-    e_plot_p =e_plot+1E-30
-    e_plot_p[e_plot_p<=0]=np.NaN
-    e_plot_n = e_plot
-    e_plot_n[e_plot_n>0]=np.NaN
-    e_plot_n = np.abs(e_plot_n)
-
-
-    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
-    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
-    ax.set_aspect('equal')
-    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
-    ax.yaxis.set_tick_params(labelsize=8)
-    ax.set_xticks(x_ticks)
-    ax.xaxis.set_tick_params(labelbottom=False)
-    circle = plot.Circle((0,0),0.5,color='k',fill=False)
-    ax.add_patch(circle)
-    #if cases_supersample_factor[s]>1:
-    #    dots = ax.plot(x_downsample1,y_downsample1,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
-    ax.text(7,1.3,'$\\frac{\psi_{1,PINN}-\psi_{1,DNS}}{max(|\psi_{1,DNS}|)}$',fontsize=8,color='k')
-    ax.text(-1.85,1.45,'(e)',fontsize=8)
-    ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
-    circle = plot.Circle((0,0),0.5,color='k',fill=False)
-    ax.add_patch(circle)
-    fig.add_subplot(ax)
-
-    cax=plot.Subplot(fig,inner[4][1])
-    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
-    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
-    fig.add_subplot(cax)
-
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[5],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
-    ax = plot.Subplot(fig,inner[5][0])
-
-    e_plot = psi_r_err_grid2/MAX_plot_psi_r
-    e_plot_p =e_plot+1E-30
-    e_plot_p[e_plot_p<=0]=np.NaN
-    e_plot_n = e_plot
-    e_plot_n[e_plot_n>0]=np.NaN
-    e_plot_n = np.abs(e_plot_n)
-
-    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
-    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
-    ax.set_aspect('equal')
-    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
-    ax.set_xlabel('x/D',fontsize=8,labelpad=-1)
-    ax.yaxis.set_tick_params(labelsize=8)
-    ax.set_xticks(x_ticks)
-    ax.xaxis.set_tick_params(labelsize=8)
-    circle = plot.Circle((0,0),0.5,color='k',fill=False)
-    ax.add_patch(circle)
-    #if cases_supersample_factor[s]>1:
-    #    dots = ax.plot(x_downsample2,y_downsample2,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
-    ax.text(7,1.3,'$\\frac{\psi_{1,PINN}-\psi_{1,DNS}}{max(|\psi_{1,DNS}|)}$',fontsize=8,color='k')
-    ax.text(-1.85,1.45,'(f)',fontsize=8)
-    ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
-    circle = plot.Circle((0,0),0.5,color='k',fill=False)
-    ax.add_patch(circle)
-    fig.add_subplot(ax)
-
-    cax=plot.Subplot(fig,inner[5][1])
-    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
-    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
-    fig.add_subplot(cax)
-
-
-    
-    plot.savefig(figures_dir+'logerr_mfg_t010_f001_f0_contours_condensed.pdf')
-    plot.savefig(figures_dir+'logerr_mfg_t010_f001_f0_contours_condensed.png',dpi=300)
-    plot.close(fig)
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     # mode 0 summary, dual log scale error plots
-    fig = plot.figure(figsize=(3.37,8))
-    plot.subplots_adjust(left=0.1,top=0.99,right=0.88,bottom=0.04)
-    outer = gridspec.GridSpec(9,1,wspace=0.1,hspace=0.1)
+    fig = plot.figure(figsize=(5.85,5.5))
+    plot.subplots_adjust(left=0.06,top=0.99,right=0.93,bottom=0.07)
+    outer = gridspec.GridSpec(2,2,wspace=0.33,hspace=0.05)
+
+    mid = []
+    mid.append(gridspec.GridSpecFromSubplotSpec(3,1,subplot_spec=outer[0],wspace=0.02,hspace=0.02,height_ratios=[1,1,1]))
+
     inner = []
-
-    x_ticks = np.array([-2,0,2,4,6,8,10])
-    # quadrant 1
-
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[0][0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[0][0])
     ux_plot = ax.contourf(X_grid,Y_grid,phi_xr_grid,levels=levels_phi_xr,cmap= matplotlib.colormaps['bwr'],extend='both')
     ax.set_aspect('equal')
@@ -1118,7 +1195,7 @@ if True:
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
             
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[0][1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[1][0])
 
     e_plot = phi_xr_err_grid1/MAX_plot_phi_xr
@@ -1160,7 +1237,7 @@ if True:
     fig.add_subplot(cax)
 
 
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[0][2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[2][0])
 
     e_plot = phi_xr_err_grid2/MAX_plot_phi_xr
@@ -1183,7 +1260,7 @@ if True:
         dots = ax.plot(x_downsample2,y_downsample2,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     ax.text(6.25,1.3,'$\eta(\Phi_{\mathrm{1x,PINN}})$',fontsize=8,color='k')
     ax.text(-1.85,1.45,'(c)',fontsize=8)
-    ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
+    ax.text(6,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     fig.add_subplot(ax)
@@ -1193,7 +1270,9 @@ if True:
     cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[3],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    mid.append(gridspec.GridSpecFromSubplotSpec(3,1,subplot_spec=outer[1],wspace=0.02,hspace=0.02,height_ratios=[1,1,1]))
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[1][0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[3][0])
     ux_plot = ax.contourf(X_grid,Y_grid,phi_yr_grid,levels=levels_phi_yr,cmap= matplotlib.colormaps['bwr'],extend='both')
     ax.set_aspect('equal')
@@ -1213,8 +1292,10 @@ if True:
     ticklabs = cbar.ax.get_yticklabels()
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
-            
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[4],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+        
+    
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[1][1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[4][0])
 
     e_plot = phi_yr_err_grid1/MAX_plot_phi_yr
@@ -1256,7 +1337,7 @@ if True:
     fig.add_subplot(cax)
 
 
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[5],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[1][2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[5][0])
 
     e_plot = phi_yr_err_grid2/MAX_plot_phi_yr
@@ -1270,16 +1351,18 @@ if True:
     ux_plot = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
     ax.set_aspect('equal')
     ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
+    ax.set_xlabel('x/D',fontsize=8,labelpad=0)
     ax.yaxis.set_tick_params(labelsize=8)
     ax.set_xticks(x_ticks)
-    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.xaxis.set_tick_params(labelbottom=True)
+    ax.xaxis.set_tick_params(labelsize=8)
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     if cases_supersample_factor[s]>1:
         dots = ax.plot(x_downsample2,y_downsample2,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     ax.text(6.25,1.3,'$\eta(\Phi_{\mathrm{1y,PINN}})$',fontsize=8,color='k')
     ax.text(-1.85,1.45,'(f)',fontsize=8)
-    ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
+    ax.text(6,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     fig.add_subplot(ax)
@@ -1289,9 +1372,9 @@ if True:
     cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
+    mid.append(gridspec.GridSpecFromSubplotSpec(3,1,subplot_spec=outer[2],wspace=0.02,hspace=0.02,height_ratios=[1,1,1]))
 
-
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[6],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[2][0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[6][0])
     ux_plot = ax.contourf(X_grid,Y_grid,psi_r_grid,levels=levels_psi_r,cmap= matplotlib.colormaps['bwr'],extend='both')
     ax.set_aspect('equal')
@@ -1311,8 +1394,9 @@ if True:
     ticklabs = cbar.ax.get_yticklabels()
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
-            
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[7],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+
+           
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[2][1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[7][0])
 
     e_plot = psi_r_err_grid1/MAX_plot_psi_r
@@ -1346,7 +1430,7 @@ if True:
     cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[8],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[2][2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[8][0])
 
     e_plot = psi_r_err_grid2/MAX_plot_psi_r
@@ -1370,7 +1454,7 @@ if True:
     #    dots = ax.plot(x_downsample2,y_downsample2,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     ax.text(6.75,1.3,'$\eta(\psi_{\mathrm{1,PINN}})$',fontsize=8,color='k')
     ax.text(-1.85,1.45,'(i)',fontsize=8)
-    ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
+    ax.text(6,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     fig.add_subplot(ax)
@@ -1380,7 +1464,50 @@ if True:
     cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
+    # error plot
 
+    mid.append(gridspec.GridSpecFromSubplotSpec(2,1,subplot_spec=outer[3],wspace=0.02,hspace=0.1,height_ratios=[0.3,0.7,]))
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[3][1],wspace=0.02,hspace=0.1,width_ratios=[0.15,0.85,]))
+
+    ax = plot.Subplot(fig,inner[9][1])
+
+    # error percent plot
+
+    error_x_tick_labels = ['40','20','10','5','2.5','1.25']
+    error_y_ticks = [1E-3,1E-2,1E-1,1]
+    error_y_tick_labels = ['1E-3','1E-2','1E-1','1']
+
+    supersample_factors = np.array(cases_supersample_factor)
+
+    error_x_tick_labels = ['40','20','10','5','2.5','1.25']
+    error_y_ticks = [1E-4,1E-3,1E-2,1E-1,1]
+    error_y_tick_labels = ['1E-4','1E-3','1E-2','1E-1','1']
+
+    supersample_factors = np.array(cases_supersample_factor)
+    mean_plt,=ax.plot(pts_per_d*0.9,mean_err_phi_x[:,0],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
+    mean_plt2,=ax.plot(pts_per_d*1.0,mean_err_phi_y[:,0],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
+    mean_plt3,=ax.plot(pts_per_d*1.1,mean_err_psi[:,0],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
+    max_plt,=ax.plot(pts_per_d*0.9,max_err_phi_x[:,0],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
+    max_plt2,=ax.plot(pts_per_d*1.0,max_err_phi_y[:,0],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+    max_plt3,=ax.plot(pts_per_d*1.1,max_err_psi[:,0],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
+
+    ax.set_xscale('log')
+    ax.set_xticks(pts_per_d)
+    ax.set_yscale('log')
+    ax.text(1.5,0.5,'(j)',fontsize=8,color='k')
+    ax.set_ylim(1E-4,1E0)
+    ax.set_yticks(error_y_ticks)
+    ax.set_yticklabels(error_y_tick_labels,fontsize=8)
+    ax.text(10,0.2,'Mode 1',fontsize=8)
+    ax.set_ylabel("Error ($\eta$)",fontsize=8)
+    ax.legend([mean_plt,mean_plt2,mean_plt3,max_plt,max_plt2,max_plt3],['Mean $\Phi_{1x}$','Mean $\Phi_{1y}$','Mean $\psi_{1}$','Max $\Phi_{1x}$','Max $\Phi_{1y}$','Max $\psi_{1}$'],fontsize=8,ncol=2,bbox_to_anchor=(1.05, 1.4))
+    ax.grid('on')
+    ax.set_xticks(pts_per_d)
+    ax.set_xticklabels(error_x_tick_labels,fontsize=8)
+    ax.set_xlabel('$D/\Delta x$',fontsize=8,labelpad=-1)
+    
+    fig.add_subplot(ax)
     
     plot.savefig(figures_dir+'logerr_mfg_t010_f001_f0_contours_condensed_all.pdf')
     plot.savefig(figures_dir+'logerr_mfg_t010_f001_f0_contours_condensed_all.png',dpi=300)
@@ -1578,16 +1705,17 @@ if True:
     levels_phi_yr = np.linspace(-MAX_plot_phi_yr,MAX_plot_phi_yr,21)
     levels_psi_r = np.linspace(-MAX_plot_psi_r,MAX_plot_psi_r,21)
 
-    # mode 0 summary, dual log scale error plots
-    fig = plot.figure(figsize=(3.37,8))
-    plot.subplots_adjust(left=0.1,top=0.99,right=0.86,bottom=0.04)
-    outer = gridspec.GridSpec(9,1,wspace=0.1,hspace=0.1)
-    inner = []
-
     x_ticks = np.array([-2,0,2,4,6,8,10])
-    # quadrant 1
+    # mode 0 summary, dual log scale error plots
+    fig = plot.figure(figsize=(5.85,5.4))
+    plot.subplots_adjust(left=0.06,top=0.99,right=0.93,bottom=0.07)
+    outer = gridspec.GridSpec(2,2,wspace=0.33,hspace=0.05)
 
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    mid = []
+    mid.append(gridspec.GridSpecFromSubplotSpec(3,1,subplot_spec=outer[0],wspace=0.02,hspace=0.02,height_ratios=[1,1,1]))
+
+    inner = []
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[0][0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[0][0])
     ux_plot = ax.contourf(X_grid,Y_grid,phi_xr_grid,levels=levels_phi_xr,cmap= matplotlib.colormaps['bwr'],extend='both')
     ax.set_aspect('equal')
@@ -1608,7 +1736,7 @@ if True:
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
             
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[0][1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[1][0])
 
     e_plot = phi_xr_err_grid1/MAX_plot_phi_xr
@@ -1650,7 +1778,7 @@ if True:
     fig.add_subplot(cax)
 
 
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[0][2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[2][0])
 
     e_plot = phi_xr_err_grid2/MAX_plot_phi_xr
@@ -1683,7 +1811,9 @@ if True:
     cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[3],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    mid.append(gridspec.GridSpecFromSubplotSpec(3,1,subplot_spec=outer[1],wspace=0.02,hspace=0.02,height_ratios=[1,1,1]))
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[1][0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[3][0])
     ux_plot = ax.contourf(X_grid,Y_grid,phi_yr_grid,levels=levels_phi_yr,cmap= matplotlib.colormaps['bwr'],extend='both')
     ax.set_aspect('equal')
@@ -1704,7 +1834,7 @@ if True:
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
             
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[4],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[1][1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[4][0])
 
     e_plot = phi_yr_err_grid1/MAX_plot_phi_yr
@@ -1746,7 +1876,7 @@ if True:
     fig.add_subplot(cax)
 
 
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[5],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[1][2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[5][0])
 
     e_plot = phi_yr_err_grid2/MAX_plot_phi_yr
@@ -1760,9 +1890,11 @@ if True:
     ux_plot = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
     ax.set_aspect('equal')
     ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
+    ax.set_xlabel('x/D',fontsize=8,labelpad=0)
     ax.yaxis.set_tick_params(labelsize=8)
     ax.set_xticks(x_ticks)
-    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.xaxis.set_tick_params(labelbottom=True)
+    ax.xaxis.set_tick_params(labelsize=8)
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     if cases_supersample_factor[s]>1:
@@ -1779,9 +1911,9 @@ if True:
     cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
     fig.add_subplot(cax)
 
+    mid.append(gridspec.GridSpecFromSubplotSpec(3,1,subplot_spec=outer[2],wspace=0.02,hspace=0.02,height_ratios=[1,1,1]))
 
-
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[6],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[2][0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[6][0])
     ux_plot = ax.contourf(X_grid,Y_grid,psi_r_grid,levels=levels_psi_r,cmap= matplotlib.colormaps['bwr'],extend='both')
     ax.set_aspect('equal')
@@ -1802,7 +1934,7 @@ if True:
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
             
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[7],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[2][1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[7][0])
 
     ux_plot = ax.contourf(X_grid,Y_grid,psi_r_pred_grid1,levels=levels_psi_r,cmap= matplotlib.colormaps['bwr'],extend='both')
@@ -1829,7 +1961,7 @@ if True:
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
 
-    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=outer[8],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[2][2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[8][0])
 
     ux_plot = ax.contourf(X_grid,Y_grid,psi_r_pred_grid2,levels=levels_psi_r,cmap= matplotlib.colormaps['bwr'],extend='both')
@@ -1858,179 +1990,53 @@ if True:
     fig.add_subplot(cax)
 
 
+    # error plot
+
+    mid.append(gridspec.GridSpecFromSubplotSpec(2,1,subplot_spec=outer[3],wspace=0.02,hspace=0.1,height_ratios=[0.3,0.7,]))
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[3][1],wspace=0.02,hspace=0.1,width_ratios=[0.15,0.85,]))
+
+    ax = plot.Subplot(fig,inner[9][1])
+
+    # error percent plot
+
+    error_x_tick_labels = ['40','20','10','5','2.5','1.25']
+    error_y_ticks = [1E-3,1E-2,1E-1,1]
+    error_y_tick_labels = ['1E-3','1E-2','1E-1','1']
+
+    supersample_factors = np.array(cases_supersample_factor)
+
+    error_x_tick_labels = ['40','20','10','5','2.5','1.25']
+    error_y_ticks = [1E-4,1E-3,1E-2,1E-1,1]
+    error_y_tick_labels = ['1E-4','1E-3','1E-2','1E-1','1']
+
+    supersample_factors = np.array(cases_supersample_factor)
+    mean_plt,=ax.plot(pts_per_d*0.9,mean_err_phi_x[:,0],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
+    mean_plt2,=ax.plot(pts_per_d*1.0,mean_err_phi_y[:,0],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
+    mean_plt3,=ax.plot(pts_per_d*1.1,mean_err_psi[:,0],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
+    max_plt,=ax.plot(pts_per_d*0.9,max_err_phi_x[:,0],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
+    max_plt2,=ax.plot(pts_per_d*1.0,max_err_phi_y[:,0],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+    max_plt3,=ax.plot(pts_per_d*1.1,max_err_psi[:,0],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
+
+    ax.set_xscale('log')
+    ax.set_xticks(pts_per_d)
+    ax.set_yscale('log')
+    ax.text(1.5,0.5,'(j)',fontsize=8,color='k')
+    ax.set_ylim(1E-4,1E0)
+    ax.set_yticks(error_y_ticks)
+    ax.set_yticklabels(error_y_tick_labels,fontsize=8)
+    ax.set_ylabel("Error ($\eta$)",fontsize=8)
+    ax.text(10,0.2,'Mode 6',fontsize=8)
+    ax.legend([mean_plt,mean_plt2,mean_plt3,max_plt,max_plt2,max_plt3],['Mean $\Phi_{6x}$','Mean $\Phi_{6y}$','Mean $\psi_{6}$','Max $\Phi_{6x}$','Max $\Phi_{6y}$','Max $\psi_{6}$'],fontsize=8,ncol=2,bbox_to_anchor=(1.05, 1.4))
+    ax.grid('on')
+    ax.set_xticks(pts_per_d)
+    ax.set_xticklabels(error_x_tick_labels,fontsize=8)
+    ax.set_xlabel('$D/\Delta x$',fontsize=8,labelpad=-1)
+    
+    fig.add_subplot(ax)
+    
+
     
     plot.savefig(figures_dir+'logerr_mfg_t010_f001_f5_contours_condensed_all.pdf')
     plot.savefig(figures_dir+'logerr_mfg_t010_f001_f5_contours_condensed_all.png',dpi=300)
-    plot.close(fig)
-
-
-
-
-# error percent plot
-pts_per_d = 1.0/np.array(dx)
-pts_per_d = pts_per_d[:,2]
-
-
-
-mean_err_phi_x = np.array(mean_err_phi_x)
-mean_err_phi_y = np.array(mean_err_phi_y)
-mean_err_psi = np.array(mean_err_psi)
-mean_mx = np.array(mean_mx)
-mean_my = np.array(mean_my)
-mean_mass = np.array(mean_mass)
-
-max_err_phi_x = np.array(max_err_phi_x)
-max_err_phi_y = np.array(max_err_phi_y)
-max_err_psi = np.array(max_err_psi)
-max_mx = np.array(max_mx)
-max_my = np.array(max_my)
-max_mass = np.array(max_mass)
-
-error_file = open(figures_dir+'error.txt','w')
-
-# compute the combined quantities for the additional plot
-for c in [0,1,2,3,4,5]:
-    error_file.write('Mode '+str(c)+'\n')
-    error_file.write('Phi_x'+'\n')
-    error_file.write('Mean: '+str(mean_err_phi_x[:,c])+'\n')
-    error_file.write('Max: '+str(max_err_phi_x[:,c])+'\n')
-    error_file.write('Phi_y'+'\n')
-    error_file.write('Mean: '+str(mean_err_phi_y[:,c])+'\n')
-    error_file.write('Max: '+str(max_err_phi_y[:,c])+'\n')
-    error_file.write('Psi'+'\n')
-    error_file.write('Mean: '+str(mean_err_psi[:,c])+'\n')
-    error_file.write('Max: '+str(max_err_psi[:,c])+'\n')
-    error_file.write('Mx'+'\n')
-    error_file.write('Mean: '+str(mean_mx[:,c])+'\n')
-    error_file.write('Max: '+str(max_mx[:,c])+'\n')
-    error_file.write('My'+'\n')
-    error_file.write('Mean: '+str(mean_my[:,c])+'\n')
-    error_file.write('Max: '+str(max_my[:,c])+'\n')
-    error_file.write('Mass'+'\n')
-    error_file.write('Mean: '+str(mean_mass[:,c])+'\n')
-    error_file.write('Max: '+str(max_mass[:,c])+'\n\n')
-
-error_file.close()
-
-error_x_tick_labels = ['40','20','10','5','2.5','1.25']
-error_y_ticks = [1E-4,1E-3,1E-2,1E-1,1,10]
-error_y_tick_labels = ['1E-4','1E-3','0.01','0.1','1','10']
-
-for c in [0,1,2,3,4,5]:
-    # reduced error plot
-    fig,axs = plot.subplots(1,1)
-    fig.set_size_inches(3.37,3.0)
-    plot.subplots_adjust(left=0.2,top=0.95,right=0.97,bottom=0.15)
-
-    mean_plt,=axs.plot(pts_per_d*0.9,mean_err_phi_x[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
-    mean_plt2,=axs.plot(pts_per_d*1.0,mean_err_phi_y[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
-    mean_plt3,=axs.plot(pts_per_d*1.1,mean_err_psi[:,c],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
-    max_plt,=axs.plot(pts_per_d*0.9,max_err_phi_x[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
-    max_plt2,=axs.plot(pts_per_d*1.0,max_err_phi_y[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
-    max_plt3,=axs.plot(pts_per_d*1.1,max_err_psi[:,c],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
-
-    axs.set_xscale('log')
-    axs.set_yscale('log')
-    axs.set_xticks(pts_per_d)
-    axs.set_xticklabels(error_x_tick_labels,fontsize=8)
-    axs.set_ylim(5E-5,5E1)
-    axs.set_yticks(error_y_ticks,labels=error_y_tick_labels,fontsize=8)
-    axs.set_ylabel("Relative Error",fontsize=8)
-    axs.legend([mean_plt,mean_plt2,mean_plt3,max_plt,max_plt2,max_plt3],['Mean $\Phi_{'+str(c+1)+'x}$','Mean $\Phi_{'+str(c+1)+'y}$','Mean $\psi_{'+str(c+1)+'}$','Max $\Phi_{'+str(c+1)+'x}$','Max $\Phi_{'+str(c+1)+'y}$','Max $\psi_{'+str(c+1)+'}$'],fontsize=8,ncol=2)
-    axs.grid('on')
-    axs.set_xlabel('$D/\Delta x$',fontsize=8)
-
-    #fig.tight_layout()
-    plot.savefig(figures_dir+'logerr_mfg_t010_f001_f'+str(c)+'_error_condensed.pdf')
-    plot.savefig(figures_dir+'logerr_mfg_t010_f001_f'+str(c)+'_error_condensed.png',dpi=300)
-    plot.close(fig)
-
-
-
-subplot_labels = ['(a)','(b)','(c)','(d)','(e)','(f)']
-if True:
-    fig = plot.figure(figsize=(3.37,8))
-    plot.subplots_adjust(left=0.2,top=0.99,right=0.97,bottom=0.05)
-    outer = gridspec.GridSpec(6,1,wspace=0.1,hspace=0.1,height_ratios=[0.25,0.15,0.15,0.15,0.15,0.15])
-    inner = []
-
-    for c in [0]:
-        inner.append(plot.Subplot(fig,outer[c]))
-
-        mean_plt,=inner[c].plot(pts_per_d*0.9,mean_err_phi_x[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
-        mean_plt2,=inner[c].plot(pts_per_d*1.0,mean_err_phi_y[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
-        mean_plt3,=inner[c].plot(pts_per_d*1.1,mean_err_psi[:,c],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
-        max_plt,=inner[c].plot(pts_per_d*0.9,max_err_phi_x[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
-        max_plt2,=inner[c].plot(pts_per_d*1.0,max_err_phi_y[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
-        max_plt3,=inner[c].plot(pts_per_d*1.1,max_err_psi[:,c],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
-
-        inner[c].set_xscale('log')
-        inner[c].set_yscale('log')
-        inner[c].set_xticks(pts_per_d)
-        inner[c].set_xticklabels(error_x_tick_labels,fontsize=8)
-        inner[c].xaxis.set_tick_params(labelbottom=False)
-        inner[c].set_ylim(1E-4,1E2)
-        inner[c].set_xlim(9E-1,55)
-        inner[c].set_yticks(error_y_ticks,labels=error_y_tick_labels,fontsize=8)
-        inner[c].set_ylabel("Error ($\eta$)",fontsize=8)
-        inner[c].legend([mean_plt,mean_plt2,mean_plt3,max_plt,max_plt2,max_plt3],['Mean $\Phi_{x}$','Mean $\Phi_{y}$','Mean $\psi$','Max $\Phi_{x}$','Max $\Phi_{y}$','Max $\psi$'],fontsize=8,ncol=2)
-        inner[c].text(10,0.2,'Mode 1',fontsize=8)
-        inner[c].text(1,20,subplot_labels[c],fontsize=8)
-        inner[c].grid('on')
-
-        fig.add_subplot(inner[c])
-
-    for c in [1,2,3,4]:
-        inner.append(plot.Subplot(fig,outer[c]))
-
-        mean_plt,=inner[c].plot(pts_per_d*0.9,mean_err_phi_x[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
-        mean_plt2,=inner[c].plot(pts_per_d*1.0,mean_err_phi_y[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
-        mean_plt3,=inner[c].plot(pts_per_d*1.1,mean_err_psi[:,c],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
-        max_plt,=inner[c].plot(pts_per_d*0.9,max_err_phi_x[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
-        max_plt2,=inner[c].plot(pts_per_d*1.0,max_err_phi_y[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
-        max_plt3,=inner[c].plot(pts_per_d*1.1,max_err_psi[:,c],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
-
-        inner[c].set_xscale('log')
-        inner[c].set_yscale('log')
-        inner[c].set_xticks(pts_per_d)
-        inner[c].set_xticklabels(error_x_tick_labels,fontsize=8)
-        inner[c].xaxis.set_tick_params(labelbottom=False)
-        inner[c].set_ylim(1E-4,1E1)
-        inner[c].set_xlim(9E-1,55)
-        inner[c].set_yticks(error_y_ticks,labels=error_y_tick_labels,fontsize=8)
-        inner[c].set_ylabel("Error ($\eta$)",fontsize=8)
-        inner[c].text(10,2,'Mode '+str(c+1),fontsize=8)
-        inner[c].text(1,2,subplot_labels[c],fontsize=8)
-        inner[c].grid('on')
-
-        fig.add_subplot(inner[c])
-
-    for c in [5]:
-        inner.append(plot.Subplot(fig,outer[c]))
-
-        mean_plt,=inner[c].plot(pts_per_d*0.9,mean_err_phi_x[:,c],linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
-        mean_plt2,=inner[c].plot(pts_per_d*1.0,mean_err_phi_y[:,c],linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
-        mean_plt3,=inner[c].plot(pts_per_d*1.1,mean_err_psi[:,c],linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
-        max_plt,=inner[c].plot(pts_per_d*0.9,max_err_phi_x[:,c],linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
-        max_plt2,=inner[c].plot(pts_per_d*1.0,max_err_phi_y[:,c],linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
-        max_plt3,=inner[c].plot(pts_per_d*1.1,max_err_psi[:,c],linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
-
-        inner[c].set_xscale('log')
-        inner[c].set_yscale('log')
-        inner[c].set_xticks(pts_per_d)
-        inner[c].set_xticklabels(error_x_tick_labels,fontsize=8)
-        inner[c].set_ylim(1E-4,1E1)
-        inner[c].set_xlim(9E-1,55)
-        inner[c].set_yticks(error_y_ticks,labels=error_y_tick_labels,fontsize=8)
-        inner[c].set_ylabel("Error ($\eta$)",fontsize=8)
-        inner[c].text(10,2,'Mode '+str(c+1),fontsize=8)
-        inner[c].text(1,2,subplot_labels[c],fontsize=8)
-        inner[c].grid('on')
-        inner[c].set_xlabel('$D/\Delta x$',fontsize=8)
-
-        fig.add_subplot(inner[c])
-
-
-    plot.savefig(figures_dir+'logerr_mfg_t010_f001_error_allc.pdf')
-    plot.savefig(figures_dir+'logerr_mfg_t010_f001_error_allc.png',dpi=300)
     plot.close(fig)
