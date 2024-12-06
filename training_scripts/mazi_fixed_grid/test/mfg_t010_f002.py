@@ -500,8 +500,8 @@ def FANS_BC_pressure(model_FANS,BC_points):
     psi_r = up[:,10]#*ScalingParameters.MAX_psi
     psi_i = up[:,11]#*ScalingParameters.MAX_psi
     # the first two points must add to zero (domain outlet), the third point must be exactly zero (cylinder center)
-    #return tf.reduce_mean(tf.square(psi_r[0]+psi_r[1])+tf.square(psi_r[2]))+tf.reduce_mean(tf.square(psi_i[0]+psi_i[1])+tf.square(psi_i[2]))
-    return tf.reduce_mean(tf.square(psi_r[2]))+tf.reduce_mean(tf.square(psi_i[2]))
+    return tf.reduce_mean(tf.square(psi_r[0]+psi_r[1])+tf.square(psi_r[2]))+tf.reduce_mean(tf.square(psi_i[0]+psi_i[1])+tf.square(psi_i[2]))
+    #return tf.reduce_mean(tf.square(psi_r[2]))+tf.reduce_mean(tf.square(psi_i[2]))
 
 @tf.function
 def FANS_BC_no_slip(model_FANS,BC_points):

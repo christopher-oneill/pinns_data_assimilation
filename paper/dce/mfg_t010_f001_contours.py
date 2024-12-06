@@ -1006,7 +1006,7 @@ if True:
     phi_yr_grid[cylinder_mask]=np.NaN
     psi_r_grid[cylinder_mask]=np.NaN
 
-    s=4
+    s=3
     phi_xr_pred_grid1 = np.reshape(phi_xr_pred[s][c],X_grid.shape)
     phi_yr_pred_grid1 = np.reshape(phi_yr_pred[s][c],X_grid.shape)
     psi_r_pred_grid1 = np.reshape(psi_r_pred[s][c],X_grid.shape)
@@ -1218,7 +1218,7 @@ if True:
         dots = ax.plot(x_downsample1,y_downsample1,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     ax.text(6.25,1.3,'$\eta(\Phi_{\mathrm{1x,PINN}})$',fontsize=8,color='k')
     ax.text(-1.85,1.45,'(b)',fontsize=8)
-    ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
+    ax.text(6.5,-1.8,'$D/\Delta x = 5$',fontsize=8,color='k')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     fig.add_subplot(ax)
@@ -1318,7 +1318,7 @@ if True:
         dots = ax.plot(x_downsample1,y_downsample1,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     ax.text(6.25,1.3,'$\eta(\Phi_{\mathrm{1y,PINN}})$',fontsize=8,color='k')
     ax.text(-1.85,1.45,'(e)',fontsize=8)
-    ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
+    ax.text(6.5,-1.8,'$D/\Delta x = 5$',fontsize=8,color='k')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     fig.add_subplot(ax)
@@ -1420,7 +1420,7 @@ if True:
     #    dots = ax.plot(x_downsample1,y_downsample1,markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
     ax.text(6.75,1.3,'$\eta(\psi_{\mathrm{1,PINN}})$',fontsize=8,color='k')
     ax.text(-1.85,1.45,'(h)',fontsize=8)
-    ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
+    ax.text(6.5,-1.8,'$D/\Delta x = 5$',fontsize=8,color='k')
     circle = plot.Circle((0,0),0.5,color='k',fill=False)
     ax.add_patch(circle)
     fig.add_subplot(ax)
