@@ -22,6 +22,8 @@ from datetime import timedelta
 import platform
 import sys
 
+import tensorflow_probability as tfp
+
 # saving loading functions
 
 
@@ -1377,7 +1379,7 @@ if __name__=="__main__":
     LBFGS_epochs = 3*LBFGS_steps
     if True:
         # final polishing of solution using LBFGS
-        import tensorflow_probability as tfp
+        
         L_iter = 0
         boundary_tuple = boundary_points_function(720)
         X_colloc = colloc_points_function(n_colloc) # one A100 max = 60k?
