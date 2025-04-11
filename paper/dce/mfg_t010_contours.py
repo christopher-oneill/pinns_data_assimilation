@@ -18,7 +18,7 @@ from pinns_data_assimilation.lib.file_util import create_directory_if_not_exists
 
 # script
 
-figures_dir = 'F:/projects/paper_figures/t010/mean_field/'
+figures_dir = 'F:/projects/paper_figures/t010_f2/mean_field/'
 data_dir = 'F:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
 output_dir = 'F:/projects/pinns_narval/sync/output/'
 
@@ -58,9 +58,45 @@ MAX_uy = np.max(uy)
 MAX_p= 1.0 # estimated maximum pressure
 
 # values for scaling the plots
-MAX_plot_ux = np.max(np.abs(ux))
-MAX_plot_uy = np.max(np.abs(uy))
-MAX_plot_p = np.max(np.abs(p))
+plot_norm_ux = np.max(np.abs(ux))
+plot_norm_uy = np.max(np.abs(uy))
+plot_norm_p = np.max(np.abs(p))
+
+#print('old norm: '+str(plot_norm_ux)+', '+str(plot_norm_uy)+', '+str(plot_norm_p)+', ')
+
+# values for scaling the error plots
+
+# max value
+#norm_err_ux = np.nanmax(np.abs(ux))
+#norm_err_uy = np.nanmax(np.abs(uy)) 
+#norm_err_p = np.nanmax(np.abs(p)) 
+
+# uinf
+#norm_err_ux = 1 # equivalent to U_inf # scaled using u_inf
+#norm_err_uy = 1
+#norm_err_p = 0.5 # equivalent to 0.5*rho*u_inf^2
+
+# mean of individual quantity
+#norm_err_ux = np.nanmean(np.abs(ux)) # scaled using mean abs
+#norm_err_uy = np.nanmean(np.abs(uy))
+#norm_err_p = np.nanmean(np.abs(p))
+
+# energy
+#norm_err_ux = np.sqrt(np.nanmean(np.power(ux,2.0)+np.power(uy,2.0)))
+#norm_err_uy = norm_err_ux
+#norm_err_p = norm_err_ux
+
+# half energy
+norm_err_ux = 0.5*np.sqrt(np.nanmean(np.power(ux,2.0)+np.power(uy,2.0)))
+norm_err_uy = norm_err_ux
+norm_err_p = norm_err_ux
+
+# energy pressure
+#norm_err_ux = np.sqrt(np.nanmean(np.power(ux,2.0)+np.power(uy,2.0)))
+#norm_err_uy = norm_err_ux
+#norm_err_p = np.sqrt(np.nanmean(np.power(p,2.0)))
+
+#print('new norm: '+str(norm_err_ux)+', '+str(norm_err_uy)+', '+str(norm_err_p)+', ')
 
 x = np.array(configFile['X_vec'][0,:])
 X_grid = np.array(configFile['X_grid'])
@@ -85,9 +121,9 @@ n_cases = len(cases_list)
 
 
 # contour plot levels
-levels_ux = np.linspace(-MAX_plot_ux,MAX_plot_ux,21)
-levels_uy = np.linspace(-MAX_plot_uy,MAX_plot_uy,21)
-levels_p = np.linspace(-MAX_plot_p,MAX_plot_p,21)
+levels_ux = np.linspace(-plot_norm_ux,plot_norm_ux,21)
+levels_uy = np.linspace(-plot_norm_uy,plot_norm_uy,21)
+levels_p = np.linspace(-plot_norm_p,plot_norm_p,21)
 
 MAX_err_ux_all = 0.0
 MAX_err_uy_all = 0.0
@@ -149,9 +185,9 @@ for c in range(n_cases):
     uy_err_grid.append(uy_pred_grid[c]-uy_grid)
     p_err_grid.append(p_pred_grid[c]-p_grid)
 
-    temp_err_ux = np.abs(ux_pred[c]-ux)
-    temp_err_uy = np.abs(uy_pred[c]-uy)
-    temp_err_p = np.abs(p_pred[c]-p)
+    temp_err_ux = np.abs((ux_pred[c]-ux))/norm_err_ux
+    temp_err_uy = np.abs((uy_pred[c]-uy))/norm_err_uy
+    temp_err_p = np.abs((p_pred[c]-p))/norm_err_p
 
     mean_err_ux.append(np.nanmean(temp_err_ux))
     mean_err_uy.append(np.nanmean(temp_err_uy))
@@ -269,10 +305,6 @@ for c in range(len(cases_list)):
     outer = gridspec.GridSpec(2,2,wspace=0.1,hspace=0.1)
     inner = []
 
-    levels_err_ux = np.linspace(-MAX_err_ux[c],MAX_err_ux[c],21)#np.power(10,np.linspace(-4,0,21))
-    levels_err_uy = np.linspace(-MAX_err_uy[c],MAX_err_uy[c],21)#np.power(10,np.linspace(-4,0,21))
-    levels_err_p = np.linspace(-MAX_err_p[c],MAX_err_p[c],21)#np.power(10,np.linspace(-4,0,21))
-
     MAX_mx = np.nanmax(np.abs(mx_grid[c].ravel()))
     MAX_my = np.nanmax(np.abs(my_grid[c].ravel()))
     MAX_mass = np.nanmax(np.abs(mass_grid[c].ravel()))
@@ -377,7 +409,7 @@ for c in range(len(cases_list)):
     
     cax=plot.Subplot(fig,inner[0][1])
     cax.set(xmargin=0.5)
-    cbar = plot.colorbar(ux_plot,cax,ticks=[MAX_plot_ux,MAX_plot_ux/2,0.0,-MAX_plot_ux/2,-MAX_plot_ux],format=tkr.FormatStrFormatter('%.2f'))
+    cbar = plot.colorbar(ux_plot,cax,ticks=[plot_norm_ux,plot_norm_ux/2,0.0,-plot_norm_ux/2,-plot_norm_ux],format=tkr.FormatStrFormatter('%.2f'))
     ticklabs = cbar.ax.get_yticklabels()
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
@@ -396,13 +428,13 @@ for c in range(len(cases_list)):
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[0][4])
-    cbar = plot.colorbar(ux_plot,cax,ticks=[MAX_plot_ux,MAX_plot_ux/2,0.0,-MAX_plot_ux/2,-MAX_plot_ux],format=tkr.FormatStrFormatter('%.2f'))
+    cbar = plot.colorbar(ux_plot,cax,ticks=[plot_norm_ux,plot_norm_ux/2,0.0,-plot_norm_ux/2,-plot_norm_ux],format=tkr.FormatStrFormatter('%.2f'))
     ticklabs = cbar.ax.get_yticklabels()
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[0][6])
-    e_plot = ux_err_grid[c]/MAX_plot_ux
+    e_plot = ux_err_grid[c]/norm_err_ux
     e_plot_p =e_plot+1E-30
     e_plot_p[e_plot_p<=0]=np.NaN
     e_plot_n = e_plot
@@ -451,7 +483,7 @@ for c in range(len(cases_list)):
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[1][1])
-    cbar = plot.colorbar(uy_plot,cax,ticks=[MAX_plot_uy,MAX_plot_uy/2,0.0,-MAX_plot_uy/2,-MAX_plot_uy],format=tkr.FormatStrFormatter('%.2f'))
+    cbar = plot.colorbar(uy_plot,cax,ticks=[plot_norm_uy,plot_norm_uy/2,0.0,-plot_norm_uy/2,-plot_norm_uy],format=tkr.FormatStrFormatter('%.2f'))
     ticklabs = cbar.ax.get_yticklabels()
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
@@ -470,13 +502,13 @@ for c in range(len(cases_list)):
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[1][4])
-    cbar = plot.colorbar(uy_plot,cax,ticks=[MAX_plot_uy,MAX_plot_uy/2,0.0,-MAX_plot_uy/2,-MAX_plot_uy],format=tkr.FormatStrFormatter('%.2f'))
+    cbar = plot.colorbar(uy_plot,cax,ticks=[plot_norm_uy,plot_norm_uy/2,0.0,-plot_norm_uy/2,-plot_norm_uy],format=tkr.FormatStrFormatter('%.2f'))
     ticklabs = cbar.ax.get_yticklabels()
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[1][6])
-    e_plot = uy_err_grid[c]/MAX_plot_uy
+    e_plot = uy_err_grid[c]/norm_err_uy
     e_plot_p =e_plot+1E-30
     e_plot_p[e_plot_p<=0]=np.NaN
     e_plot_n = e_plot
@@ -520,7 +552,7 @@ for c in range(len(cases_list)):
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[2][1])
-    cbar = plot.colorbar(p_plot,cax,ticks=[MAX_plot_p,MAX_plot_p/2,0.0,-MAX_plot_p/2,-MAX_plot_p],format=tkr.FormatStrFormatter('%.2f'))
+    cbar = plot.colorbar(p_plot,cax,ticks=[plot_norm_p,plot_norm_p/2,0.0,-plot_norm_p/2,-plot_norm_p],format=tkr.FormatStrFormatter('%.2f'))
     ticklabs = cbar.ax.get_yticklabels()
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
@@ -538,13 +570,13 @@ for c in range(len(cases_list)):
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[2][4])
-    cbar = plot.colorbar(p_plot,cax,ticks=[MAX_plot_p,MAX_plot_p/2,0.0,-MAX_plot_p/2,-MAX_plot_p],format=tkr.FormatStrFormatter('%.2f'))
+    cbar = plot.colorbar(p_plot,cax,ticks=[plot_norm_p,plot_norm_p/2,0.0,-plot_norm_p/2,-plot_norm_p],format=tkr.FormatStrFormatter('%.2f'))
     ticklabs = cbar.ax.get_yticklabels()
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
 
     ax = plot.Subplot(fig,inner[2][6])
-    e_plot = p_err_grid[c]/MAX_plot_p
+    e_plot = p_err_grid[c]/norm_err_p
     e_plot_p =e_plot+1E-30
     e_plot_p[e_plot_p<=0]=np.NaN
     e_plot_n = e_plot
@@ -681,11 +713,6 @@ for c in range(len(cases_list)):
 if True:
     # custom combined plot for the paper
 
-
-    levels_err_ux = np.linspace(-MAX_err_ux[c],MAX_err_ux[c],21)#np.power(10,np.linspace(-4,0,21))
-    levels_err_uy = np.linspace(-MAX_err_uy[c],MAX_err_uy[c],21)#np.power(10,np.linspace(-4,0,21))
-    levels_err_p = np.linspace(-MAX_err_p[c],MAX_err_p[c],21)#np.power(10,np.linspace(-4,0,21))
-
     levels_mx = np.geomspace(1E-3,1,11)##
 
 
@@ -808,7 +835,7 @@ if True:
     
     cax=plot.Subplot(fig,inner[0][1])
     cax.set(xmargin=0.5)
-    cbar = plot.colorbar(ux_plot,cax,ticks=[MAX_plot_ux,MAX_plot_ux/2,0.0,-MAX_plot_ux/2,-MAX_plot_ux],format=tkr.FormatStrFormatter('%.2f'))
+    cbar = plot.colorbar(ux_plot,cax,ticks=[plot_norm_ux,plot_norm_ux/2,0.0,-plot_norm_ux/2,-plot_norm_ux],format=tkr.FormatStrFormatter('%.2f'))
     ticklabs = cbar.ax.get_yticklabels()
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
@@ -817,7 +844,7 @@ if True:
     c=4
     ax = plot.Subplot(fig,inner[1][0])
    
-    e_plot = ux_err_grid[c]/MAX_plot_ux
+    e_plot = ux_err_grid[c]/norm_err_ux
     e_plot_p =e_plot+1E-30
     e_plot_p[e_plot_p<=0]=np.NaN
     e_plot_n = e_plot
@@ -827,6 +854,7 @@ if True:
 
     ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
     ux_plot2 = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
+    #ux_plot = ax.contourf(X_grid,Y_grid,ux_err_grid[c]/norm_err_ux,levels=levels_mx,norm=matplotlib.colors.CenteredNorm(),cmap='bwr',extend='both')
     ax.set_aspect('equal')
     ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
     ax.yaxis.set_tick_params(labelsize=8)
@@ -859,7 +887,7 @@ if True:
     inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[0][2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     c=5
     ax = plot.Subplot(fig,inner[2][0])
-    e_plot = ux_err_grid[c]/MAX_plot_ux
+    e_plot = ux_err_grid[c]/norm_err_ux
     e_plot_p =e_plot+1E-30
     e_plot_p[e_plot_p<=0]=np.NaN
     e_plot_n = e_plot
@@ -914,7 +942,7 @@ if True:
     fig.add_subplot(ax)
 
     cax=plot.Subplot(fig,inner[3][1])
-    cbar = plot.colorbar(p_plot,cax,ticks=[MAX_plot_uy,MAX_plot_uy/2,0.0,-MAX_plot_uy/2,-MAX_plot_uy],format=tkr.FormatStrFormatter('%.2f'))
+    cbar = plot.colorbar(p_plot,cax,ticks=[plot_norm_uy,plot_norm_uy/2,0.0,-plot_norm_uy/2,-plot_norm_uy],format=tkr.FormatStrFormatter('%.2f'))
     ticklabs = cbar.ax.get_yticklabels()
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
@@ -922,7 +950,7 @@ if True:
     c=4
     inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[1][1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[4][0])
-    e_plot = uy_err_grid[c]/MAX_plot_uy
+    e_plot = uy_err_grid[c]/norm_err_uy
     e_plot_p =e_plot+1E-30
     e_plot_p[e_plot_p<=0]=np.NaN
     e_plot_n = e_plot
@@ -954,7 +982,7 @@ if True:
     c=5
     inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[1][2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     ax = plot.Subplot(fig,inner[5][0])
-    e_plot = uy_err_grid[c]/MAX_plot_uy
+    e_plot = uy_err_grid[c]/norm_err_uy
     e_plot_p =e_plot+1E-30
     e_plot_p[e_plot_p<=0]=np.NaN
     e_plot_n = e_plot
@@ -1003,7 +1031,7 @@ if True:
     
     cax=plot.Subplot(fig,inner[6][1])
     cax.set(xmargin=0.5)
-    cbar = plot.colorbar(ux_plot,cax,ticks=[MAX_plot_p,MAX_plot_p/2,0.0,-MAX_plot_p/2,-MAX_plot_p],format=tkr.FormatStrFormatter('%.2f'))
+    cbar = plot.colorbar(ux_plot,cax,ticks=[plot_norm_p,plot_norm_p/2,0.0,-plot_norm_p/2,-plot_norm_p],format=tkr.FormatStrFormatter('%.2f'))
     ticklabs = cbar.ax.get_yticklabels()
     cbar.ax.set_yticklabels(ticklabs, fontsize=8)
     fig.add_subplot(cax)
@@ -1012,7 +1040,7 @@ if True:
     c=4
     ax = plot.Subplot(fig,inner[7][0])
    
-    e_plot = p_err_grid[c]/MAX_plot_p
+    e_plot = p_err_grid[c]/norm_err_p
     e_plot_p =e_plot+1E-30
     e_plot_p[e_plot_p<=0]=np.NaN
     e_plot_n = e_plot
@@ -1053,7 +1081,7 @@ if True:
     inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[2][2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
     c=5
     ax = plot.Subplot(fig,inner[8][0])
-    e_plot = p_err_grid[c]/MAX_plot_p
+    e_plot = p_err_grid[c]/norm_err_p
     e_plot_p =e_plot+1E-30
     e_plot_p[e_plot_p<=0]=np.NaN
     e_plot_n = e_plot
@@ -1153,6 +1181,640 @@ if True:
     plot.close(fig)
 
 
+if True:
+    # custom combined plot for the paper
+
+
+    levels_err_ux = np.linspace(-MAX_err_ux[c],MAX_err_ux[c],21)#np.power(10,np.linspace(-4,0,21))
+    levels_err_uy = np.linspace(-MAX_err_uy[c],MAX_err_uy[c],21)#np.power(10,np.linspace(-4,0,21))
+    levels_err_p = np.linspace(-MAX_err_p[c],MAX_err_p[c],21)#np.power(10,np.linspace(-4,0,21))
+
+    levels_mx = np.geomspace(1E-3,1,11)##
+
+
+    ticks_mx = np.array([1E-3,3E-3,1E-2,3E-2,1E-1,3E-1,1])
+
+    from matplotlib.colors import LinearSegmentedColormap
+
+    cdict3 = {'red':   [(0.0,  1.0, 1.0), # white
+                        (0.33,  1.0, 1.0), # orange
+                        (0.66,  1.0, 1.0), # pink
+                        (1.0,  1.0, 1.0)], # red 
+
+             'green': [(0.0,  0.0, 1.0),
+                        (0.33, 170/255.0, 170/255.0), # (0.33, 170.0/255.0, 170.0/255.0),
+                        (0.66, 0.0, 0.0),
+                        (1.0,  0.0, 0.0)],
+
+            'blue':  [(0.0,  0.0, 1.0),
+                        (0.33,  0.0, 0.0),
+                        (0.66,  1.0, 1.0),
+                        (1.0,  0.0, 0.0)]}
+
+
+    cmap1 = LinearSegmentedColormap('WhiteYellowPinkRed',cdict3)
+    cmap1.set_bad('white',alpha=0.0)
+
+    
+    cdict4 = {'red':   [(0.0,  1.0, 1.0),
+                        (0.33,  0.0, 0.0),
+                        (0.66,  0.0, 0.0),
+                        (1.0,  0.0, 0.0)],
+
+             'green': [(0.0,  0.0, 1.0),
+                        (0.33, 1.0, 1.0),
+                        (0.66,  1.0, 1.0),
+                        (1.0,  0.0, 0.0)],
+
+            'blue':  [(0.0,  0.0, 1.0),
+                        (0.33,  0.0, 0.0),
+                        (0.66,  1.0, 1.0),
+                        (1.0,  1.0, 1.0)]}
+
+    cmap2 = LinearSegmentedColormap('WhiteGreenCyanBlue',cdict4)
+    cmap2.set_bad('white',alpha=0.0)
+    
+    cdict5 = {'red':   [(0.0,  0.0, 0.0),
+                        (0.16,  0.0, 0.0),
+                        (0.33,  0.0, 0.0),
+                        (0.5,  1.0, 1.0), # white
+                        (0.66,  1.0, 1.0), # orange
+                        (0.83,  1.0, 1.0), # pink
+                        (1.0,  1.0, 1.0)], # red 
+
+             'green': [(0.0,  0.0, 0.0),
+                        (0.16,  1.0, 1.0),
+                        (0.33,  1.0, 1.0),
+                        (0.5,  1.0, 1.0),
+                        (0.66, 170.0/255.0, 170.0/255.0), # (0.33, 170.0/255.0, 170.0/255.0),
+                        (0.83, 0.0, 0.0),
+                        (1.0,  0.0, 0.0)],
+
+            'blue':  [(0.0,  1.0, 1.0),
+                        (0.16,  1.0, 1.0),
+                        (0.33,  0.0, 0.0),
+                        (0.5,  1.0, 1.0),
+                        (0.66,  0.0, 0.0),
+                        (0.83,  1.0, 1.0),
+                        (1.0,  0.0, 0.0)]}
+    # for the colobars only
+    cmap3 = LinearSegmentedColormap('BlueCyanGreenWhiteYellowPinkRed',cdict5)
+    cmap3.set_bad('white',alpha=0.0)
+
+    dual_log_cbar_norm = matplotlib.colors.CenteredNorm(0.0,1.0)
+    dual_log_cbar_ticks = [-1,-0.666,-0.333,0,0.333,0.666,1]
+    dual_log_cbar_labels = ['-1','-1E-1','-1E-2','0','1E-2','1E-1','1']
+
+    # fix the dots for the D/delta x label
+
+    c=3
+    text_corner_mask = (np.multiply(x_downsample_list[c]>6,y_downsample_list[c]<-1.5))<1
+    x_downsample_list[c] = x_downsample_list[c][text_corner_mask]
+    y_downsample_list[c] = y_downsample_list[c][text_corner_mask]
+
+    c=4
+    text_corner_mask = (np.multiply(x_downsample_list[c]>6,y_downsample_list[c]<-1.5))<1
+    x_downsample_list[c] = x_downsample_list[c][text_corner_mask]
+    y_downsample_list[c] = y_downsample_list[c][text_corner_mask]
+    c=5
+    text_corner_mask = (np.multiply(x_downsample_list[c]>6,y_downsample_list[c]<-1.5))<1
+    x_downsample_list[c] = x_downsample_list[c][text_corner_mask]
+    y_downsample_list[c] = y_downsample_list[c][text_corner_mask]
+
+
+    x_ticks = [-2,0,2,4,6,8,10]
+
+    fig = plot.figure(figsize=(6.5,9))
+    plot.subplots_adjust(left=0.06,top=0.99,right=0.93,bottom=0.04)
+    outer = gridspec.GridSpec(2,2,wspace=0.33,hspace=0.03)
+
+    mid = []
+    mid.append(gridspec.GridSpecFromSubplotSpec(5,1,subplot_spec=outer[0],wspace=0.02,hspace=0.04,height_ratios=[1,1,1,1,1]))
+
+    inner = []
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[0][0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    # (1,(1,1))
+    ax = plot.Subplot(fig,inner[0][0])
+    ux_plot = ax.contourf(X_grid,Y_grid,ux_grid,levels=levels_ux,cmap= matplotlib.colormaps['bwr'],extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.xaxis.set_tick_params(labelsize=8)
+    ax.text(7.5,1.2,'$\overline{u}_{\mathrm{x,DNS}}$',fontsize=8)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    ax.text(-1.75,1.4,'(a)',fontsize=8)
+    fig.add_subplot(ax)
+    
+    cax=plot.Subplot(fig,inner[0][1])
+    cax.set(xmargin=0.5)
+    cbar = plot.colorbar(ux_plot,cax,ticks=[plot_norm_ux,plot_norm_ux/2,0.0,-plot_norm_ux/2,-plot_norm_ux],format=tkr.FormatStrFormatter('%.2f'))
+    ticklabs = cbar.ax.get_yticklabels()
+    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    fig.add_subplot(cax)
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[0][1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    # (1,(1,1))
+    c=4
+    ax = plot.Subplot(fig,inner[1][0])
+    ux_plot = ax.contourf(X_grid,Y_grid,ux_pred_grid[c],levels=levels_ux,cmap= matplotlib.colormaps['bwr'],extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.xaxis.set_tick_params(labelsize=8)
+    ax.text(7.5,1.2,'$\overline{u}_{\mathrm{x,PINN}}$',fontsize=8)
+    ax.text(6,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
+    if cases_supersample_factor[c]>1:
+        dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    ax.text(-1.75,1.4,'(b)',fontsize=8)
+    fig.add_subplot(ax)
+    
+    cax=plot.Subplot(fig,inner[1][1])
+    cax.set(xmargin=0.5)
+    cbar = plot.colorbar(ux_plot,cax,ticks=[plot_norm_ux,plot_norm_ux/2,0.0,-plot_norm_ux/2,-plot_norm_ux],format=tkr.FormatStrFormatter('%.2f'))
+    ticklabs = cbar.ax.get_yticklabels()
+    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    fig.add_subplot(cax)
+
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[0][2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    # (1,(1,1))
+    c=5
+    ax = plot.Subplot(fig,inner[2][0])
+    ux_plot = ax.contourf(X_grid,Y_grid,ux_pred_grid[c],levels=levels_ux,cmap= matplotlib.colormaps['bwr'],extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.xaxis.set_tick_params(labelsize=8)
+    ax.text(7.5,1.2,'$\overline{u}_{\mathrm{x,PINN}}$',fontsize=8)
+    ax.text(6,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
+    if cases_supersample_factor[c]>1:
+        dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    ax.text(-1.75,1.4,'(c)',fontsize=8)
+    fig.add_subplot(ax)
+    
+    cax=plot.Subplot(fig,inner[2][1])
+    cax.set(xmargin=0.5)
+    cbar = plot.colorbar(ux_plot,cax,ticks=[plot_norm_ux,plot_norm_ux/2,0.0,-plot_norm_ux/2,-plot_norm_ux],format=tkr.FormatStrFormatter('%.2f'))
+    ticklabs = cbar.ax.get_yticklabels()
+    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    fig.add_subplot(cax)
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[0][3],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    c=4
+    ax = plot.Subplot(fig,inner[3][0])
+   
+    e_plot = ux_err_grid[c]/norm_err_ux
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+
+    #ux_plot = ax.contourf(X_grid,Y_grid,ux_err_grid[c]/norm_err_ux,levels=21,cmap='bwr',extend='both')
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    ux_plot2 = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.xaxis.set_tick_params(labelsize=8)
+    if cases_supersample_factor[c]>1:
+        dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+
+    ax.text(7,1.2,'$\eta(\overline{u}_{\mathrm{x,PINN}})$',fontsize=8,color='k')
+    ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
+    ax.text(-1.75,1.4,'(d)',fontsize=8,color='k')
+    fig.add_subplot(ax)
+
+    # check bar
+    #cax=plot.Subplot(fig,inner[1][1])
+    #cbar = plot.colorbar(ux_plot,cax,ticks=[1E-3,1E-2,1E-1,1],extend='both')
+    #ticklabs = cbar.ax.get_yticklabels()
+    #cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    #fig.add_subplot(cax)
+
+    # dual log colorbar
+    cax=plot.Subplot(fig,inner[3][1])
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
+    fig.add_subplot(cax)
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[0][4],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    c=5
+    ax = plot.Subplot(fig,inner[4][0])
+    e_plot = ux_err_grid[c]/norm_err_ux
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    ux_plot2 = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelsize=8)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    #ax.set_xlabel('x/D',fontsize=8,labelpad=0)
+    if cases_supersample_factor[c]>1:
+        dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    ax.text(7,1.2,'$\eta(\overline{u}_{\mathrm{x,PINN}})$',fontsize=8,color='k')
+    ax.text(6,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
+    ax.text(-1.75,1.4,'(e)',fontsize=8,color='k')
+    fig.add_subplot(ax)
+
+    # these are for checking the color bars are accurate, thus commented 
+    #cax=plot.Subplot(fig,inner[2][1])
+    #cbar = plot.colorbar(ux_plot,cax,ticks=[1E-3,1E-2,1E-1,1],extend='both')
+    #ticklabs = cbar.ax.get_yticklabels()
+    #cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    #fig.add_subplot(cax)
+
+    # dual log colorbar
+    cax=plot.Subplot(fig,inner[4][1])
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
+    fig.add_subplot(cax)
+
+
+
+
+
+    mid.append(gridspec.GridSpecFromSubplotSpec(5,1,subplot_spec=outer[1],wspace=0.02,hspace=0.04,height_ratios=[1,1,1,1,1]))
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[1][0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    ax = plot.Subplot(fig,inner[5][0])
+    p_plot =ax.contourf(X_grid,Y_grid,uy_grid,levels=levels_uy,cmap= matplotlib.colormaps['bwr'],extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelsize=8)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.text(7.5,1.2,'$\overline{u}_{\mathrm{y,DNS}}$',fontsize=8)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    ax.text(-1.75,1.4,'(f)',fontsize=8)
+    fig.add_subplot(ax)
+
+    cax=plot.Subplot(fig,inner[5][1])
+    cbar = plot.colorbar(p_plot,cax,ticks=[plot_norm_uy,plot_norm_uy/2,0.0,-plot_norm_uy/2,-plot_norm_uy],format=tkr.FormatStrFormatter('%.2f'))
+    ticklabs = cbar.ax.get_yticklabels()
+    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    fig.add_subplot(cax)
+
+    c=4
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[1][1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    ax = plot.Subplot(fig,inner[6][0])
+    p_plot =ax.contourf(X_grid,Y_grid,uy_pred_grid[c],levels=levels_uy,cmap= matplotlib.colormaps['bwr'],extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelsize=8)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.text(7.5,1.2,'$\overline{u}_{\mathrm{y,PINN}}$',fontsize=8)
+    ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
+    if cases_supersample_factor[c]>1:
+        dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    ax.text(-1.75,1.4,'(g)',fontsize=8)
+    fig.add_subplot(ax)
+
+    cax=plot.Subplot(fig,inner[6][1])
+    cbar = plot.colorbar(p_plot,cax,ticks=[plot_norm_uy,plot_norm_uy/2,0.0,-plot_norm_uy/2,-plot_norm_uy],format=tkr.FormatStrFormatter('%.2f'))
+    ticklabs = cbar.ax.get_yticklabels()
+    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    fig.add_subplot(cax)
+
+    c=5
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[1][2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    ax = plot.Subplot(fig,inner[7][0])
+    p_plot =ax.contourf(X_grid,Y_grid,uy_pred_grid[c],levels=levels_uy,cmap= matplotlib.colormaps['bwr'],extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelsize=8)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.text(7.5,1.2,'$\overline{u}_{\mathrm{y,PINN}}$',fontsize=8)
+    ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
+    if cases_supersample_factor[c]>1:
+        dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    ax.text(-1.75,1.4,'(h)',fontsize=8)
+    fig.add_subplot(ax)
+
+    cax=plot.Subplot(fig,inner[7][1])
+    cbar = plot.colorbar(p_plot,cax,ticks=[plot_norm_uy,plot_norm_uy/2,0.0,-plot_norm_uy/2,-plot_norm_uy],format=tkr.FormatStrFormatter('%.2f'))
+    ticklabs = cbar.ax.get_yticklabels()
+    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    fig.add_subplot(cax)
+    
+    c=4
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[1][3],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    ax = plot.Subplot(fig,inner[8][0])
+    e_plot = uy_err_grid[c]/norm_err_uy
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+    p_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    p_plot2 = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
+    ax.set_aspect('equal')
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_ylabel('y',fontsize=8,labelpad=-5)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelsize=8)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    #ax.set_xlabel('x/D',fontsize=8,labelpad=-1)
+    if cases_supersample_factor[c]>1:
+        dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    ax.text(7,1.2,'$\eta(\overline{u}_{\mathrm{y,PINN}})$',fontsize=8,color='k')
+    ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
+    ax.text(-1.75,1.4,'(i)',fontsize=8)
+    fig.add_subplot(ax)
+
+    cax=plot.Subplot(fig,inner[8][1])
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
+    fig.add_subplot(cax)
+
+    c=5
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[1][4],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    ax = plot.Subplot(fig,inner[9][0])
+    e_plot = uy_err_grid[c]/norm_err_uy
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+    p_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    p_plot2 = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
+    ax.set_aspect('equal')
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_ylabel('y',fontsize=8,labelpad=-5)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelsize=8)
+    ax.xaxis.set_tick_params(labelbottom=True)
+    ax.set_xlabel('x',fontsize=8,labelpad=0)
+    
+    if cases_supersample_factor[c]>1:
+        dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    ax.text(7,1.2,'$\eta(\overline{u}_{\mathrm{y,PINN}})$',fontsize=8,color='k')
+    ax.text(6,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
+    ax.text(-1.75,1.4,'(j)',fontsize=8)
+    fig.add_subplot(ax)
+
+    cax=plot.Subplot(fig,inner[9][1])
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
+    fig.add_subplot(cax)
+
+
+
+
+
+    mid.append(gridspec.GridSpecFromSubplotSpec(5,1,subplot_spec=outer[2],wspace=0.02,hspace=0.04,height_ratios=[1,1,1,1,1]))
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[2][0],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    # (1,(1,1))
+    ax = plot.Subplot(fig,inner[10][0])
+    ux_plot = ax.contourf(X_grid,Y_grid,p_grid,levels=levels_p,cmap= matplotlib.colormaps['bwr'],extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.text(7.5,1.2,'$\overline{p}_{\mathrm{DNS}}$',fontsize=8)
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    ax.text(-1.75,1.4,'(k)',fontsize=8)
+    fig.add_subplot(ax)
+    
+    cax=plot.Subplot(fig,inner[10][1])
+    cax.set(xmargin=0.5)
+    cbar = plot.colorbar(ux_plot,cax,ticks=[plot_norm_p,plot_norm_p/2,0.0,-plot_norm_p/2,-plot_norm_p],format=tkr.FormatStrFormatter('%.2f'))
+    ticklabs = cbar.ax.get_yticklabels()
+    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    fig.add_subplot(cax)
+
+    c=4
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[2][1],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    # (1,(1,1))
+    ax = plot.Subplot(fig,inner[11][0])
+    ux_plot = ax.contourf(X_grid,Y_grid,p_pred_grid[c],levels=levels_p,cmap= matplotlib.colormaps['bwr'],extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.text(7.5,1.2,'$\overline{p}_{\mathrm{PINN}}$',fontsize=8)
+    ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    ax.text(-1.75,1.4,'(l)',fontsize=8)
+    fig.add_subplot(ax)
+    
+    cax=plot.Subplot(fig,inner[11][1])
+    cax.set(xmargin=0.5)
+    cbar = plot.colorbar(ux_plot,cax,ticks=[plot_norm_p,plot_norm_p/2,0.0,-plot_norm_p/2,-plot_norm_p],format=tkr.FormatStrFormatter('%.2f'))
+    ticklabs = cbar.ax.get_yticklabels()
+    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    fig.add_subplot(cax)
+
+    c=5
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[2][2],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    # (1,(1,1))
+    ax = plot.Subplot(fig,inner[12][0])
+    ux_plot = ax.contourf(X_grid,Y_grid,p_pred_grid[c],levels=levels_p,cmap= matplotlib.colormaps['bwr'],extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y/D',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.text(7.5,1.2,'$\overline{p}_{\mathrm{PINN}}$',fontsize=8)
+    ax.text(6.5,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    ax.text(-1.75,1.4,'(m)',fontsize=8)
+    fig.add_subplot(ax)
+    
+    cax=plot.Subplot(fig,inner[12][1])
+    cax.set(xmargin=0.5)
+    cbar = plot.colorbar(ux_plot,cax,ticks=[plot_norm_p,plot_norm_p/2,0.0,-plot_norm_p/2,-plot_norm_p],format=tkr.FormatStrFormatter('%.2f'))
+    ticklabs = cbar.ax.get_yticklabels()
+    cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    fig.add_subplot(cax)
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[2][3],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    c=4
+    ax = plot.Subplot(fig,inner[13][0])
+   
+    e_plot = p_err_grid[c]/norm_err_p
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+
+
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    ux_plot2 = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y',fontsize=8,labelpad=-5)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    #if cases_supersample_factor[c]>1:
+    #    dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+
+    ax.text(7.5,1.2,'$\eta(\overline{p}_{\mathrm{PINN}})$',fontsize=8,color='k')
+    ax.text(6.5,-1.8,'$D/\Delta x = 2.5$',fontsize=8,color='k')
+    ax.text(-1.75,1.4,'(n)',fontsize=8,color='k')
+    fig.add_subplot(ax)
+
+    # check bar
+    #cax=plot.Subplot(fig,inner[1][1])
+    #cbar = plot.colorbar(ux_plot,cax,ticks=[1E-3,1E-2,1E-1,1],extend='both')
+    #ticklabs = cbar.ax.get_yticklabels()
+    #cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    #fig.add_subplot(cax)
+
+    # dual log colorbar
+    cax=plot.Subplot(fig,inner[13][1])
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
+    fig.add_subplot(cax)
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[2][4],wspace=0.05,hspace=0.1,width_ratios=[0.97,0.03]))
+    c=5
+    ax = plot.Subplot(fig,inner[14][0])
+    e_plot = p_err_grid[c]/norm_err_p
+    e_plot_p =e_plot+1E-30
+    e_plot_p[e_plot_p<=0]=np.NaN
+    e_plot_n = e_plot
+    e_plot_n[e_plot_n>0]=np.NaN
+    e_plot_n = np.abs(e_plot_n)
+    ux_plot = ax.contourf(X_grid,Y_grid,e_plot_p,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap1,extend='both')
+    ux_plot2 = ax.contourf(X_grid,Y_grid,e_plot_n,levels=levels_mx,norm=matplotlib.colors.LogNorm(),cmap=cmap2,extend='both')
+    ax.set_aspect('equal')
+    ax.set_ylabel('y',fontsize=8,labelpad=-5)
+    ax.set_xlabel('x',fontsize=8,labelpad=0)
+    ax.yaxis.set_tick_params(labelsize=8)
+    ax.set_xticks(x_ticks)
+    ax.xaxis.set_tick_params(labelsize=8)
+    #if cases_supersample_factor[c]>1:
+    #    dots = ax.plot(x_downsample_list[c],y_downsample_list[c],markersize=2,linewidth=0,color='k',marker='.',fillstyle='full',markeredgecolor='none')
+    circle = plot.Circle((0,0),0.5,color='k',fill=False)
+    ax.add_patch(circle)
+    ax.text(7.5,1.2,'$\eta(\overline{p}_{\mathrm{PINN}})$',fontsize=8,color='k')
+    ax.text(6,-1.8,'$D/\Delta x = 1.25$',fontsize=8,color='k')
+    ax.text(-1.75,1.4,'(o)',fontsize=8,color='k')
+    fig.add_subplot(ax)
+
+    # these are for checking the color bars are accurate, thus commented 
+    #cax=plot.Subplot(fig,inner[2][1])
+    #cbar = plot.colorbar(ux_plot,cax,ticks=[1E-3,1E-2,1E-1,1],extend='both')
+    #ticklabs = cbar.ax.get_yticklabels()
+    #cbar.ax.set_yticklabels(ticklabs, fontsize=8)
+    #fig.add_subplot(cax)
+
+    # dual log colorbar
+    cax=plot.Subplot(fig,inner[14][1])
+    cbar = plot.colorbar(matplotlib.cm.ScalarMappable(norm=dual_log_cbar_norm, cmap=cmap3),cax,ticks=dual_log_cbar_ticks,extend='both')
+    cbar.ax.set_yticklabels(dual_log_cbar_labels, fontsize=8)
+    fig.add_subplot(cax)
+    
+
+
+
+    # error plot
+
+    mid.append(gridspec.GridSpecFromSubplotSpec(2,1,subplot_spec=outer[3],wspace=0.02,hspace=0.1,height_ratios=[0.5,0.5,]))
+
+    inner.append(gridspec.GridSpecFromSubplotSpec(1,2,subplot_spec=mid[3][1],wspace=0.02,hspace=0.1,width_ratios=[0.15,0.85,]))
+
+    ax = plot.Subplot(fig,inner[15][1])
+
+    # error percent plot
+    pts_per_d = 1.0/np.array(dx)
+
+    mean_err_ux = np.array(mean_err_ux)
+    mean_err_uy = np.array(mean_err_uy)
+    mean_err_p = np.array(mean_err_p)
+
+    p95_err_ux = np.array(p95_err_ux)
+    p95_err_uy = np.array(p95_err_uy)
+    p95_err_p = np.array(p95_err_p)
+
+    MAX_err_ux = np.array(MAX_err_ux)
+    MAX_err_uy = np.array(MAX_err_uy)
+    MAX_err_p = np.array(MAX_err_p)
+
+    error_x_tick_labels = ['40','20','10','5','2.5','1.25']
+    error_y_ticks = [1E-3,1E-2,1E-1,1]
+    error_y_tick_labels = ['1E-3','1E-2','1E-1','1']
+
+    supersample_factors = np.array(cases_supersample_factor)
+
+    error_x_tick_labels = ['40','20','10','5','2.5','1.25']
+    error_y_ticks = [1E-4,1E-3,1E-2,1E-1,1]
+    error_y_tick_labels = ['1E-4','1E-3','1E-2','1E-1','1']
+
+    supersample_factors = np.array(cases_supersample_factor)
+    mean_plt_x,=ax.plot(0.95*pts_per_d,mean_err_ux,linewidth=0,marker='o',color='blue',markersize=3,markerfacecolor='blue')
+    max_plt_x,=ax.plot(0.95*pts_per_d,MAX_err_ux,linewidth=0,marker='v',color='blue',markersize=3,markerfacecolor='blue')
+    mean_plt_y,=ax.plot(pts_per_d,mean_err_uy,linewidth=0,marker='o',color='red',markersize=3,markerfacecolor='red')
+    max_plt_y,=ax.plot(pts_per_d,MAX_err_uy,linewidth=0,marker='v',color='red',markersize=3,markerfacecolor='red')
+    mean_plt_p,=ax.plot(1.05*pts_per_d,mean_err_p,linewidth=0,marker='o',color='green',markersize=3,markerfacecolor='green')
+    max_plt_p,=ax.plot(1.05*pts_per_d,MAX_err_p,linewidth=0,marker='v',color='green',markersize=3,markerfacecolor='green')
+    ax.set_xscale('log')
+    ax.set_xticks(pts_per_d)
+    ax.set_yscale('log')
+    ax.text(1.5,0.5,'(p)',fontsize=8,color='k')
+    ax.set_ylim(1E-4,1E0)
+    ax.set_yticks(error_y_ticks)
+    ax.set_yticklabels(error_y_tick_labels,fontsize=8)
+    ax.set_ylabel("Error ($\eta$)",fontsize=8)
+    ax.legend([mean_plt_x,max_plt_x,mean_plt_y,max_plt_y,mean_plt_p,max_plt_p,],['Mean $\overline{u}_x$','Max $\overline{u}_x$','Mean $\overline{u}_y$','Max $\overline{u}_y$','Mean $\overline{p}$','Max $\overline{p}$'],fontsize=8,ncols=2,bbox_to_anchor=(1.0, 1.4))
+    ax.grid('on')
+    ax.set_xticks(pts_per_d)
+    ax.set_xticklabels(error_x_tick_labels,fontsize=8)
+    ax.set_xlabel('$D/\Delta x$',fontsize=8,labelpad=-1)
+    
+    fig.add_subplot(ax)
+
+
+    plot.savefig(figures_dir+'logerr_mfg_t010_all_single_column.pdf')
+    plot.savefig(figures_dir+'logerr_mfg_t010_all_single_column.png',dpi=600)
+    plot.close(fig)
 
 
 

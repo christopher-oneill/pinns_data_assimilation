@@ -19,22 +19,22 @@ import platform
 
 node_name = platform.node()
 
-LOCAL_NODE = 'DESKTOP-AMLVDAF'
+LOCAL_NODE = 'DESKTOP-L3FA8HC'
 if node_name==LOCAL_NODE:
     import matplotlib.pyplot as plot
     import matplotlib.colors as mplcolors
     useGPU=False    
-    HOMEDIR = 'C:/projects/pinns_narval/sync/'
-    sys.path.append('C:/projects/pinns_local/code/')
+    HOMEDIR = 'F:/projects/pinns_narval/sync/'
+    sys.path.append('F:/projects/pinns_local/code/')
 
-from pinns_galerkin_viv.lib import galerkin
-from pinns_galerkin_viv.lib import file_util
-from pinns_galerkin_viv.lib import downsample
+from pinns_data_assimilation.lib import galerkin
+from pinns_data_assimilation.lib import file_util
+from pinns_data_assimilation.lib import downsample
 
 # read the data
 
 base_dir = HOMEDIR+'/data/mazi_fixed_grid/'
-time_data_dir = 'I:/projects/fixed_cylinder/grid/data/'
+time_data_dir = 'F:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
 supersample_factors = np.array([1,4,8,16,32,64])
 #supersample_factors = np.array([1])
 n_LOM = 10
@@ -46,7 +46,7 @@ for nS in range(supersample_factors.shape[0]):
     meanVelocityFile = h5py.File(base_dir+'meanVelocity.mat','r')
     meanPressureFile = h5py.File(base_dir+'meanPressure.mat','r')
     configFile = h5py.File(base_dir+'configuration.mat','r')
-    POD_dataFile = h5py.File(base_dir+'POD_data.mat','r')
+    POD_dataFile = h5py.File(base_dir+'POD_data_old.mat','r')
 
     fluctuatingPressureFile = h5py.File(time_data_dir+'fluctuatingPressure.mat','r')
     
@@ -102,7 +102,7 @@ for nS in range(supersample_factors.shape[0]):
     if supersample_factor>1:
         n_x = np.array(configFile['x_grid']).size
         n_y = np.array(configFile['y_grid']).size
-        downsample_inds, n_x_d, n_y_d = downsample.compute_downsample_inds_even(supersample_factor,n_x,n_y)
+        downsample_inds, n_x_d, n_y_d = downsample.compute_downsample_inds_center(supersample_factor,n_x,n_y)
         
         x = x[downsample_inds]
         y = y[downsample_inds]
@@ -202,11 +202,22 @@ for nS in range(supersample_factors.shape[0]):
     i_Dij = np.zeros([D_ij.shape[2],D_ij.shape[3]])
     i_Cijk = np.zeros([C_ijk.shape[2],C_ijk.shape[3],C_ijk.shape[4]])
    
+    if False:
+        # old style rectangular integration
+        for i in range(D_ij.shape[2]):
+            for j in range(D_ij.shape[3]):
+                i_Dij[i,j] = np.sum((M0*dA/A0)*D_ij[:,:,i,j],(0,1))
+                for k in range(C_ijk.shape[4]):
+                    i_Cijk[i,j,k] = np.sum((M0*dA/A0)*C_ijk[:,:,i,j,k],(0,1))
+    # new style trapezoidal integration
     for i in range(D_ij.shape[2]):
         for j in range(D_ij.shape[3]):
-            i_Dij[i,j] = np.sum((M0*dA/A0)*D_ij[:,:,i,j],(0,1))
+            i_Dij_x = np.trapz(D_ij[:,:,i,j],X_grid[:,0],axis=0) # integrate in x-direction, collapses first dimension
+            i_Dij[i,j] = (M0/A0)*np.trapz(i_Dij_x,Y_grid[0,:],axis=0)  # integrate in y-direction; note that the first dimension of above is y
             for k in range(C_ijk.shape[4]):
-                i_Cijk[i,j,k] = np.sum((M0*dA/A0)*C_ijk[:,:,i,j,k],(0,1))
+                i_Cijk_x = np.trapz(C_ijk[:,:,i,j,k],X_grid[:,0],axis=0) # integrate in x-direction, collapses first dimension
+                i_Cijk[i,j,k] = (M0/A0)*np.trapz(i_Cijk_x,Y_grid[0,:],axis=0)# integrate in y-direction; note that the first dimension of above is y
+    
     
     n_LOM_p = n_LOM+1
     # calibrate the pressure
@@ -279,10 +290,8 @@ for nS in range(supersample_factors.shape[0]):
         plot.plot(t,(dAk_n[:,k]-dAk_g[:,k])/amp_dAk[k])
 
         plot.ylabel('da_i/(0.5*(max(da_i)-min(da_i))')
-        plot.savefig(figure_prefix+'_dAk'+str(k)+'_S'+str(supersample_factors[nS])+'_full.png',dpi=300)
-        plot.xlim([460,480])
-        plot.savefig(figure_prefix+'_dAk'+str(k)+'_S'+str(supersample_factors[nS])+'_close.png',dpi=300)
-        plot.close()
+    plot.show()
+    exit()
 
 
 

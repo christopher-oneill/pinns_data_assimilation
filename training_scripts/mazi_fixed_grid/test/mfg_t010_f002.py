@@ -1306,11 +1306,11 @@ if __name__=="__main__":
 
     if node_name==LOCAL_NODE:
     #    plot_near_wall_BC()
-        #plot_err()
-        #plot_NS_residual()
+        plot_err()
+        plot_NS_residual()
         #plot_frequencies()
-        #save_pred()
-        #exit()
+        save_pred()
+        exit()
         pass
 
     # train the network

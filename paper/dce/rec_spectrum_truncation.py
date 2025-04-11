@@ -10,8 +10,8 @@ import sys
 sys.path.append('F:/projects/pinns_local/code/')
 from pinns_data_assimilation.lib.downsample import compute_downsample_inds_center
 
-figures_dir = 'F:/projects/paper_figures/t010/reconstruction/'
-rec_dir = 'F:/projects/paper_figures/t010/data/'
+figures_dir = 'F:/projects/paper_figures/t010_f2/reconstruction/'
+rec_dir = 'F:/projects/paper_figures/t010_f2/data/'
 data_dir = 'F:/projects/pinns_narval/sync/data/mazi_fixed_grid/'
 output_dir = 'F:/projects/pinns_narval/sync/output/'
 
@@ -87,6 +87,25 @@ inds_dft = np.array([ind_MAX_uxux_ref,ind_MAX_uxuy_ref,ind_MAX_uyuy_ref])
 fourierModeFile = h5py.File(base_dir+'fourierModes.mat','r')
 f_exported_modes = np.array(fourierModeFile['modeFrequencies'])
 
+if True:
+    # count the numer of cycles. 
+    import matplotlib.pyplot as plot
+
+    uy_temp = np.reshape(uy_ref,[uy_ref.shape[0]*uy_ref.shape[1],uy_ref.shape[2]])
+    d_uy_temp = np.concatenate(([0],np.diff(uy_temp[ind_MAX_uxuy_ref,:])),axis=0)
+    s_uy_temp = np.sign(d_uy_temp)
+    falling = (s_uy_temp[:-1]==1)*(s_uy_temp[1:]==-1)
+    inds_falling = (np.argwhere(falling)).ravel()
+
+    print(inds_falling)
+
+    print('Number of cycles: '+str(inds_falling.shape[0]))
+    print('Average points per cycle = '+str(np.mean(np.diff(inds_falling))))
+    #plot.plot(t,uy_temp[ind_MAX_uxuy_ref,:])
+    #plot.plot(t[:-1],falling)
+    #plot.plot(t,s_uy_temp)
+    #plot.show()
+    #exit()
 
 
 if True:
